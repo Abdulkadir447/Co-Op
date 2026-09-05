@@ -1,0 +1,19 @@
+order_date,customer_name,customer_email,customer_phone,product_name,product_sku,quantity,unit_price,total,order_id
+2026-04-03,Amina Yusuf,amina.yusuf@example.com,+234 803 111 2233,"Rice (parboiled, 50kg)",RIC-PAR-050,4,87500,350000,SO-1042-L1
+2026-04-03,Amina Yusuf,amina.yusuf@example.com,+234 803 111 2233,Sugar (50kg),SUG-050,2,68000,136000,SO-1042-L2
+2026-04-11,Musa Ibrahim,musa.ibrahim@example.com,+234 802 445 6677,Yam tuber (large),YAM-LRG-001,30,4500,135000,SO-1043-L1
+2026-04-19,Fatima Sani,fatima.sani@example.com,+234 806 222 3344,Palm oil (25L),PO-025,6,62000,372000,SO-1044-L1
+2026-05-02,Chinedu Okafor,chinedu.okafor@example.com,+234 805 333 4455,Cowpea (50kg),BEAN-OLA-050,3,96000,288000,SO-1045-L1
+2026-05-02,Chinedu Okafor,chinedu.okafor@example.com,+234 805 333 4455,Maize grain (100kg),MZ-GRN-100,2,58000,116000,SO-1045-L2
+2026-05-17,Zainab Mohammed,zainab.mohammed@example.com,+234 813 555 6677,Tomato paste (400g tin),TOM-PST-400,48,1850,88800,SO-1046-L1
+2026-05-28,Sani Garba,sani.garba@example.com,+234 816 666 7788,"Garri (yellow, 50kg)",GAR-YEL-050,5,32500,162500,SO-1047-L1
+2026-06-06,Hauwa Aliyu,hauwa.aliyu@example.com,+234 810 777 8899,Groundnut oil (25L),GNO-025,3,74500,223500,SO-1048-L1
+2026-06-14,Emeka Nwosu,emeka.nwosu@example.com,+234 703 888 9900,"Rice (parboiled, 50kg)",RIC-PAR-050,6,87500,525000,SO-1049-L1
+2026-06-25,Maryam Lawan,maryam.lawan@example.com,+234 706 999 0011,Detergent soap (carton),SOAP-BAR-CTN,4,15500,62000,SO-1050-L1
+2026-07-08,Amina Yusuf,amina.yusuf@example.com,+234 803 111 2233,Cassava flour (10kg),CAS-FLR-010,10,6800,68000,SO-1051-L1
+2026-07-21,Bello Abdullahi,bello.abdullahi@example.com,+234 809 444 5566,Millet (50kg),MIL-050,4,41000,164000,SO-1052-L1
+2026-08-05,Musa Ibrahim,musa.ibrahim@example.com,+234 802 445 6677,Yam tuber (large),YAM-LRG-001,25,4500,112500,SO-1053-L1
+2026-08-16,Fatima Sani,fatima.sani@example.com,+234 806 222 3344,Sugar (50kg),SUG-050,3,68000,204000,SO-1054-L1
+2026-08-27,Chinedu Okafor,chinedu.okafor@example.com,+234 805 333 4455,Palm oil (25L),PO-025,5,62000,310000,SO-1055-L1
+2026-09-02,Zainab Mohammed,zainab.mohammed@example.com,+234 813 555 6677,Tomato paste (400g tin),TOM-PST-400,60,1850,111000,SO-1056-L1
+2026-09-02,Zainab Mohammed,zainab.mohammed@example.com,+234 813 555 6677,"Rice (parboiled, 50kg)",RIC-PAR-050,2,87500,175000,SO-1056-L2

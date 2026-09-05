@@ -1,0 +1,12 @@
+name,sku,description,category,unit_price,cost_price,current_stock,reorder_level
+Yam tuber (large),YAM-LRG-001,Fresh,Tubers & Roots,4500,3200,120,30
+Cassava flour (10kg),CAS-FLR-010,Sifted,Tubers & Roots,6800,5100,64,20
+"Garri (yellow, 50kg)",GAR-YEL-050,Ijebu,Tubers & Roots,32500,27000,18,8
+"Rice (parboiled, 50kg)",RIC-PAR-050,Long grain,Grains,87500,79000,25,10
+Maize grain (100kg),MZ-GRN-100,Dried,Grains,58000,50000,12,6
+Cowpea (50kg),BEAN-OLA-050,Honey beans,Legumes,96000,88000,7,5
+,NO-NAME-001,No product name on this row,Pantry,2500,1800,10,5
+Mystery oil (25L),OIL-MYS-001,Price is not a number,Oils,N/A,,9,4
+Sugar (50kg),SUG-050,Selling price is required but blank,Pantry,,61000,16,8
+Palm oil (25L),PO-025,Stock column is text,Oils,62000,54000,eleven,6
+Yam tuber (large),YAM-LRG-001,Same SKU as row 2 — duplicate inside the file,Tubers & Roots,4500,3200,40,30

@@ -248,14 +248,29 @@ business data.
 # Backend (requires a venv with backend/requirements.txt + pytest + pytest-asyncio)
 .venv/bin/python -m pytest
 
-# Frontend type check + production build
-cd frontend && npx tsc --noEmit -p tsconfig.json && npm run build
+# Frontend — the same four commands CI runs
+pnpm --filter ./frontend lint
+pnpm --filter ./frontend typecheck
+pnpm --filter ./frontend test
+pnpm --filter ./frontend build
+
+# Desktop (Electron) data-layer, sync, backup and Windows suites
+cd electron && npm test
 ```
 
 The suite includes a **contract test** that scans every frontend API call
 and asserts a matching backend route exists — the guard that makes a
 frontend/backend endpoint mismatch impossible. Set `TEST_DATABASE_URL` to a
 Postgres URL to additionally run the true-concurrency stock test.
+
+### Sample import files
+
+`samples/imports/` holds ready-to-upload CSV/XLSX files — one wholesaler's
+catalogue, customer list and sales history — for trying the Import flow
+locally, plus deliberately broken files that exercise the row-by-row
+validation report. `samples/imports/README.md` says what each file should
+produce, and `backend/tests/test_import_fixtures.py` drives the real
+preview → map → validate → commit pipeline to assert exactly that.
 
 ## Documentation
 

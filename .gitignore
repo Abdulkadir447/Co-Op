@@ -54,3 +54,5 @@ electron/e2e/renderer/
 
 # pnpm is the package manager (see pnpm-workspace.yaml); npm lockfiles would drift.
 package-lock.json
+# generated on demand by make_fixtures.py --rows N (5 MB upload cap)
+samples/imports/*-large.csv

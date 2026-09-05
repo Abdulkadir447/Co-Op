@@ -1,0 +1,9 @@
+order_date,customer_name,customer_email,customer_phone,product_name,product_sku,quantity,unit_price,total,order_id
+2026-04-03,Amina Yusuf,amina.yusuf@example.com,+234 803 111 2233,"Rice (parboiled, 50kg)",RIC-PAR-050,4,87500,350000,SO-9001-L1
+2026-04-11,Musa Ibrahim,musa.ibrahim@example.com,+234 802 445 6677,Yam tuber (large),YAM-LRG-001,30,4500,135000,SO-9002-L1
+2026-04-19,Fatima Sani,fatima.sani@example.com,+234 806 222 3344,Palm oil (25L),PO-025,6,62000,372000,SO-9003-L1
+31/31/2026,Sani Garba,sani.garba@example.com,+234 816 666 7788,"Garri (yellow, 50kg)",GAR-YEL-050,5,32500,162500,SO-9004-L1
+2026-05-02,Chinedu Okafor,chinedu.okafor@example.com,+234 805 333 4455,Cowpea (50kg),BEAN-OLA-050,0,96000,0,SO-9005-L1
+2026-05-17,Zainab Mohammed,zainab.mohammed@example.com,+234 813 555 6677,,TOM-PST-400,48,1850,88800,SO-9006-L1
+2026-06-06,Hauwa Aliyu,hauwa.aliyu@example.com,+234 810 777 8899,Groundnut oil (25L),GNO-025,3,free,0,SO-9007-L1
+2026-06-14,Nobody In The Database,ghost@example.com,+234 700 000 0000,"Rice (parboiled, 50kg)",RIC-PAR-050,2,87500,175000,SO-9008-L1
