@@ -14,6 +14,10 @@
  *   replaceDbFile(dbPath, srcPath)
  *                           — swap the live DB file with a backup file
  *                             (caller closes the DB first, then reopens).
+ *                             Windows-safe: the live file is renamed aside
+ *                             and only removed once the copy has landed, so
+ *                             a locked or failed swap can never leave the
+ *                             owner with no database at all.
  *   assertRestoreSafe(dataLayer)
  *                           — refuse when the sync queue still holds
  *                             pending or parked-conflict operations: a
@@ -24,24 +28,34 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { assertPathLengthOk, withRetry } = require('../platform');
 
 // 16-byte magic header every SQLite file starts with.
 const SQLITE_HEADER = Buffer.from('SQLite format 3\u0000', 'utf8');
 
 /** True when the file exists and starts with the SQLite magic header. */
-function isSqliteFile(file) {
+/** @param {object} [fsLike] injectable for tests; defaults to node:fs. */
+function isSqliteFile(file, fsLike = fs) {
   try {
-    const fd = fs.openSync(file, 'r');
+    const fd = fsLike.openSync(file, 'r');
     try {
       const buf = Buffer.alloc(16);
-      const read = fs.readSync(fd, buf, 0, 16, 0);
+      const read = fsLike.readSync(fd, buf, 0, 16, 0);
       return read === 16 && buf.equals(SQLITE_HEADER);
     } finally {
-      fs.closeSync(fd);
+      fsLike.closeSync(fd);
     }
   } catch {
     return false;
   }
+}
+
+/** Suffix for the copy a restore parks the live database under. */
+const ASIDE_SUFFIX = '.coop-old';
+
+/** The database file plus the WAL/SHM sidecars SQLite leaves next to it. */
+function _sidecars(dbPath) {
+  return [dbPath, `${dbPath}-wal`, `${dbPath}-shm`];
 }
 
 /** SQL-escape a path for VACUUM INTO (single quotes doubled). */
@@ -54,8 +68,18 @@ function _quote(p) {
  * VACUUM INTO produces a standalone, checkpointed copy — safe while the app
  * keeps using the live file.
  */
-function snapshot(db, destPath) {
-  if (fs.existsSync(destPath)) fs.rmSync(destPath);
+function snapshot(db, destPath, opts = {}) {
+  const f = opts.fs || fs;
+  assertPathLengthOk(destPath, opts);
+  // VACUUM INTO refuses to overwrite, so clear the target first. On Windows
+  // that delete can hit a handle held by AV/Search — retry rather than fail.
+  withRetry(
+    `Clear the existing backup (${path.basename(destPath)})`,
+    () => {
+      if (f.existsSync(destPath)) f.rmSync(destPath);
+    },
+    opts,
+  );
   db.exec(`VACUUM INTO ${_quote(destPath)};`);
   return destPath;
 }
@@ -65,15 +89,57 @@ function snapshot(db, destPath) {
  * closed the database first; WAL/SHM sidecars are removed so the restored
  * file opens clean. Throws if `srcPath` is not a SQLite database.
  */
-function replaceDbFile(dbPath, srcPath) {
-  if (!isSqliteFile(srcPath)) {
+function replaceDbFile(dbPath, srcPath, opts = {}) {
+  const f = opts.fs || fs;
+
+  if (!isSqliteFile(srcPath, f)) {
     throw new Error('The selected file is not a valid Co-op local database.');
   }
-  for (const p of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
-    if (fs.existsSync(p)) fs.rmSync(p);
+
+  // Move the live database (and its WAL/SHM sidecars) aside instead of
+  // deleting it. Windows keeps handles open briefly after close() — AV
+  // scanners, the Search indexer, Explorer thumbnails — and a delete-then-copy
+  // that fails halfway would leave the owner with no database at all.
+  const aside = new Map();
+  for (const live of _sidecars(dbPath)) {
+    if (!f.existsSync(live)) continue;
+    const parked = `${live}${ASIDE_SUFFIX}`;
+    withRetry(
+      `Release the current database (${path.basename(live)})`,
+      () => {
+        if (f.existsSync(parked)) f.rmSync(parked);
+        f.renameSync(live, parked);
+      },
+      opts,
+    );
+    aside.set(live, parked);
   }
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  fs.copyFileSync(srcPath, dbPath);
+
+  try {
+    f.mkdirSync(path.dirname(dbPath), { recursive: true });
+    withRetry(`Restore into ${path.basename(dbPath)}`, () => f.copyFileSync(srcPath, dbPath), opts);
+  } catch (e) {
+    // Put the previous database back so the app still opens.
+    for (const [live, parked] of aside) {
+      try {
+        withRetry(`Roll back ${path.basename(live)}`, () => f.renameSync(parked, live), opts);
+      } catch {
+        /* the parked copy still exists — the data is not lost */
+      }
+    }
+    throw new Error(
+      `Co-op could not replace the local database (${e.code || e.message}). ` +
+        'Your previous database is untouched — close other programs using it and try again.'
+    );
+  }
+
+  for (const parked of aside.values()) {
+    try {
+      withRetry(`Discard the previous copy (${path.basename(parked)})`, () => f.rmSync(parked), opts);
+    } catch {
+      /* a stale .coop-old file is harmless; the next restore clears it */
+    }
+  }
   return dbPath;
 }
 
@@ -94,4 +160,10 @@ function assertRestoreSafe(dataLayer) {
   }
 }
 
-module.exports = { isSqliteFile, snapshot, replaceDbFile, assertRestoreSafe };
+module.exports = {
+  ASIDE_SUFFIX,
+  isSqliteFile,
+  snapshot,
+  replaceDbFile,
+  assertRestoreSafe,
+};

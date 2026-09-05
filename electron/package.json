@@ -29,6 +29,7 @@
       "preload.js",
       "dataLayerApp.js",
       "sync.js",
+      "platform.js",
       "db/**/*",
       "renderer-dist/**/*",
       "coop-icon.png",
@@ -49,8 +50,26 @@
     },
     "win": {
       "target": [
-        "nsis"
-      ]
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "coop-icon.png",
+      "artifactName": "${productName}-${version}-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Co-op",
+      "uninstallDisplayName": "Co-op",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     }
   },
   "author": "Co-op",

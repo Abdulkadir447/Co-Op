@@ -27,6 +27,7 @@
 'use strict';
 
 const { spawn, spawnSync } = require('node:child_process');
+const { pythonExecutable, sqliteUrl } = require('../platform');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -70,13 +71,14 @@ async function poll(label, fn, deadline = DEADLINE_MS) {
 // ---------------------------------------------------------------------------
 let cloudProc = null;
 function startCloud() {
-  const py = path.join(ROOT, 'backend', '.venv', 'bin', 'python');
+  // Windows venvs live in Scripts\python.exe, POSIX in bin/python.
+  const py = pythonExecutable(ROOT, process.platform);
   cloudProc = spawn(py, ['-m', 'uvicorn', 'backend.main:app', '--host', '127.0.0.1', '--port', String(PORT), '--log-level', 'warning'], {
     cwd: ROOT,
     env: {
       ...process.env,
       COOP_ENV: 'testing',
-      DATABASE_URL: `sqlite+aiosqlite:////${CLOUD_DB.slice(1)}`, // sqlite:////abs/path
+      DATABASE_URL: sqliteUrl(CLOUD_DB, { platform: process.platform }),
       COOP_TEST_AUTH_USER: 'e2e-owner',
     },
     stdio: ['ignore', 'pipe', 'pipe'],

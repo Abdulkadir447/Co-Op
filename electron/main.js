@@ -4,6 +4,7 @@ const path = require('path');
 const { createDataLayer, defaultDbPath } = require('./db');
 const { createDataLayerApp } = require('./dataLayerApp');
 const { isSqliteFile, snapshot, replaceDbFile, assertRestoreSafe } = require('./db/backup');
+const { APP_USER_MODEL_ID, backupFileName } = require('./platform');
 
 // ---------------------------------------------------------------------------
 // Content Security Policy for the Co-op desktop app.
@@ -121,10 +122,13 @@ let mainWindow = null;
 function registerBackupIpc() {
   ipcMain.handle('coop:backup', async (_event, { method }) => {
     if (method === 'create') {
-      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      // A name Windows will actually accept: no <>:"|?*, no trailing dot or
+      // space, never a reserved device name (a business called "NUL" or
+      // "CON" must not produce an unwritable file).
+      const stamp = new Date();
       const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
         title: 'Back up Co-op local database',
-        defaultPath: `coop-backup-${stamp}.db`,
+        defaultPath: backupFileName({ stamp, label: app.name }),
         filters: [{ name: 'SQLite database', extensions: ['db'] }],
       });
       if (canceled || !filePath) return { ok: false, canceled: true };
@@ -202,24 +206,49 @@ function watchConnectivity(win) {
   update();
 }
 
-app.whenReady().then(() => {
-  dataLayerPath = defaultDbPath(app.getPath('userData'));
-  dataLayer = createDataLayer(dataLayerPath);
-  dataLayerApp = createDataLayerApp(dataLayer); // cold start: trust an existing mirror
-  registerDataLayerIpc();
-  registerBackupIpc();
-  const win = createWindow();
-  mainWindow = win;
-  watchConnectivity(win);
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      const w = createWindow();
-      mainWindow = w;
-      watchConnectivity(w);
-    }
+// ---------------------------------------------------------------------------
+// Single instance.
+//
+// Windows owners double-click the desktop shortcut, and the taskbar makes a
+// second launch one click away. Two instances would fight over the same
+// SQLite file (WAL tolerates it, but the second window's sync engine would
+// push the same queue twice and the backup dialog would target a database the
+// other instance is rewriting). The second launch focuses the running window
+// instead.
+// ---------------------------------------------------------------------------
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
   });
-});
 
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.whenReady().then(() => {
+    // Taskbar grouping and notifications on Windows use the AppUserModelID;
+    // without it the pinned icon reads "Electron". Kept equal to the
+    // electron-builder appId (asserted in electron/test/windows.test.js).
+    if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
+
+    dataLayerPath = defaultDbPath(app.getPath('userData'));
+    dataLayer = createDataLayer(dataLayerPath);
+    dataLayerApp = createDataLayerApp(dataLayer); // cold start: trust an existing mirror
+    registerDataLayerIpc();
+    registerBackupIpc();
+    const win = createWindow();
+    mainWindow = win;
+    watchConnectivity(win);
+    app.on('activate', function () {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        const w = createWindow();
+        mainWindow = w;
+        watchConnectivity(w);
+      }
+    });
+  });
+
+  app.on('window-all-closed', function () {
+    if (process.platform !== 'darwin') app.quit();
+  });
+}
