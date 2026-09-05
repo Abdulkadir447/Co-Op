@@ -24,7 +24,7 @@ down.
 | Zeno (real model) | Verified-context architecture; strict answer contract; fixed validated action registry; graceful fallback when the model is unreachable; deterministic revenue forecast (`/ai/forecast`, transparent trend — never ML, never negative) and owner-visible AI activity ledger (`ai_history`, `/ai/history`) — both tenant-scoped, tested, no model call | `backend/ai/`, `frontend/src/ai/`, `frontend/src/components/ai/` |
 | Invoicing | Numbered per business (INV-0001), one per order, draft → sent → void with void terminal, search + CSV export of exactly what's on screen; amounts are read from the order, never duplicated | `backend/invoicing.py`, `frontend/src/pages/Invoices/` |
 | Billing + credits | Real plan state, computed (never stored) credit balance from the `ai_usage` ledger, enforcement (402) on every AI request; payment collection unplugged by design | `backend/billing.py`, `frontend/src/pages/Billing/` |
-| Tests | 226 backend tests (incl. frontend↔backend contract test; 25 licensing, 13 invoicing, 7 forecast, 6 AI history, 2 report-chart/route regressions, 9 OFFLINE 4 conflict tests, 6 rate-limit, 4 CORS, 6 audit, 7 backup, 5 AI-style) + 15 local-analytics port tests (now actually runnable — `npm test` had no runner and the suite had rotted) + 34 Electron data-layer/sync/backup Node tests + the OFFLINE 6 real-runtime E2E harness (46 scenarios: SIGKILL survival, exactly-once sync, conflict resolution, cold offline start) + tsc/build gates, all green locally. **CI rewritten to run ruff, pytest, eslint, tsc, `node --test`, the production build and commitlint — committed as `b739eed`; the push is refused until the GitHub App gets `workflows` write permission (see §4)** | `backend/tests/`, `frontend/test/`, `electron/test/`, `electron/e2e/`, `.github/workflows/ci.yml` |
+| Tests | 226 backend tests (incl. frontend↔backend contract test; 25 licensing, 13 invoicing, 7 forecast, 6 AI history, 2 report-chart/route regressions, 9 OFFLINE 4 conflict tests, 6 rate-limit, 4 CORS, 6 audit, 7 backup, 5 AI-style) + 15 local-analytics port tests (now actually runnable — `npm test` had no runner and the suite had rotted) + 66 Electron Node tests (data layer, sync, backup, and a 32-test Windows suite) + the OFFLINE 6 real-runtime E2E harness (46 scenarios: SIGKILL survival, exactly-once sync, conflict resolution, cold offline start) + tsc/build gates, all green locally. **CI rewritten to run ruff, pytest, eslint, tsc, `node --test`, the production build and commitlint — committed as `b739eed`; the push is refused until the GitHub App gets `workflows` write permission (see §4)** | `backend/tests/`, `frontend/test/`, `electron/test/`, `electron/e2e/`, `.github/workflows/ci.yml` |
 
 ## 2. The five parked areas — status and recommendation
 
@@ -320,8 +320,9 @@ acts copy in the AI composer. Residual ERP-feel:
       Notifications (in-app prefs), Security (Clerk account management),
       Sync (live engine status), Audit Log, About (version/env)
 - [x] Desktop packaging configured — electron-builder (AppImage/NSIS/DMG),
-      `npm run dist`/`pack` in `electron/`; installers still need
-      verification on each real platform
+      `npm run dist`/`pack` in `electron/`, with the Windows NSIS options
+      (shortcut name, per-user install, uninstall keeps data) now explicit;
+      building the installers themselves still needs each real platform
 - [x] Decide + document offline-first scope (ADR-002, done in the previous
       pass)
 
@@ -338,6 +339,32 @@ acts copy in the AI composer. Residual ERP-feel:
       eslint under POSIX sh and warns (never blocks) when a tool is absent
 - [x] **Invoicing** (PRD invoice generation) — see §1: numbered, tracked,
       exportable, 13 tests
+
+**Done in the Windows/MVP pass (2026-09-05):**
+
+- [x] **Windows correctness in the desktop app** — `electron/platform.js`
+      centralises the rules Windows actually enforces (%APPDATA% data dir,
+      `Scripts\python.exe` venv layout, `<>:"|?*` and reserved device names
+      in filenames, MAX_PATH, EBUSY/EPERM from a scanner holding a handle).
+      30 tests exercise it on Linux through `path.win32`; 2 more run only on
+      a real Windows filesystem
+- [x] **Restore can no longer lose the database** — the live file is renamed
+      aside and only discarded once the copy has landed, and a failed swap
+      rolls back. Previously a locked file mid-restore left no database at
+      all
+- [x] **Single-instance lock + AppUserModelID** — a second launch focuses the
+      running window instead of opening a second writer on the same SQLite
+      file, and the taskbar entry reads "Co-op" instead of "Electron"
+- [x] **Windows installer config** — per-user NSIS with a real shortcut name,
+      "Co-op" in Add/Remove Programs, uninstall keeps the local database,
+      and `platform.js` is now in `build.files` (it was not, which would have
+      shipped an installer that crashes on launch)
+- [x] **CI runs the desktop suite on `windows-latest`**, and fails if the
+      Windows-only tests were skipped (part of the pending workflow push)
+- [x] **Project renamed Finch → Co-op** everywhere in the tree, including the
+      design archive and its 40-odd provenance references. `FINCH_ENV` is
+      still read as a legacy alias for `COOP_ENV` so an existing `.env` keeps
+      working
 
 **Still open:**
 
