@@ -22,8 +22,9 @@ down.
 | Day 1 Briefing + first-run onboarding | Verified deterministic insights; `/onboarding/state` + Welcome gate | `backend/briefing.py`, `frontend/src/pages/Welcome/` |
 | Reports + exports | One engine, one filter contract; Sales / P&L / Inventory / Customers; CSV/XLSX/PDF of exactly what's on screen | `backend/reports/`, `backend/exports/`, `frontend/src/pages/Reports/` |
 | Zeno (real model) | Verified-context architecture; strict answer contract; fixed validated action registry; graceful fallback when the model is unreachable; deterministic revenue forecast (`/ai/forecast`, transparent trend — never ML, never negative) and owner-visible AI activity ledger (`ai_history`, `/ai/history`) — both tenant-scoped, tested, no model call | `backend/ai/`, `frontend/src/ai/`, `frontend/src/components/ai/` |
+| Invoicing | Numbered per business (INV-0001), one per order, draft → sent → void with void terminal, search + CSV export of exactly what's on screen; amounts are read from the order, never duplicated | `backend/invoicing.py`, `frontend/src/pages/Invoices/` |
 | Billing + credits | Real plan state, computed (never stored) credit balance from the `ai_usage` ledger, enforcement (402) on every AI request; payment collection unplugged by design | `backend/billing.py`, `frontend/src/pages/Billing/` |
-| Tests | 155 backend tests (incl. frontend↔backend contract test; 7 forecast, 6 AI history, 2 report-chart/route regressions, 9 OFFLINE 4 conflict tests, 6 rate-limit, 4 CORS, 6 audit, 7 backup, 5 AI-style) + 15 local-analytics port tests + 34 Electron data-layer/sync/backup Node tests + the OFFLINE 6 real-runtime E2E harness (46 scenarios: SIGKILL survival, exactly-once sync, conflict resolution, cold offline start) + tsc/build gates, all green locally. **CI fixed and committed on the working branch — activates once merged to `master` (see §4.1)** | `backend/tests/`, `frontend/test/`, `electron/test/`, `electron/e2e/`, `.github/workflows/ci.yml` |
+| Tests | 226 backend tests (incl. frontend↔backend contract test; 25 licensing, 13 invoicing, 7 forecast, 6 AI history, 2 report-chart/route regressions, 9 OFFLINE 4 conflict tests, 6 rate-limit, 4 CORS, 6 audit, 7 backup, 5 AI-style) + 15 local-analytics port tests (now actually runnable — `npm test` had no runner and the suite had rotted) + 34 Electron data-layer/sync/backup Node tests + the OFFLINE 6 real-runtime E2E harness (46 scenarios: SIGKILL survival, exactly-once sync, conflict resolution, cold offline start) + tsc/build gates, all green locally. **CI rewritten to run ruff, pytest, eslint, tsc, `node --test`, the production build and commitlint — committed as `b739eed`; the push is refused until the GitHub App gets `workflows` write permission (see §4)** | `backend/tests/`, `frontend/test/`, `electron/test/`, `electron/e2e/`, `.github/workflows/ci.yml` |
 
 ## 2. The five parked areas — status and recommendation
 
@@ -291,13 +292,16 @@ acts copy in the AI composer. Residual ERP-feel:
 
 **Done in the v1-completion pass (2026-08-31):**
 
-- [x] **Apply the corrected CI workflow (Appendix A)** — the corrected
-      workflow is committed on the working branch as its final commit
-      (backend pytest + frontend tsc/build on push/PR to `master`). This
-      session's GitHub token cannot push workflow files (no `workflows`
-      permission — same finding as the original Appendix A note), so the
-      repo owner applies that commit (or the file in Appendix A) when
-      merging
+- [x] **Apply the corrected CI workflow** — superseded Appendix A: the
+      workflow now runs ruff, pytest (from the repo root), eslint, tsc,
+      `node --test`, the production build and commitlint on push/PR to
+      `master`, and every one of those commands was run locally first.
+      Committed as `b739eed`; this session's GitHub App still cannot push
+      workflow files (no `workflows` permission — the same blocker as the
+      original Appendix A note), so the repo owner applies that commit when
+      merging. Verified in the meantime by running the identical commands
+      by hand: ruff clean, 226 tests green, eslint clean, tsc clean,
+      `vite build` clean, commitlint 0 problems
 - [x] Per-tenant rate limiting on `/ai/chat` — sliding window per Clerk
       user, `ai.rate_limit {requests, window_seconds}` in
       `config/<env>.json`, 429 + Retry-After; disabled in testing
@@ -321,13 +325,27 @@ acts copy in the AI composer. Residual ERP-feel:
 - [x] Decide + document offline-first scope (ADR-002, done in the previous
       pass)
 
+**Done in the gap-closing pass (2026-09-05):**
+
+- [x] **Frontend tests were unrunnable** — the one suite in `frontend/test/`
+      had no runner, so it had rotted in silence. `npm test` now compiles it
+      to CommonJS and runs it under `node --test` (15 passing)
+- [x] **`LICENSE` file** — the About panel already called the app
+      proprietary while the repo shipped no licence; now it does, and the
+      panel and README point at the same terms
+- [x] **Pre-commit hook** — it ran `npx pre-commit`, resolving to an
+      unrelated npm package and failing every commit; it now runs ruff and
+      eslint under POSIX sh and warns (never blocks) when a tool is absent
+- [x] **Invoicing** (PRD invoice generation) — see §1: numbered, tracked,
+      exportable, 13 tests
+
 **Still open:**
 
 - [x] Lint tooling wired into CI — done in code: ruff for the backend
       (`pyproject.toml`, E/F/W at line-length 100, full suite green),
-      eslint 9 + typescript-eslint for the frontend (`npm run lint`, zero
-      findings on src + test). The CI workflow file itself is the pending
-      owner push below (Appendix A).
+      eslint 9 + typescript-eslint for the frontend (`pnpm lint`, zero
+      findings across src, test and scripts). Both are steps in `b739eed`,
+      which awaits the same owner push.
 - [x] commitlint in CI — done in code (`.commitlintrc.json` + root
       devDeps already existed; the workflow now validates every PR commit).
       Same pending owner push as above.
