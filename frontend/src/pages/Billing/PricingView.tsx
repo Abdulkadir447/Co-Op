@@ -13,8 +13,8 @@ import { useBilling } from '../../billing/useBilling';
 import { CoopButton, SparkleIcon } from '../../components/ui';
 
 /**
- * Pricing + plan comparison (Stitch finch_pricing_plans_qa_polished +
- * finch_plan_comparison).
+ * Pricing + plan comparison (Stitch coop_pricing_plans_qa_polished +
+ * coop_plan_comparison).
  *
  * Every number on this screen comes from the plan catalog config — the
  * provisional display values in src/billing/plans.ts. Plan selection goes
@@ -183,7 +183,7 @@ const PlanCard: React.FC<{
 
 /**
  * Result panel — the payment success/failure states (Stitch
- * finch_payment_success_failure), honest about preview mode.
+ * coop_payment_success_failure), honest about preview mode.
  */
 const ResultPanel: React.FC<{
   target: PlanId | 'free';

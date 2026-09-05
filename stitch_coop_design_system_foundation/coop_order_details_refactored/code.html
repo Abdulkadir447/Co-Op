@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Co-op - Order Details</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary": "#ffffff",
+                      "inverse-primary": "#c0c1ff",
+                      "on-primary-fixed": "#05006c",
+                      "on-primary-fixed-variant": "#2c2cc3",
+                      "on-error-container": "#93000a",
+                      "outline-variant": "#c6c5d7",
+                      "on-surface": "#1b1b23",
+                      "on-surface-variant": "#464555",
+                      "surface-dim": "#dbd8e5",
+                      "tertiary": "#904400",
+                      "primary": "#4143d5",
+                      "on-secondary-fixed": "#25005a",
+                      "outline": "#767586",
+                      "inverse-surface": "#303039",
+                      "secondary-container": "#8a4cfc",
+                      "error-container": "#ffdad6",
+                      "on-secondary-container": "#fffbff",
+                      "surface-variant": "#e4e1ed",
+                      "tertiary-container": "#b55700",
+                      "tertiary-fixed-dim": "#ffb689",
+                      "surface-container-highest": "#e4e1ed",
+                      "on-secondary-fixed-variant": "#5a00c6",
+                      "primary-fixed": "#e1e0ff",
+                      "on-background": "#1b1b23",
+                      "inverse-on-surface": "#f2effc",
+                      "on-primary-container": "#f9f6ff",
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed": "#ffdbc8",
+                      "on-tertiary-container": "#fff6f2",
+                      "surface": "#fcf8ff",
+                      "surface-bright": "#fcf8ff",
+                      "error": "#ba1a1a",
+                      "secondary": "#712ae2",
+                      "surface-container-low": "#f5f2fe",
+                      "surface-tint": "#474adb",
+                      "primary-container": "#5b5fef",
+                      "secondary-fixed": "#eaddff",
+                      "surface-container": "#efecf9",
+                      "background": "#fcf8ff",
+                      "surface-container-high": "#e9e6f3",
+                      "secondary-fixed-dim": "#d2bbff",
+                      "on-tertiary-fixed": "#311300",
+                      "on-error": "#ffffff",
+                      "primary-fixed-dim": "#c0c1ff",
+                      "on-tertiary": "#ffffff",
+                      "on-tertiary-fixed-variant": "#733500",
+                      "surface-container-lowest": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "lg": "24px",
+                      "sm": "8px",
+                      "3xl": "64px",
+                      "xl": "32px",
+                      "2xl": "48px",
+                      "xs": "4px"
+              },
+              "fontFamily": {
+                      "section-heading": [
+                              "Inter"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ],
+                      "page-title-mobile": [
+                              "Inter"
+                      ],
+                      "body-default": [
+                              "Inter"
+                      ],
+                      "body-compact": [
+                              "Inter"
+                      ],
+                      "page-title": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "section-heading": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "page-title-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-default": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-compact": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "page-title": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-background font-body-default min-h-screen flex flex-col md:flex-row antialiased">
+<!-- SideNavBar (Hidden on Mobile) -->
+<aside class="bg-surface-container-low dark:bg-surface-container-lowest text-primary dark:text-primary-fixed font-label-caps text-label-caps hidden md:flex flex-col bg-surface-container-low border-r border-outline-variant fixed left-0 top-0 h-full p-md gap-sm w-64 z-40">
+<div class="flex items-center gap-sm mb-lg px-sm">
+<span class="material-symbols-outlined text-[32px]">cruelty_free</span>
+<div class="flex flex-col">
+<span class="font-page-title text-page-title-mobile text-primary leading-tight">Co-op</span>
+<span class="text-[10px] text-on-surface-variant leading-tight">Order Management</span>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-xs">
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant rounded-xl transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant rounded-xl transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span>Products</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant rounded-xl transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">warehouse</span>
+<span>Inventory</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm bg-primary-container text-on-primary-container rounded-xl font-bold transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span>Orders</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant rounded-xl transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Customers</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant rounded-xl transition-all scale-95 active:scale-90 relative overflow-hidden group" href="#">
+<div class="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<span class="material-symbols-outlined text-secondary">auto_awesome</span>
+<span>Co-op AI</span>
+</a>
+</nav>
+<div class="mt-auto flex flex-col gap-xs">
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant rounded-xl transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant rounded-xl transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>Help</span>
+</a>
+<a class="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant rounded-xl transition-all scale-95 active:scale-90" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span>Billing</span>
+</a>
+</div>
+<button class="mt-md w-full bg-primary text-on-primary py-sm px-md rounded-xl font-label-caps text-label-caps shadow-[0_4px_12px_rgba(91,95,239,0.08)] hover:bg-primary/90 transition-colors flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+            New Order
+        </button>
+</aside>
+<!-- TopNavBar (Mobile Only) -->
+<header class="bg-surface/80 backdrop-blur-md z-40 w-full top-0 sticky border-b border-outline-variant flex justify-between items-center px-lg py-sm md:hidden">
+<div class="flex items-center gap-sm">
+<span class="font-page-title text-page-title-mobile text-primary font-bold">Co-op</span>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:bg-surface-container-low p-sm rounded-full transition-colors cursor-pointer active:opacity-80 flex items-center justify-center">
+<span class="material-symbols-outlined">search</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container-low p-sm rounded-full transition-colors cursor-pointer active:opacity-80 flex items-center justify-center relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-error rounded-full border border-surface"></span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container-low p-sm rounded-full transition-colors cursor-pointer active:opacity-80 flex items-center justify-center">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 p-lg md:p-xl flex flex-col gap-lg md:gap-xl max-w-7xl mx-auto w-full mb-[80px] md:mb-0">
+<!-- Order Header -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-md">
+<div>
+<div class="flex items-center gap-sm mb-xs">
+<h1 class="font-page-title text-page-title-mobile md:text-page-title text-on-surface">Order #ORD-9024</h1>
+<span class="bg-primary/10 text-primary px-sm py-[2px] rounded-lg font-label-caps text-label-caps border border-primary/20 flex items-center gap-[4px]">
+<span class="material-symbols-outlined text-[14px]">local_shipping</span>
+                        Shipped
+                    </span>
+</div>
+<p class="text-on-surface-variant font-body-compact text-body-compact">Placed on Oct 24, 2023 at 10:42 AM</p>
+</div>
+<div class="flex items-center gap-sm w-full md:w-auto">
+<button class="flex-1 md:flex-none px-md py-sm border border-outline-variant text-on-surface rounded-xl font-label-caps text-label-caps hover:bg-surface-variant transition-colors flex items-center justify-center gap-[4px]">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+                    Edit
+                </button>
+<button class="flex-1 md:flex-none px-md py-sm border border-outline-variant text-on-surface rounded-xl font-label-caps text-label-caps hover:bg-surface-variant transition-colors flex items-center justify-center gap-[4px]">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+                    Cancel
+                </button>
+<button aria-label="Delete Order" class="p-sm border border-error/50 text-error rounded-xl hover:bg-error/10 transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-lg">
+<!-- Left Column: Details & Items -->
+<div class="lg:col-span-2 flex flex-col gap-lg">
+<!-- Items List Card -->
+<section class="bg-surface rounded-xl border border-outline-variant overflow-hidden">
+<div class="p-md border-b border-outline-variant bg-surface-container-lowest">
+<h2 class="font-section-heading text-section-heading text-on-surface">Items Ordered</h2>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container-low font-label-caps text-label-caps text-on-surface-variant">
+<th class="p-md font-semibold">Product</th>
+<th class="p-md font-semibold text-center">Qty</th>
+<th class="p-md font-semibold text-right">Price</th>
+<th class="p-md font-semibold text-right">Total</th>
+</tr>
+</thead>
+<tbody class="font-body-compact text-body-compact text-on-surface">
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors group">
+<td class="p-md">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-xl bg-surface-container overflow-hidden border border-outline-variant flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="A clean, high-resolution product shot of a minimalist, ergonomic office chair in light gray, set against a pristine white background. The lighting is soft and even, highlighting the modern design and premium materials. Subtle shadows provide depth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPP9LSxvORMgBxRJq2romCRElX36Dt0BJD98qOF9w_0o9Ou433PXxWVZ78p1NsfWmDrGziqxp5aSL_xGefVH6cXT4pZB81_VggEOgR4Eko7pjaYCj56NDLap0gy2_O9EqJAMyJBYRQtYxozqsg9LpcDxUlk4Y9FaAJxlY0MrDhQbSow0fEBsKfB5ScBFy7KSm-HcZsfn9eY7yZ0EPUPmNbzJbbcbe4OG0zJXEnnyhk-ggKuTPPJfQVqg"/>
+</div>
+<div>
+<p class="font-semibold text-on-surface group-hover:text-primary transition-colors">ErgoPro Office Chair</p>
+<p class="text-on-surface-variant text-[12px]">SKU: EP-CH-01-GRY</p>
+</div>
+</div>
+</td>
+<td class="p-md text-center">2</td>
+<td class="p-md text-right">$349.00</td>
+<td class="p-md text-right font-semibold">$698.00</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-lowest transition-colors group">
+<td class="p-md">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-xl bg-surface-container overflow-hidden border border-outline-variant flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="A crisp, high-end product photograph of a sleek, adjustable monitor arm desk mount made of matte black aluminum. Shot on a pure white studio background with precise studio lighting to emphasize its structural integrity and modern aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCgw0FE_t9gj6widwq7tMxVhnpC5ux3p-oKMMH_j3lKrUn50mByXgI1Km2BN2w8e0lGkJdG6zAvvi0MRpaOqcAtg6egj56kLg5Bm2lrATbdPNdG8dT2xxePXE4uqeHFHqsyaNKlyng7jaJvSF9zj0-iLM4gcLbu976x7A66MNi-M4bxdm_RT3VPEL_AFi4X9aeTxoQfVfwmNgLbmevd7flMMCV8Rc6QukKKckHV0WaPq9Oo2idAZJMhiQ"/>
+</div>
+<div>
+<p class="font-semibold text-on-surface group-hover:text-primary transition-colors">Adjustable Monitor Arm</p>
+<p class="text-on-surface-variant text-[12px]">SKU: AM-MNT-BLK</p>
+</div>
+</div>
+</td>
+<td class="p-md text-center">1</td>
+<td class="p-md text-right">$89.50</td>
+<td class="p-md text-right font-semibold">$89.50</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-md bg-surface-container-lowest flex justify-end">
+<div class="w-full md:w-1/2 lg:w-1/3 flex flex-col gap-sm">
+<div class="flex justify-between text-on-surface-variant font-body-compact text-body-compact">
+<span>Subtotal</span>
+<span>$787.50</span>
+</div>
+<div class="flex justify-between text-on-surface-variant font-body-compact text-body-compact">
+<span>Shipping (Standard)</span>
+<span>$15.00</span>
+</div>
+<div class="flex justify-between text-on-surface-variant font-body-compact text-body-compact">
+<span>Tax (8%)</span>
+<span>$63.00</span>
+</div>
+<div class="border-t border-outline-variant pt-sm mt-xs flex justify-between font-section-heading text-section-heading text-on-surface">
+<span>Total</span>
+<span>$865.50</span>
+</div>
+</div>
+</div>
+</section>
+<!-- AI Insights Module -->
+<section class="bg-surface rounded-xl border border-outline-variant overflow-hidden relative shadow-[0_4px_12px_rgba(91,95,239,0.08)] pt-[2px]">
+<div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary to-secondary"></div>
+<div class="absolute top-0 right-0 p-md opacity-20 pointer-events-none">
+<span class="material-symbols-outlined text-[64px] text-secondary">auto_awesome</span>
+</div>
+<div class="p-md border-b border-outline-variant/50 flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<h2 class="font-section-heading text-section-heading text-on-surface">Co-op AI Insights</h2>
+</div>
+<div class="p-md">
+<p class="font-body-default text-body-default text-on-surface mb-md">Based on customer history and current shipping routes, this order has a 94% probability of early delivery.</p>
+<div class="flex gap-sm">
+<span class="bg-secondary/10 text-secondary px-sm py-[2px] rounded-lg font-label-caps text-label-caps border border-secondary/20">High LTV Customer</span>
+<span class="bg-secondary/10 text-secondary px-sm py-[2px] rounded-lg font-label-caps text-label-caps border border-secondary/20">Optimal Route Found</span>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: Customer & Timeline -->
+<div class="flex flex-col gap-lg">
+<!-- Status Control -->
+<section class="bg-surface rounded-xl border border-outline-variant p-md">
+<h2 class="font-section-heading text-section-heading text-on-surface mb-md">Update Status</h2>
+<div class="flex flex-col gap-sm">
+<div class="relative">
+<select class="w-full appearance-none bg-surface border border-outline-variant rounded-xl px-md py-sm font-body-compact text-body-compact text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer">
+<option>Pending</option>
+<option>Processing</option>
+<option selected="">Shipped</option>
+<option>Delivered</option>
+<option>Cancelled</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+<button class="w-full bg-primary text-on-primary py-sm rounded-xl font-label-caps text-label-caps hover:bg-primary/90 transition-colors shadow-[0_4px_12px_rgba(91,95,239,0.08)]">
+                            Update Order
+                        </button>
+</div>
+</section>
+<!-- Customer Info -->
+<section class="bg-surface rounded-xl border border-outline-variant overflow-hidden">
+<div class="p-md border-b border-outline-variant">
+<h2 class="font-section-heading text-section-heading text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant">person</span>
+                            Customer Details
+                        </h2>
+</div>
+<div class="p-md flex flex-col gap-md">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[16px]">
+                                EA
+                            </div>
+<div>
+<p class="font-semibold text-on-surface">Elena Alverez</p>
+<p class="text-on-surface-variant font-body-compact text-body-compact">elena.alverez@example.com</p>
+</div>
+</div>
+<div class="border-t border-outline-variant pt-md">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-sm">Shipping Address</h3>
+<p class="font-body-compact text-body-compact text-on-surface">
+                                4822 Innovation Drive<br/>
+                                Suite 300<br/>
+                                San Francisco, CA 94107<br/>
+                                United States
+                            </p>
+</div>
+<div class="border-t border-outline-variant pt-md">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-sm">Contact Number</h3>
+<p class="font-body-compact text-body-compact text-on-surface">+1 (415) 555-0198</p>
+</div>
+</div>
+</section>
+<!-- Timeline -->
+<section class="bg-surface rounded-xl border border-outline-variant overflow-hidden">
+<div class="p-md border-b border-outline-variant">
+<h2 class="font-section-heading text-section-heading text-on-surface flex items-center gap-sm">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant">history</span>
+                            Timeline
+                        </h2>
+</div>
+<div class="p-md">
+<div class="flex flex-col gap-0 relative">
+<!-- Line connecting dots -->
+<div class="absolute left-[11px] top-[16px] bottom-[16px] w-[2px] bg-outline-variant/50 z-0"></div>
+<!-- Step 1 -->
+<div class="flex gap-md relative z-10 pb-md">
+<div class="w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center flex-shrink-0 mt-[2px] shadow-[0_0_0_4px_rgba(91,95,239,0.08)]">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface text-[14px]">Order Placed</p>
+<p class="text-on-surface-variant text-[12px] mb-xs">Oct 24, 10:42 AM</p>
+<p class="text-on-surface-variant font-body-compact text-body-compact">System confirmed order details.</p>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="flex gap-md relative z-10 pb-md">
+<div class="w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center flex-shrink-0 mt-[2px] shadow-[0_0_0_4px_rgba(91,95,239,0.08)]">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface text-[14px]">Processing</p>
+<p class="text-on-surface-variant text-[12px] mb-xs">Oct 24, 1:15 PM</p>
+<p class="text-on-surface-variant font-body-compact text-body-compact">Items gathered from inventory.</p>
+</div>
+</div>
+<!-- Step 3 (Current) -->
+<div class="flex gap-md relative z-10 pb-md">
+<div class="w-6 h-6 rounded-full bg-surface border border-primary text-primary flex items-center justify-center flex-shrink-0 mt-[2px]">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+<div>
+<p class="font-semibold text-primary text-[14px]">Shipped</p>
+<p class="text-primary/70 text-[12px] mb-xs">Oct 25, 9:30 AM</p>
+<p class="text-on-surface-variant font-body-compact text-body-compact">Package handed to courier (FedEx).</p>
+<a class="text-primary hover:underline text-[12px] mt-xs inline-block" href="#">Track Package</a>
+</div>
+</div>
+<!-- Step 4 (Future) -->
+<div class="flex gap-md relative z-10">
+<div class="w-6 h-6 rounded-full bg-surface border border-outline-variant flex items-center justify-center flex-shrink-0 mt-[2px]">
+</div>
+<div class="opacity-50">
+<p class="font-semibold text-on-surface text-[14px]">Delivered</p>
+<p class="text-on-surface-variant text-[12px] mb-xs">Expected Oct 28</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-md py-sm bg-surface border-t border-outline-variant shadow-md md:hidden font-label-caps text-label-caps tap-highlight-transparent">
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant w-16 py-1 rounded-xl" href="#">
+<span class="material-symbols-outlined mb-1">home</span>
+            Home
+        </a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-4 py-1 active:bg-surface-variant w-16" href="#">
+<span class="material-symbols-outlined mb-1">list_alt</span>
+            Orders
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant w-16 py-1 rounded-xl" href="#">
+<span class="material-symbols-outlined mb-1 text-secondary">smart_toy</span>
+            AI
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant w-16 py-1 rounded-xl" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+            Clients
+        </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant w-16 py-1 rounded-xl" href="#">
+<span class="material-symbols-outlined mb-1">menu</span>
+            More
+        </a>
+</nav>
+</body></html>

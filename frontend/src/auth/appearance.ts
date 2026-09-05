@@ -8,8 +8,8 @@
  * receive this skin via the `appearance` prop. Nothing about the auth flow
  * is re-implemented here.
  *
- * Design source: finch_sign_in_refactored, finch_sign_up_refactored,
- * finch_recover_account_refactored, finch_sign_in_mobile_refactored
+ * Design source: coop_sign_in_refactored, coop_sign_up_refactored,
+ * coop_recover_account_refactored, coop_sign_in_mobile_refactored
  * (Stitch foundation). Colors resolve per theme mode (light/dark).
  */
 import type { ClerkAppearanceTheme } from '@clerk/shared/types';
@@ -34,9 +34,9 @@ const COOP_WORDMARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="140" h
 const svgDataUri = (svg: string) => `data:image/svg+xml,${encodeURIComponent(svg)}`;
 
 const LOGO_TILES = {
-  // Sign in / recovery: tile only (finch_sign_in_refactored).
+  // Sign in / recovery: tile only (coop_sign_in_refactored).
   signin: svgDataUri(COOP_MARK_SVG),
-  // Sign up: tile + wordmark (finch_sign_up_refactored).
+  // Sign up: tile + wordmark (coop_sign_up_refactored).
   signup: svgDataUri(COOP_WORDMARK_SVG),
 };
 
@@ -160,7 +160,7 @@ export function coopAuthAppearance(dark: boolean, mode: 'signin' | 'signup'): Co
         color: p.muted,
         marginTop: 8,
       },
-      // Recovery flow back link ("← Sign In", finch_recover_account_refactored)
+      // Recovery flow back link ("← Sign In", coop_recover_account_refactored)
       headerBackLink: { color: p.primary, fontWeight: 600, fontSize: 14 },
 
       // --- Form fields (label-caps labels + tinted inputs) ---

@@ -4,7 +4,7 @@ import { useCoopTheme } from '../../theme-provider';
 import type { BusinessIdentity } from './useDashboardData';
 
 /**
- * Dashboard page header (Stitch finch_business_dashboard_qa_polished):
+ * Dashboard page header (Stitch coop_business_dashboard_qa_polished):
  * "CURRENT BUSINESS DISPLAY" label-caps eyebrow, the business name +
  * currency as the page title, and a live "Last updated" line.
  *

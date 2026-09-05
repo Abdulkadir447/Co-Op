@@ -1,0 +1,328 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Co-op - Design System Showcase</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#e1e0ff",
+                    "on-primary-container": "#f9f6ff",
+                    "on-error": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "on-background": "#1b1b23",
+                    "surface-container-low": "#f5f2fe",
+                    "surface-container-high": "#e9e6f3",
+                    "on-primary-fixed": "#05006c",
+                    "surface-container-highest": "#e4e1ed",
+                    "on-primary-fixed-variant": "#2c2cc3",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed": "#311300",
+                    "primary-fixed-dim": "#c0c1ff",
+                    "primary": "#4143d5",
+                    "secondary-fixed": "#eaddff",
+                    "tertiary": "#904400",
+                    "on-tertiary": "#ffffff",
+                    "secondary-container": "#8a4cfc",
+                    "secondary-fixed-dim": "#d2bbff",
+                    "tertiary-container": "#b55700",
+                    "on-tertiary-fixed-variant": "#733500",
+                    "on-error-container": "#93000a",
+                    "outline-variant": "#c6c5d7",
+                    "background": "#fcf8ff",
+                    "surface": "#fcf8ff",
+                    "error": "#ba1a1a",
+                    "inverse-primary": "#c0c1ff",
+                    "on-secondary-fixed": "#25005a",
+                    "inverse-surface": "#303039",
+                    "on-secondary-container": "#fffbff",
+                    "primary-container": "#5b5fef",
+                    "surface-container": "#efecf9",
+                    "error-container": "#ffdad6",
+                    "secondary": "#712ae2",
+                    "outline": "#767586",
+                    "inverse-on-surface": "#f2effc",
+                    "tertiary-fixed": "#ffdbc8",
+                    "surface-bright": "#fcf8ff",
+                    "on-surface": "#1b1b23",
+                    "surface-variant": "#e4e1ed",
+                    "on-surface-variant": "#464555",
+                    "on-secondary": "#ffffff",
+                    "tertiary-fixed-dim": "#ffb689",
+                    "on-tertiary-container": "#fff6f2",
+                    "on-secondary-fixed-variant": "#5a00c6",
+                    "surface-dim": "#dbd8e5",
+                    "surface-tint": "#474adb"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "3xl": "64px",
+                    "2xl": "48px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "xl": "32px",
+                    "lg": "24px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "body-default": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "page-title-mobile": ["Inter"],
+                    "body-compact": ["Inter"],
+                    "section-heading": ["Inter"],
+                    "page-title": ["Inter"]
+            },
+            "fontSize": {
+                    "body-default": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "page-title-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "body-compact": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "section-heading": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "page-title": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .ai-gradient-border {
+            position: relative;
+        }
+        .ai-gradient-border::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #5b5fef, #8a4cfc, #c0c1ff);
+            border-top-left-radius: inherit;
+            border-top-right-radius: inherit;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-default min-h-screen flex flex-col">
+<!-- Top Navigation -->
+<header class="sticky top-0 z-50 flex justify-between items-center px-md py-sm w-full bg-surface/80 backdrop-blur-md border-b border-outline-variant">
+<div class="font-page-title text-page-title font-bold text-primary tracking-tight">Co-op</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:bg-surface-container-low transition-all duration-200 active:scale-95 p-sm rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container-low transition-all duration-200 active:scale-95 p-sm rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow w-full max-w-7xl mx-auto px-md md:px-lg py-xl pb-3xl space-y-3xl">
+<div class="space-y-sm">
+<h1 class="font-page-title text-page-title text-on-surface">Design System Showcase</h1>
+<p class="font-body-default text-body-default text-on-surface-variant max-w-2xl">A comprehensive kitchen sink of Co-op's core UI primitives, demonstrating typography, components, and layout structures based on the brand's style guidance.</p>
+</div>
+<!-- Bento Grid Layout for Components -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-lg">
+<!-- Typography -->
+<section class="col-span-1 md:col-span-2 lg:col-span-3 bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
+<h2 class="font-section-heading text-section-heading text-on-surface mb-lg border-b border-surface-variant pb-sm">Typography Hierarchy</h2>
+<div class="space-y-md">
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs block">Page Title (Desktop)</span>
+<div class="font-page-title text-page-title text-on-surface">The quick brown fox jumps over the lazy dog</div>
+</div>
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs block">Page Title (Mobile)</span>
+<div class="font-page-title-mobile text-page-title-mobile text-on-surface">The quick brown fox jumps over the lazy dog</div>
+</div>
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs block">Section Heading</span>
+<div class="font-section-heading text-section-heading text-on-surface">The quick brown fox jumps over the lazy dog</div>
+</div>
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs block">Body Default</span>
+<div class="font-body-default text-body-default text-on-surface">The quick brown fox jumps over the lazy dog. This is standard paragraph text used for the majority of long-form reading content.</div>
+</div>
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs block">Body Compact</span>
+<div class="font-body-compact text-body-compact text-on-surface">The quick brown fox jumps over the lazy dog. Used for dense data tables or secondary descriptions.</div>
+</div>
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-xs block">Label Caps</span>
+<div class="font-label-caps text-label-caps text-primary uppercase">The quick brown fox jumps</div>
+</div>
+</div>
+</section>
+<!-- Buttons -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm flex flex-col gap-md">
+<h2 class="font-section-heading text-section-heading text-on-surface mb-sm">Buttons</h2>
+<div class="flex flex-wrap gap-md items-center">
+<button class="bg-primary hover:bg-primary-container text-on-primary font-label-caps text-label-caps px-lg py-sm rounded-xl transition-all duration-200 active:scale-95 shadow-sm">Primary Action</button>
+<button class="bg-transparent border border-primary text-primary hover:bg-primary-fixed/10 font-label-caps text-label-caps px-lg py-sm rounded-xl transition-all duration-200 active:scale-95">Secondary Ghost</button>
+<button class="bg-error text-on-error hover:bg-on-error-container font-label-caps text-label-caps px-lg py-sm rounded-xl transition-all duration-200 active:scale-95 shadow-sm">Danger Action</button>
+</div>
+<div class="mt-sm">
+<button class="w-full relative overflow-hidden bg-surface-container-low border border-primary/20 text-primary font-label-caps text-label-caps px-lg py-sm rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center gap-sm group">
+<span class="absolute inset-0 bg-gradient-to-r from-primary-fixed/20 via-secondary-fixed/20 to-primary-fixed/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1; font-size: 16px;">auto_awesome</span>
+                        AI Generated Action
+                    </button>
+</div>
+</section>
+<!-- Status Badges -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm flex flex-col gap-md">
+<h2 class="font-section-heading text-section-heading text-on-surface mb-sm">Status Badges</h2>
+<div class="flex flex-wrap gap-md">
+<!-- Note: While instructions say 'green/yellow' etc, I must strictly use the provided theme tokens. I will use primary/tertiary/error to approximate these standard states while adhering to the color palette. -->
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-[8px] bg-primary-fixed text-on-primary-fixed font-label-caps text-label-caps">
+<span class="material-symbols-outlined" style="font-size: 14px;">check_circle</span>
+                        Success (Primary)
+                    </span>
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-[8px] bg-tertiary-fixed text-on-tertiary-fixed font-label-caps text-label-caps">
+<span class="material-symbols-outlined" style="font-size: 14px;">warning</span>
+                        Warning (Tertiary)
+                    </span>
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-[8px] bg-error-container text-on-error-container font-label-caps text-label-caps">
+<span class="material-symbols-outlined" style="font-size: 14px;">error</span>
+                        Error State
+                    </span>
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-[8px] bg-surface-variant text-on-surface-variant font-label-caps text-label-caps">
+<span class="material-symbols-outlined" style="font-size: 14px;">info</span>
+                        Information
+                    </span>
+</div>
+</section>
+<!-- Form Elements -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm flex flex-col gap-md">
+<h2 class="font-section-heading text-section-heading text-on-surface mb-sm">Form Elements</h2>
+<div class="space-y-md">
+<div class="flex flex-col gap-xs">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Email Address</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline" style="font-size: 20px;">mail</span>
+<input class="w-full pl-[36px] pr-sm py-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary-fixed/50 outline-none transition-all font-body-default text-body-default text-on-surface placeholder:text-outline-variant" placeholder="user@company.com" type="email">
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase">Project Description</label>
+<textarea class="w-full p-sm bg-surface rounded-lg border border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary-fixed/50 outline-none transition-all font-body-default text-body-default text-on-surface placeholder:text-outline-variant resize-none" placeholder="Describe the scope..." rows="3"></textarea>
+</div>
+</div>
+</section>
+<!-- Cards Showcase -->
+<section class="col-span-1 md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-lg">
+<!-- Standard Card -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg flex flex-col hover:shadow-[0_4px_12px_rgba(91,95,239,0.08)] transition-shadow duration-300">
+<div class="flex justify-between items-start mb-md">
+<h3 class="font-section-heading text-section-heading text-on-surface">Standard Data Card</h3>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<p class="font-body-default text-body-default text-on-surface-variant mb-lg flex-grow">This represents a standard Level 1 elevation card. It uses a crisp 1px border and a white background. Upon hover, it subtly elevates to Level 2 with a diffused indigo shadow.</p>
+<div class="flex justify-end pt-md border-t border-surface-variant">
+<button class="text-primary font-label-caps text-label-caps hover:bg-primary-fixed/10 px-sm py-xs rounded-lg transition-colors">View Details</button>
+</div>
+</div>
+<!-- AI Enhanced Card -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg flex flex-col hover:shadow-[0_4px_12px_rgba(91,95,239,0.08)] transition-shadow duration-300 ai-gradient-border relative overflow-hidden">
+<div class="absolute top-0 right-0 p-sm opacity-10">
+<span class="material-symbols-outlined" style="font-size: 64px; font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<div class="flex justify-between items-start mb-md relative z-10">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary-container" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<h3 class="font-section-heading text-section-heading text-on-surface">AI Generated Insights</h3>
+</div>
+</div>
+<p class="font-body-default text-body-default text-on-surface-variant mb-lg flex-grow relative z-10">This card features the signature 2px gradient top-border, instantly communicating to the user that the contents below are generated or enhanced by AI systems.</p>
+<div class="flex gap-sm mb-lg relative z-10">
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-[8px] bg-surface-variant text-on-surface-variant font-label-caps text-label-caps">Optimization</span>
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-[8px] bg-surface-variant text-on-surface-variant font-label-caps text-label-caps">High Confidence</span>
+</div>
+<div class="flex justify-between items-center pt-md border-t border-surface-variant relative z-10">
+<span class="font-body-compact text-body-compact text-outline text-xs">Generated just now</span>
+<button class="bg-secondary-container text-on-primary font-label-caps text-label-caps px-md py-xs rounded-lg hover:bg-secondary transition-colors">Apply Strategy</button>
+</div>
+</div>
+</section>
+<!-- Lists / Table Rows -->
+<section class="col-span-1 md:col-span-2 lg:col-span-3 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+<div class="p-lg border-b border-outline-variant bg-surface-bright">
+<h2 class="font-section-heading text-section-heading text-on-surface">Data List View</h2>
+</div>
+<div class="flex flex-col">
+<!-- Row 1 -->
+<div class="flex items-center justify-between p-md border-b border-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-label-caps">JD</div>
+<div>
+<div class="font-body-default text-body-default text-on-surface font-semibold">Jane Doe</div>
+<div class="font-body-compact text-body-compact text-on-surface-variant">jane.doe@example.com</div>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<span class="inline-flex items-center px-sm py-xs rounded-[8px] bg-primary-fixed text-on-primary-fixed font-label-caps text-label-caps">Active</span>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="flex items-center justify-between p-md border-b border-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-label-caps">AS</div>
+<div>
+<div class="font-body-default text-body-default text-on-surface font-semibold">Alex Smith</div>
+<div class="font-body-compact text-body-compact text-on-surface-variant">alex.smith@example.com</div>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<span class="inline-flex items-center px-sm py-xs rounded-[8px] bg-surface-variant text-on-surface-variant font-label-caps text-label-caps">Offline</span>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Nav Preview Context Box -->
+<section class="col-span-1 md:col-span-2 lg:col-span-3 bg-surface-container-low rounded-xl border border-outline-variant p-lg shadow-sm flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-outline mb-sm" style="font-size: 32px;">smartphone</span>
+<h3 class="font-section-heading text-section-heading text-on-surface mb-xs">Mobile Navigation Context</h3>
+<p class="font-body-default text-body-default text-on-surface-variant max-w-lg mb-0">The bottom navigation bar pinned below will only appear on mobile devices (md:hidden). Resize your browser window to see the responsive layout pivot in action.</p>
+</section>
+</div>
+</main>
+<!-- Bottom Navigation (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-sm pb-safe pt-2 bg-surface border-t border-outline-variant shadow-sm rounded-t-xl">
+<button class="flex flex-col items-center justify-center text-primary bg-primary-fixed/30 rounded-xl px-4 py-1 transition-transform duration-200 active:scale-90">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-label-caps text-label-caps mt-1">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary px-4 py-1 transition-transform duration-200 active:scale-90">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">inventory_2</span>
+<span class="font-label-caps text-label-caps mt-1">Operations</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary px-4 py-1 transition-transform duration-200 active:scale-90">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">auto_awesome</span>
+<span class="font-label-caps text-label-caps mt-1">AI</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary px-4 py-1 transition-transform duration-200 active:scale-90">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">group</span>
+<span class="font-label-caps text-label-caps mt-1">Clients</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary px-4 py-1 transition-transform duration-200 active:scale-90">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">menu</span>
+<span class="font-label-caps text-label-caps mt-1">More</span>
+</button>
+</nav>
+<!-- Extra padding for mobile bottom nav -->
+<div class="h-20 md:hidden"></div>
+</body></html>

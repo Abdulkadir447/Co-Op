@@ -21,7 +21,7 @@ export interface ProductCardListProps {
 }
 
 /**
- * Mobile product list (Stitch finch_products_mobile_refactored): card per
+ * Mobile product list (Stitch coop_products_mobile_refactored): card per
  * product — name + status pill (with count), SKU line, hairline, price +
  * Edit. Out-of-stock cards carry the gradient top border ("needs
  * attention" marker from the design).

@@ -1,6 +1,6 @@
 /**
- * Inventory module screen (Stitch finch_products_catalog_refactored table
- * pattern + finch_adjust_stock_workflow). UI refactor only — same
+ * Inventory module screen (Stitch coop_products_catalog_refactored table
+ * pattern + coop_adjust_stock_workflow). UI refactor only — same
  * endpoints, same business rules:
  *   - KPI stat row (products / value / low / out)
  *   - catalog table: SKU · Product · Category · Prices · Stock · Status ·

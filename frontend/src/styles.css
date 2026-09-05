@@ -257,7 +257,7 @@ body .ant-table-thead > tr > td {
 }
 
 /*
- * Auth screens — mobile (finch_sign_in_mobile_refactored): full-bleed card,
+ * Auth screens — mobile (coop_sign_in_mobile_refactored): full-bleed card,
  * tighter vertical rhythm.
  */
 @media (max-width: 640px) {

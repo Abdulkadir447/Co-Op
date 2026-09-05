@@ -6,7 +6,7 @@ import ast
 import os
 import sys
 
-ROOT = "/home/user/Finch"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXES = []
 
 

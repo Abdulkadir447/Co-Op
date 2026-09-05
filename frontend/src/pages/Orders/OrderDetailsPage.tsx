@@ -38,7 +38,7 @@ import {
 } from '../../components/ui';
 
 /**
- * Order Details (Stitch finch_order_details_refactored):
+ * Order Details (Stitch coop_order_details_refactored):
  *
  *   Order #ORD-XXXX [status pill] · placed-on line
  *   Items Ordered card (real line items + totals)

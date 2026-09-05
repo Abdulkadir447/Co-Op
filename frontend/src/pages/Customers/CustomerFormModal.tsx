@@ -1,5 +1,5 @@
 /**
- * Add/Edit Customer modal (Stitch finch_customer_workflows_modals).
+ * Add/Edit Customer modal (Stitch coop_customer_workflows_modals).
  *
  * UI refactor only — same fields, same validation, same tenant-scoped email
  * rules. Presentation per the design: full-width "Create New Customer" /

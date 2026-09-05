@@ -1,0 +1,361 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Create New Product - Co-op</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#ffffff",
+                    "secondary-fixed": "#eaddff",
+                    "tertiary": "#904400",
+                    "on-primary-fixed": "#05006c",
+                    "on-error": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#25005a",
+                    "error": "#ba1a1a",
+                    "primary": "#4143d5",
+                    "inverse-primary": "#c0c1ff",
+                    "outline-variant": "#c6c5d7",
+                    "secondary-fixed-dim": "#d2bbff",
+                    "primary-fixed": "#e1e0ff",
+                    "on-tertiary-fixed": "#311300",
+                    "surface-bright": "#fcf8ff",
+                    "on-error-container": "#93000a",
+                    "surface-container-low": "#f5f2fe",
+                    "surface-container": "#efecf9",
+                    "surface-tint": "#474adb",
+                    "error-container": "#ffdad6",
+                    "on-surface-variant": "#464555",
+                    "tertiary-fixed-dim": "#ffb689",
+                    "on-tertiary-fixed-variant": "#733500",
+                    "surface-container-highest": "#e4e1ed",
+                    "tertiary-container": "#b55700",
+                    "secondary": "#712ae2",
+                    "on-tertiary-container": "#fff6f2",
+                    "surface": "#fcf8ff",
+                    "background": "#fcf8ff",
+                    "surface-dim": "#dbd8e5",
+                    "on-surface": "#1b1b23",
+                    "on-background": "#1b1b23",
+                    "inverse-on-surface": "#f2effc",
+                    "secondary-container": "#8a4cfc",
+                    "on-secondary-fixed-variant": "#5a00c6",
+                    "surface-variant": "#e4e1ed",
+                    "outline": "#767586",
+                    "tertiary-fixed": "#ffdbc8",
+                    "primary-fixed-dim": "#c0c1ff",
+                    "primary-container": "#5b5fef",
+                    "on-secondary": "#ffffff",
+                    "surface-container-high": "#e9e6f3",
+                    "on-primary-container": "#f9f6ff",
+                    "inverse-surface": "#303039",
+                    "on-secondary-container": "#fffbff",
+                    "on-primary-fixed-variant": "#2c2cc3",
+                    "surface-container-lowest": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "lg": "24px",
+                    "2xl": "48px",
+                    "3xl": "64px",
+                    "xl": "32px",
+                    "xs": "4px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "label-caps": [
+                            "Inter"
+                    ],
+                    "page-title": [
+                            "Inter"
+                    ],
+                    "body-compact": [
+                            "Inter"
+                    ],
+                    "body-default": [
+                            "Inter"
+                    ],
+                    "page-title-mobile": [
+                            "Inter"
+                    ],
+                    "section-heading": [
+                            "Inter"
+                    ]
+            },
+            "fontSize": {
+                    "label-caps": [
+                            "12px",
+                            {
+                                    "lineHeight": "16px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "page-title": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-compact": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-default": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "page-title-mobile": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "section-heading": [
+                            "20px",
+                            {
+                                    "lineHeight": "28px",
+                                    "fontWeight": "600"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background font-body-default text-on-background m-0 p-0 overflow-hidden">
+<!-- TopNavBar -->
+<nav class="fixed top-0 right-0 h-[64px] left-[220px] bg-surface-container-lowest/80 backdrop-blur-md text-primary font-title-md text-title-md border-b border-border-subtle flex items-center justify-between px-lg w-full z-40 hidden md:flex">
+<div class="flex items-center gap-md">
+<!-- Search Placeholder -->
+<div class="relative flex items-center bg-surface-container-low rounded-full px-md py-sm">
+<span class="material-symbols-outlined text-on-surface-variant mr-sm">search</span>
+<input class="bg-transparent border-none outline-none text-body-compact font-body-compact text-on-surface w-48 placeholder-on-surface-variant focus:ring-0 p-0" placeholder="Search..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-lg">
+<button class="flex items-center gap-sm bg-[linear-gradient(135deg,#e1e0ff_0%,#c0c1ff_100%)] text-on-primary-fixed-variant px-md py-sm rounded-full font-label-caps text-label-caps border border-primary-fixed transition-transform hover:scale-[0.98]">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                AI Assistant
+            </button>
+<button class="text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full object-cover" data-alt="A clean, professional headshot of a business user in a modern office setting. The lighting is soft and flattering, emphasizing a trustworthy and competent appearance. The background is slightly blurred to keep focus on the subject. High quality, light mode aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRW8OAj3VgObPgksrXQrlAW6AqCNpFAOU53qCkOm9_8229BJWkz0D2ww6ZYTlZu6kNr0aA61Qam139IM9KiNC7fmF1zLyuSft1RxCUt8q6IduHhPOTfxSpmN-hxwJNZOJho1yVcbAy2Zg9qZIf2BzNo1NIP1Yg_3r2s-nB_k-D9ByrKv47O8Nd9s3veCZHNrSzFYEhZ4SoQkA0G5VcGkftm-VXpqCsMg2u2ityK5R9wil8bAaZyLz3Tg">
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-screen w-[220px] bg-surface-container-lowest text-primary font-body-compact text-body-compact border-r border-border-subtle flex flex-col py-lg px-md z-50">
+<div class="flex items-center gap-md mb-2xl px-sm">
+<img alt="Co-op Logo" class="w-8 h-8 object-contain" data-alt="A minimalist and sleek logo design representing a modern SaaS brand. The logo uses a vibrant primary purple color against a pure white background. The design is geometric and forward-looking, conveying intelligence and efficiency." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaBzoCxYqjc7v4wT2eLdyGnhqwoVN0c3Lfbxhl9WYbCP2hgOqehPcmT4vWp-DVKdrg5xYGVMrU1ZyUWtvQDdq9mPGjmLW-zDg-NK0Vk5-1nHhxHoBrCs-zwN7Us9jdAFX5UTKWYBAfN-xOSzgUdPB7nrikZkWdNTafW74XeKZSw4gdwjZn9-XtPSRF621UWm7cygp6ZoaGtEb0PuEjyvlO2AYNu-_dhR0XmsirkpdcJMdVXENxNoLugw">
+<div>
+<h1 class="text-section-heading font-section-heading text-primary m-0 p-0 leading-tight">Co-op</h1>
+<p class="text-label-caps font-label-caps text-on-surface-variant m-0 p-0 opacity-80">Premium SaaS</p>
+</div>
+</div>
+<nav class="flex flex-col gap-sm flex-1">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Overview
+            </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary font-bold bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+                Products
+            </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">warehouse</span>
+                Inventory
+            </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">shopping_cart</span>
+                Orders
+            </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+                Customers
+            </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors mt-lg" href="#">
+<span class="material-symbols-outlined text-secondary">auto_awesome</span>
+                Co-op AI
+            </a>
+</nav>
+<div class="mt-auto flex flex-col gap-sm">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+                Help
+            </a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined">payments</span>
+                Billing
+            </a>
+<button class="mt-md w-full bg-primary text-on-primary py-sm rounded-lg font-label-caps text-label-caps hover:opacity-90 transition-opacity">
+                Upgrade Plan
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas (Blurred Background) -->
+<main class="ml-[220px] mt-[64px] p-xl h-[calc(100vh-64px)] overflow-y-auto filter blur-sm transition-all duration-300 select-none">
+<div class="flex justify-between items-center mb-xl">
+<h2 class="font-page-title text-page-title text-on-background">Products</h2>
+<button class="bg-primary text-on-primary px-lg py-sm rounded-xl font-label-caps text-label-caps hover:bg-primary-container transition-colors shadow-sm">
+                Add Product
+            </button>
+</div>
+<!-- Fake Background Content -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg flex flex-col gap-md opacity-60">
+<div class="flex justify-between border-b border-surface-variant pb-sm">
+<div class="w-1/4 h-4 bg-surface-variant rounded"></div>
+<div class="w-1/4 h-4 bg-surface-variant rounded"></div>
+<div class="w-1/4 h-4 bg-surface-variant rounded"></div>
+</div>
+<div class="flex justify-between py-sm">
+<div class="w-1/3 h-4 bg-surface-container-high rounded"></div>
+<div class="w-1/5 h-4 bg-surface-container-high rounded"></div>
+<div class="w-1/6 h-4 bg-surface-container-high rounded"></div>
+</div>
+<div class="flex justify-between py-sm">
+<div class="w-1/4 h-4 bg-surface-container-high rounded"></div>
+<div class="w-1/4 h-4 bg-surface-container-high rounded"></div>
+<div class="w-1/4 h-4 bg-surface-container-high rounded"></div>
+</div>
+</div>
+</main>
+<!-- Modal Overlay -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-md">
+<!-- Modal Container -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant w-full max-w-2xl shadow-[0_12px_24px_-4px_rgba(91,95,239,0.08)] flex flex-col overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+<!-- Modal Header -->
+<div class="px-lg py-md border-b border-surface-variant flex justify-between items-center bg-surface-bright">
+<h3 class="font-section-heading text-section-heading text-on-surface">Create New Product</h3>
+<button class="text-on-surface-variant hover:text-error transition-colors p-sm rounded-full hover:bg-error-container">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Modal Body (Form) -->
+<div class="p-lg flex flex-col gap-lg overflow-y-auto max-h-[716px]">
+<!-- Product Name -->
+<div class="flex flex-col gap-xs">
+<label class="font-label-caps text-label-caps text-on-surface-variant" for="product-name">Product Name</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm text-body-default font-body-default text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline" id="product-name" placeholder="e.g. Premium Widget X" type="text">
+</div>
+<!-- SKU and Category Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<div class="flex flex-col gap-xs">
+<label class="font-label-caps text-label-caps text-on-surface-variant flex justify-between" for="sku">
+                            SKU
+                            <span class="text-outline font-normal text-[10px]">*Must be unique</span>
+</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-md pr-xl py-sm text-body-default font-body-default text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-mono" id="sku" placeholder="PRD-001" type="text">
+<span class="material-symbols-outlined absolute right-sm top-1/2 -translate-y-1/2 text-outline-variant text-[18px]">barcode</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-caps text-label-caps text-on-surface-variant" for="category">Category</label>
+<div class="relative">
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-md pr-xl py-sm text-body-default font-body-default text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all appearance-none" id="category">
+<option disabled="" selected="" value="">Select a category</option>
+<option value="electronics">Electronics</option>
+<option value="software">Software License</option>
+<option value="hardware">Hardware</option>
+<option value="services">Professional Services</option>
+</select>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Pricing Section (Bento style card) -->
+<div class="bg-surface-container-low rounded-lg border border-surface-variant p-md">
+<h4 class="font-label-caps text-label-caps text-primary mb-md flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">payments</span>
+                        Pricing Details
+                    </h4>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<div class="flex flex-col gap-xs">
+<label class="font-body-compact text-body-compact text-on-surface-variant" for="selling-price">Selling Price</label>
+<div class="relative flex items-center">
+<span class="absolute left-md text-on-surface-variant">$</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-xl pr-md py-sm text-body-default font-body-default text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" id="selling-price" placeholder="0.00" type="number">
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-body-compact text-body-compact text-on-surface-variant" for="cost-price">Cost Price</label>
+<div class="relative flex items-center">
+<span class="absolute left-md text-on-surface-variant">$</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-xl pr-md py-sm text-body-default font-body-default text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" id="cost-price" placeholder="0.00" type="number">
+</div>
+</div>
+</div>
+</div>
+<!-- Inventory Section -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<div class="flex flex-col gap-xs">
+<label class="font-label-caps text-label-caps text-on-surface-variant" for="current-stock">Current Stock</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm text-body-default font-body-default text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" id="current-stock" placeholder="0" type="number">
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-caps text-label-caps text-on-surface-variant" for="reorder-level">Reorder Level</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-md py-sm text-body-default font-body-default text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" id="reorder-level" placeholder="10" type="number">
+<p class="text-label-caps font-label-caps text-outline mt-xs">Alert when stock falls below this number</p>
+</div>
+</div>
+<!-- AI Generation Hint (Optional feature area) -->
+<div class="mt-sm p-sm rounded-lg border-t-2 border-primary bg-[linear-gradient(to_right,var(--tw-colors-surface-container-low),transparent)] flex items-start gap-md">
+<span class="material-symbols-outlined text-primary mt-xs">auto_awesome</span>
+<div>
+<p class="font-body-compact text-body-compact text-on-surface font-semibold">Generate Product Description</p>
+<p class="font-body-compact text-[12px] text-on-surface-variant">Use Co-op AI to auto-generate a compelling description based on the title and category.</p>
+<button class="mt-xs text-primary font-label-caps text-label-caps hover:underline">Try it now</button>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="px-lg py-md border-t border-surface-variant bg-surface-container-lowest flex justify-end gap-md items-center">
+<button class="px-lg py-sm rounded-xl font-label-caps text-label-caps text-primary border border-primary hover:bg-primary-fixed transition-colors">
+                    Cancel
+                </button>
+<button class="px-lg py-sm rounded-xl font-label-caps text-label-caps text-on-primary bg-primary hover:bg-primary-container transition-colors shadow-sm flex items-center gap-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                    Create Product
+                </button>
+</div>
+</div>
+</div>
+<style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+    </style>
+</body></html>

@@ -28,8 +28,8 @@ import CustomerAvatar from '../../components/ui/CustomerAvatar';
 import { CoopBadge, CoopButton, SparkleIcon } from '../../components/ui';
 
 /**
- * Create Order workflow (Stitch finch_create_order_workflow +
- * finch_payment_success_failure) as one continuous page:
+ * Create Order workflow (Stitch coop_create_order_workflow +
+ * coop_payment_success_failure) as one continuous page:
  *
  *   1. Customer Details — searchable picker + inline "New" customer via the
  *      existing POST /customers
@@ -356,7 +356,7 @@ const CreateOrderPage: React.FC = () => {
   );
 
   // ------------------------------------------------------------------
-  // Result screens (finch_payment_success_failure pattern)
+  // Result screens (coop_payment_success_failure pattern)
   // ------------------------------------------------------------------
   if (step === 'success' || step === 'failure') {
     const success = step === 'success';

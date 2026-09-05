@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Customers - Co-op</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-primary-fixed": "#05006c",
+                "tertiary": "#904400",
+                "on-primary-container": "#f9f6ff",
+                "primary-fixed-dim": "#c0c1ff",
+                "background": "#fcf8ff",
+                "on-primary": "#ffffff",
+                "surface-container-highest": "#e4e1ed",
+                "surface-container-low": "#f5f2fe",
+                "error": "#ba1a1a",
+                "inverse-on-surface": "#f2effc",
+                "surface-bright": "#fcf8ff",
+                "surface-container-high": "#e9e6f3",
+                "surface-tint": "#474adb",
+                "on-secondary-fixed-variant": "#5a00c6",
+                "secondary-container": "#8a4cfc",
+                "on-tertiary-fixed-variant": "#733500",
+                "on-background": "#1b1b23",
+                "tertiary-fixed-dim": "#ffb689",
+                "outline": "#767586",
+                "primary-container": "#5b5fef",
+                "on-primary-fixed-variant": "#2c2cc3",
+                "tertiary-container": "#b55700",
+                "on-tertiary-fixed": "#311300",
+                "surface-container-lowest": "#ffffff",
+                "tertiary-fixed": "#ffdbc8",
+                "on-secondary": "#ffffff",
+                "secondary": "#712ae2",
+                "on-error-container": "#93000a",
+                "on-surface": "#1b1b23",
+                "on-secondary-fixed": "#25005a",
+                "surface": "#fcf8ff",
+                "inverse-surface": "#303039",
+                "on-tertiary": "#ffffff",
+                "error-container": "#ffdad6",
+                "surface-variant": "#e4e1ed",
+                "inverse-primary": "#c0c1ff",
+                "on-tertiary-container": "#fff6f2",
+                "surface-container": "#efecf9",
+                "on-secondary-container": "#fffbff",
+                "surface-dim": "#dbd8e5",
+                "secondary-fixed-dim": "#d2bbff",
+                "secondary-fixed": "#eaddff",
+                "on-surface-variant": "#464555",
+                "outline-variant": "#c6c5d7",
+                "primary": "#4143d5",
+                "on-error": "#ffffff",
+                "primary-fixed": "#e1e0ff"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "3xl": "64px",
+                "2xl": "48px",
+                "xl": "32px",
+                "sm": "8px",
+                "lg": "24px",
+                "md": "16px",
+                "xs": "4px"
+        },
+        "fontFamily": {
+                "label-caps": [
+                        "Inter"
+                ],
+                "page-title": [
+                        "Inter"
+                ],
+                "section-heading": [
+                        "Inter"
+                ],
+                "body-default": [
+                        "Inter"
+                ],
+                "body-compact": [
+                        "Inter"
+                ],
+                "page-title-mobile": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "label-caps": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "page-title": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "section-heading": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-default": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-compact": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "page-title-mobile": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "700"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+</head>
+<body class="bg-background text-on-background font-body-default flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-screen p-md gap-sm bg-surface-container-lowest border-r border-outline-variant w-64 flex-shrink-0">
+<div class="flex items-center gap-sm mb-lg">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-page-title">F</div>
+<div>
+<h1 class="text-section-heading font-section-heading text-primary">Co-op CRM</h1>
+<p class="text-label-caps font-label-caps text-on-surface-variant">Premium SaaS</p>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary py-sm px-md rounded-xl mb-md font-label-caps hover:opacity-90 transition-opacity flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">add</span>
+            New Customer
+        </button>
+<div class="flex flex-col gap-xs flex-1">
+<a class="flex items-center gap-sm p-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-sm p-sm rounded-lg bg-secondary-container text-on-secondary-container cursor-pointer active:scale-95 font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">group</span>
+                Customers
+            </a>
+<a class="flex items-center gap-sm p-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+                Workflows
+            </a>
+<a class="flex items-center gap-sm p-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 font-label-caps text-label-caps" href="#">
+<span class="material-symbols-outlined">analytics</span>
+                Reports
+            </a>
+<a class="flex items-center gap-sm p-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all cursor-pointer active:scale-95 font-label-caps text-label-caps mt-auto" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar -->
+<header class="sticky top-0 z-50 flex justify-between items-center px-lg py-sm bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-md">
+<div class="text-page-title font-page-title text-primary md:hidden">Co-op</div>
+<div class="relative hidden sm:block w-64">
+<span class="material-symbols-outlined absolute left-sm top-1/2 transform -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pl-xl pr-sm py-xs text-body-compact font-body-compact focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search customers..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-outline-variant object-cover" data-alt="A small circular profile picture of a professional individual in a corporate setting, soft lighting, sharp focus, modern bright style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPGT3e142EtHYx9xtTVcXnfvlWYi2fLTy1B3V7g4BbJg5IuoJWK74BwARHWQth3EabMqcDDOR62BssRfzJ3DyEHGE3V8rftxRgyNV2YAjbFpgSOazU5Fqs2i-K_c9OvRqzHpVGR4o0Uf_mu8bXgrkIdZFcJK9udki9PIboJxC4O6HvN4jFm822Wpo8PSaHrqQGDWOPLk7F5jz9rQ6H23HQyHSaPL6gS5rlt5CGEqRbeTEQSXvLZeOdoA"/>
+</div>
+</header>
+<!-- Page Content -->
+<main class="flex-1 overflow-y-auto p-lg bg-surface">
+<!-- Page Header -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-lg gap-md">
+<div>
+<h2 class="text-page-title font-page-title text-on-surface">Customers</h2>
+<p class="text-body-compact font-body-compact text-on-surface-variant mt-xs">Manage and view your customer database.</p>
+</div>
+<div class="flex gap-sm w-full sm:w-auto">
+<button class="flex-1 sm:flex-none border border-outline-variant text-primary px-md py-sm rounded-xl font-label-caps text-label-caps hover:bg-surface-container-high transition-colors flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        Filter
+                    </button>
+<button class="flex-1 sm:flex-none bg-primary text-on-primary px-md py-sm rounded-xl font-label-caps text-label-caps hover:opacity-90 transition-opacity flex items-center justify-center gap-xs shadow-[0_4px_12px_rgba(65,67,213,0.2)]">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+                        Add Customer
+                    </button>
+</div>
+</div>
+<!-- Data Table Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container border-b border-outline-variant text-label-caps font-label-caps text-on-surface-variant">
+<th class="py-sm px-md font-semibold">Name</th>
+<th class="py-sm px-md font-semibold">Company</th>
+<th class="py-sm px-md font-semibold">Contact</th>
+<th class="py-sm px-md font-semibold">Status</th>
+<th class="py-sm px-md font-semibold text-right">Orders</th>
+<th class="py-sm px-md font-semibold text-right">Total Spent</th>
+<th class="py-sm px-md w-10"></th>
+</tr>
+</thead>
+<tbody class="text-body-compact font-body-compact text-on-surface">
+<!-- Row 1 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors group">
+<td class="py-sm px-md">
+<div class="flex items-center gap-sm">
+<img alt="Avatar" class="w-8 h-8 rounded-full object-cover border border-outline-variant" data-alt="Close up professional headshot of a smiling woman with glasses, light corporate background, soft bright lighting, sharp focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMzsz-u01VXV_1_Xbs4GjB9MSKrINRAqs4A8MIqVChZWpd1IDWnmXG7xJH_b4oMRVjulbs8MC6J1IrEnI8iQM34p2W-6VhBCWSE7QXIDqIiIHlZMvY_l0sXujbED3NHqfWQM6Qni_apKHUluksdaptw00Yq3g4NBtyiV8nSDGKxu_tgCMZ_v4nodZbOnrbYBoCSDZ4ALOM3Ex5LCXzNwTKW0sbSe83cOIFK_8-t2PcWAfCuMNMXa7PBA"/>
+<div>
+<div class="font-semibold text-on-surface">Sarah Jenkins</div>
+<div class="text-[12px] text-on-surface-variant">ID: #C-8492</div>
+</div>
+</div>
+</td>
+<td class="py-sm px-md">Acme Corp</td>
+<td class="py-sm px-md">
+<div class="text-on-surface">sarah.j@acmecorp.com</div>
+<div class="text-on-surface-variant text-[12px]">(555) 123-4567</div>
+</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded-sm bg-primary/10 text-primary font-label-caps text-[10px]">Active</span>
+</td>
+<td class="py-sm px-md text-right">14</td>
+<td class="py-sm px-md text-right font-semibold">$12,450.00</td>
+<td class="py-sm px-md text-right">
+<button class="text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors group">
+<td class="py-sm px-md">
+<div class="flex items-center gap-sm">
+<img alt="Avatar" class="w-8 h-8 rounded-full object-cover border border-outline-variant" data-alt="Professional headshot of a confident man in a suit, modern office background, bright natural lighting, crisp details." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxurlMytlWQYs72J1BHcLS7F4hFwhIZ1eNZ0Fpc0FetEdxoybim6SQ1KzT8sPdFqmha597JYTQ9VviyDXDqpq3xlld-dLQT_MAB1ap3Jr7zcr1YaqlpspnJuHm2uBO2NF8iDJl0qhejFfIKdQ9-ybKDKocksathkcC_mOquSkWwSdy-kvdTvksEZoz5szukJ7M0pXMrOrk6n6ai060g0ufGSlQSD63u1jq84oqBTUWvpk1u3ajs8dH7Q"/>
+<div>
+<div class="font-semibold text-on-surface">Michael Chen</div>
+<div class="text-[12px] text-on-surface-variant">ID: #C-8493</div>
+</div>
+</div>
+</td>
+<td class="py-sm px-md">TechFlow Inc.</td>
+<td class="py-sm px-md">
+<div class="text-on-surface">m.chen@techflow.io</div>
+<div class="text-on-surface-variant text-[12px]">(555) 987-6543</div>
+</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded-sm bg-secondary-container text-on-secondary-container font-label-caps text-[10px]">New</span>
+</td>
+<td class="py-sm px-md text-right">2</td>
+<td class="py-sm px-md text-right font-semibold">$1,850.00</td>
+<td class="py-sm px-md text-right">
+<button class="text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors group">
+<td class="py-sm px-md">
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface-variant font-semibold text-[14px]">ER</div>
+<div>
+<div class="font-semibold text-on-surface">Elena Rodriguez</div>
+<div class="text-[12px] text-on-surface-variant">ID: #C-8494</div>
+</div>
+</div>
+</td>
+<td class="py-sm px-md">Global Logistics</td>
+<td class="py-sm px-md">
+<div class="text-on-surface">elena@globallogistics.com</div>
+<div class="text-on-surface-variant text-[12px]">(555) 456-7890</div>
+</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded-sm bg-primary/10 text-primary font-label-caps text-[10px]">Active</span>
+</td>
+<td class="py-sm px-md text-right">38</td>
+<td class="py-sm px-md text-right font-semibold">$45,200.50</td>
+<td class="py-sm px-md text-right">
+<button class="text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity hover:text-primary">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="px-md py-sm border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between">
+<span class="text-body-compact font-body-compact text-on-surface-variant text-[12px]">Showing 1 to 3 of 42 entries</span>
+<div class="flex gap-xs">
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary text-on-primary font-body-compact text-[14px]">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant text-on-surface hover:bg-surface-container-high transition-colors font-body-compact text-[14px]">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant text-on-surface hover:bg-surface-container-high transition-colors font-body-compact text-[14px]">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- BottomNavBar (Mobile only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 md:hidden bg-surface shadow-[0_-4px_12px_rgba(91,95,239,0.08)] border-t border-outline-variant rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-container-highest tap-highlight-transparent transition-transform active:scale-90 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-caps-mobile text-[10px] mt-xs">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-4 py-1 tap-highlight-transparent transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-caps-mobile text-[10px] mt-xs">CRM</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-container-highest tap-highlight-transparent transition-transform active:scale-90 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">sync_alt</span>
+<span class="font-label-caps-mobile text-[10px] mt-xs">Flows</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-container-highest tap-highlight-transparent transition-transform active:scale-90 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">menu</span>
+<span class="font-label-caps-mobile text-[10px] mt-xs">More</span>
+</a>
+</nav>
+</body></html>

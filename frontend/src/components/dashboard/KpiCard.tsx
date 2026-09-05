@@ -34,7 +34,7 @@ export interface KpiCardProps {
 }
 
 /**
- * Co-op KPI stat card (Stitch finch_business_dashboard_qa_polished):
+ * Co-op KPI stat card (Stitch coop_business_dashboard_qa_polished):
  * label + icon tile on one row, dominant value, then trend / sub line.
  *
  * Interaction (UXDS 9.9 / 9.25): interactive cards lift with a border +

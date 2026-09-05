@@ -31,7 +31,7 @@ import { Customer, CustomerFormValues } from './useCustomers';
 import { KEY_ACCOUNT_THRESHOLD } from './useCustomerStats';
 
 /**
- * Customer Profile (Stitch finch_customer_details_qa_polished) — the
+ * Customer Profile (Stitch coop_customer_details_qa_polished) — the
  * customer details route.
  *
  * Data flow (existing API only):

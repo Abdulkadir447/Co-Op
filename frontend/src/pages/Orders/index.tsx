@@ -1,6 +1,6 @@
 /**
- * Orders module screen (Stitch finch_orders_catalog_refactored +
- * finch_orders_mobile_refactored). UI refactor only — same endpoints, same
+ * Orders module screen (Stitch coop_orders_catalog_refactored +
+ * coop_orders_mobile_refactored). UI refactor only — same endpoints, same
  * transition rules (published by the backend), same stock handling.
  *
  *   desktop : underline status tabs + catalog table; rows open the
@@ -247,7 +247,7 @@ const OrdersPage: React.FC = () => {
             />
           </div>
 
-          {/* Mobile pill tabs (finch_orders_mobile) */}
+          {/* Mobile pill tabs (coop_orders_mobile) */}
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none' }}>
             {TABS.map((t) => {
               const active = statusFilter === t;

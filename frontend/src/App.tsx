@@ -180,8 +180,8 @@ const SESSION_EXPIRED_KEY = 'coop:session-expired';
  *
  * Logic is untouched — Clerk's hosted SignIn (email code, password, SSO,
  * account recovery, inline errors, loading) — only the `appearance` prop
- * applies the Co-op design (finch_sign_in_refactored /
- * finch_recover_account_refactored / mobile). Page-level states added here:
+ * applies the Co-op design (coop_sign_in_refactored /
+ * coop_recover_account_refactored / mobile). Page-level states added here:
  * offline banner + one-shot "session expired" notice.
  */
 const SignInPage = () => {

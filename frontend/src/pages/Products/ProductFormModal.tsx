@@ -1,6 +1,6 @@
 /**
- * Add/Edit Product modal (Stitch finch_create_product +
- * finch_product_management_states).
+ * Add/Edit Product modal (Stitch coop_create_product +
+ * coop_product_management_states).
  *
  * UI refactor only — same form fields, same validation, same business
  * rules (SKU locked on update; initial stock only on create; stock moves

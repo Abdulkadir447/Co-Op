@@ -4,7 +4,7 @@
  * Wraps the ClerkProvider in main.tsx. If Clerk cannot initialise (bad
  * publishable key, blocked network, failed key fetch) it throws during
  * render; instead of a white screen the user gets the Co-op system-error
- * treatment (finch_system_error_states_polished "500" card): icon, heading,
+ * treatment (coop_system_error_states_polished "500" card): icon, heading,
  * explanation, and a Retry action.
  *
  * Sits OUTSIDE CoopThemeProvider (no theme context available here) so it

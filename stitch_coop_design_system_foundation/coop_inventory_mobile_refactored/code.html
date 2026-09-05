@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Co-op - Inventory Mobile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "tertiary-container": "#b55700",
+                "on-error-container": "#93000a",
+                "on-surface": "#1b1b23",
+                "on-error": "#ffffff",
+                "tertiary-fixed": "#ffdbc8",
+                "surface-container-low": "#f5f2fe",
+                "surface-bright": "#fcf8ff",
+                "on-secondary-container": "#fffbff",
+                "surface-variant": "#e4e1ed",
+                "primary-fixed-dim": "#c0c1ff",
+                "on-tertiary-fixed": "#311300",
+                "on-background": "#1b1b23",
+                "surface": "#fcf8ff",
+                "on-tertiary": "#ffffff",
+                "tertiary": "#904400",
+                "error-container": "#ffdad6",
+                "on-primary-fixed": "#05006c",
+                "on-secondary": "#ffffff",
+                "secondary-fixed-dim": "#d2bbff",
+                "primary-fixed": "#e1e0ff",
+                "secondary-container": "#8a4cfc",
+                "inverse-primary": "#c0c1ff",
+                "inverse-surface": "#303039",
+                "surface-tint": "#474adb",
+                "on-secondary-fixed-variant": "#5a00c6",
+                "outline": "#767586",
+                "on-primary-container": "#f9f6ff",
+                "surface-container-high": "#e9e6f3",
+                "outline-variant": "#c6c5d7",
+                "primary": "#4143d5",
+                "background": "#fcf8ff",
+                "secondary-fixed": "#eaddff",
+                "on-surface-variant": "#464555",
+                "tertiary-fixed-dim": "#ffb689",
+                "on-tertiary-container": "#fff6f2",
+                "secondary": "#712ae2",
+                "on-tertiary-fixed-variant": "#733500",
+                "inverse-on-surface": "#f2effc",
+                "surface-container-lowest": "#ffffff",
+                "on-primary": "#ffffff",
+                "on-secondary-fixed": "#25005a",
+                "on-primary-fixed-variant": "#2c2cc3",
+                "surface-container": "#efecf9",
+                "surface-container-highest": "#e4e1ed",
+                "primary-container": "#5b5fef",
+                "error": "#ba1a1a",
+                "surface-dim": "#dbd8e5"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "2xl": "48px",
+                "md": "16px",
+                "xl": "32px",
+                "3xl": "64px",
+                "sm": "8px",
+                "lg": "24px",
+                "xs": "4px"
+        },
+        "fontFamily": {
+                "body-compact": [
+                        "Inter"
+                ],
+                "page-title": [
+                        "Inter"
+                ],
+                "page-title-mobile": [
+                        "Inter"
+                ],
+                "section-heading": [
+                        "Inter"
+                ],
+                "label-caps": [
+                        "Inter"
+                ],
+                "body-default": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "body-compact": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "page-title": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "page-title-mobile": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "section-heading": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "label-caps": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-default": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+    /* Hide scrollbar for clean UI while maintaining functionality */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-default antialiased overflow-hidden">
+<div class="flex flex-col h-screen w-full relative max-w-[480px] mx-auto shadow-2xl">
+<!-- Mobile Top App Bar -->
+<header class="fixed top-0 w-full max-w-[480px] h-[64px] z-40 bg-surface-container-lowest/90 backdrop-blur-md shadow-[0_4px_24px_rgba(91,95,239,0.05)] flex items-center justify-between px-md flex-shrink-0">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="font-page-title-mobile text-page-title-mobile text-on-surface tracking-tight">Co-op</span>
+</div>
+<div class="flex items-center gap-sm">
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full ring-2 ring-surface-container-lowest"></span>
+</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full object-cover border-2 border-surface-container-highest" data-alt="A highly detailed close-up portrait of a professional corporate user avatar, featuring a young person with soft studio lighting against a clean white background, creating a bright, modern light-mode aesthetic. The mood is approachable and premium." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDuxj3fdC8nVmiAfTyI3Exy_SCBCyOaj9g95XI2v3T1LfEigvf_7LMfx17cASEzgBgb7PjzlqtOuPrya2-5OPgBqfFG5W2NlzOkUXjscAMjJC2eN7rSgZLx9x2htixmaik3gvAVew3S2Hb23e_TIKqTbws12t2rdHyemBouMHLF1vFx-GpsEo8YMPNVFjhd7GxDgFRDRkPIOiUSOI04kipUGNg3mSAhxQkkPMV7-V8PVeJwrrR8K6QCFQ"/>
+</div>
+</header>
+<!-- Main Scrollable Canvas -->
+<main class="flex-1 overflow-y-auto no-scrollbar pt-[80px] pb-[96px] px-md w-full relative">
+<!-- Page Title & Search -->
+<div class="mb-lg">
+<h1 class="font-section-heading text-section-heading text-on-surface mb-md">Inventory Overview</h1>
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full h-12 bg-surface-container-lowest border border-outline-variant text-on-surface rounded-xl pl-10 pr-4 font-body-compact text-body-compact focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" placeholder="Search products, SKUs..." type="text"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant bg-surface-container-highest rounded-md p-1">
+<span class="material-symbols-outlined text-sm">tune</span>
+</button>
+</div>
+</div>
+<!-- Horizontal Scroll Cards (Bento/Glassmorphism feel) -->
+<div class="mb-lg">
+<div class="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-md pb-xs">
+<!-- Card 1: AI Insight -->
+<div class="snap-center shrink-0 w-[240px] rounded-xl p-lg border border-outline-variant/40 bg-surface-container-lowest relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-primary"></div>
+<div class="flex items-start justify-between mb-sm">
+<div class="p-2 bg-primary/10 rounded-lg text-primary">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<span class="font-label-caps text-label-caps text-error bg-error/10 px-2 py-1 rounded-sm">ACTION REQ</span>
+</div>
+<h3 class="font-body-compact text-body-compact text-on-surface-variant mb-1">Low Stock Alerts</h3>
+<div class="flex items-end gap-2">
+<span class="font-page-title-mobile text-page-title-mobile text-on-surface">12</span>
+<span class="font-body-compact text-body-compact text-error flex items-center mb-1">
+<span class="material-symbols-outlined text-sm">trending_up</span> +3 today
+                        </span>
+</div>
+</div>
+<!-- Card 2: Total Units -->
+<div class="snap-center shrink-0 w-[240px] rounded-xl p-lg border border-outline-variant bg-surface-container-lowest">
+<div class="flex items-start justify-between mb-sm">
+<div class="p-2 bg-surface-container-high rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+</div>
+</div>
+<h3 class="font-body-compact text-body-compact text-on-surface-variant mb-1">Total Units in Stock</h3>
+<div class="flex items-end gap-2">
+<span class="font-page-title-mobile text-page-title-mobile text-on-surface">8,432</span>
+<span class="font-body-compact text-body-compact text-primary flex items-center mb-1">
+                            Stable
+                        </span>
+</div>
+</div>
+<!-- Card 3: Value -->
+<div class="snap-center shrink-0 w-[240px] rounded-xl p-lg border border-outline-variant bg-surface-container-lowest">
+<div class="flex items-start justify-between mb-sm">
+<div class="p-2 bg-surface-container-high rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">payments</span>
+</div>
+</div>
+<h3 class="font-body-compact text-body-compact text-on-surface-variant mb-1">Est. Inventory Value</h3>
+<div class="flex items-end gap-2">
+<span class="font-page-title-mobile text-page-title-mobile text-on-surface">$142k</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Stock Movement List -->
+<div>
+<div class="flex items-center justify-between mb-md">
+<h2 class="font-section-heading text-section-heading text-on-surface">Recent Movements</h2>
+<button class="font-label-caps text-label-caps text-primary uppercase">View All</button>
+</div>
+<div class="flex flex-col gap-0 border-t border-outline-variant">
+<!-- Item 1 (Positive) -->
+<div class="flex items-center py-md px-2 hover:bg-surface-container-low transition-colors border-b border-outline-variant">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center mr-md shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">checkroom</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-body-default text-body-default text-on-surface truncate">Premium Cotton T-Shirt</h4>
+<p class="font-body-compact text-body-compact text-outline text-sm">2h ago • Restock</p>
+</div>
+<div class="text-right shrink-0 ml-sm">
+<span class="font-section-heading text-section-heading text-primary block">+150</span>
+<span class="font-body-compact text-body-compact text-outline text-xs">Units</span>
+</div>
+</div>
+<!-- Item 2 (Negative) -->
+<div class="flex items-center py-md px-2 hover:bg-surface-container-low transition-colors border-b border-outline-variant">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center mr-md shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">laptop_mac</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-body-default text-body-default text-on-surface truncate">Pro Laptop Stand</h4>
+<p class="font-body-compact text-body-compact text-outline text-sm">5h ago • Order Fulfillment</p>
+</div>
+<div class="text-right shrink-0 ml-sm">
+<span class="font-section-heading text-section-heading text-error block">-24</span>
+<span class="font-body-compact text-body-compact text-outline text-xs">Units</span>
+</div>
+</div>
+<!-- Item 3 (Negative) -->
+<div class="flex items-center py-md px-2 hover:bg-surface-container-low transition-colors border-b border-outline-variant">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center mr-md shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">headphones</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-body-default text-body-default text-on-surface truncate">Noise-Cancelling Pods</h4>
+<p class="font-body-compact text-body-compact text-outline text-sm">Yesterday • Damaged</p>
+</div>
+<div class="text-right shrink-0 ml-sm">
+<span class="font-section-heading text-section-heading text-error block">-3</span>
+<span class="font-body-compact text-body-compact text-outline text-xs">Units</span>
+</div>
+</div>
+<!-- Item 4 (Positive) -->
+<div class="flex items-center py-md px-2 hover:bg-surface-container-low transition-colors border-b border-outline-variant">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center mr-md shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">watch</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-body-default text-body-default text-on-surface truncate">Smart Watch Gen 4</h4>
+<p class="font-body-compact text-body-compact text-outline text-sm">Yesterday • Return</p>
+</div>
+<div class="text-right shrink-0 ml-sm">
+<span class="font-section-heading text-section-heading text-primary block">+1</span>
+<span class="font-body-compact text-body-compact text-outline text-xs">Units</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button (FAB) -->
+<button class="fixed bottom-[88px] right-md w-14 h-14 bg-primary text-on-primary rounded-[12px] shadow-[0_8px_24px_rgba(91,95,239,0.4)] flex items-center justify-center z-50 hover:bg-primary-container hover:text-on-primary-container transition-all hover:scale-105 active:scale-95 group">
+<span class="material-symbols-outlined text-3xl group-hover:rotate-90 transition-transform duration-300">add</span>
+</button>
+<!-- Synthesized Mobile Bottom Nav Bar -->
+<!-- Applying shell visibility logic: Mobile = BottomNavBar visible, Top row text links hidden. NO Top/Bottom borders. -->
+<nav class="fixed bottom-0 w-full max-w-[480px] h-[72px] bg-surface-container-lowest shadow-[0_-4px_24px_rgba(91,95,239,0.06)] flex justify-around items-center z-40 pb-safe px-sm">
+<!-- Inactive: Overview -->
+<a class="flex flex-col items-center justify-center w-16 h-full gap-1 text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">dashboard</span>
+<span class="font-label-caps text-label-caps text-[10px]">Overview</span>
+</a>
+<!-- Active: Inventory -->
+<a class="flex flex-col items-center justify-center w-16 h-full gap-1 text-primary font-bold" href="#">
+<div class="w-12 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-0.5">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+</div>
+<span class="font-label-caps text-label-caps text-[10px]">Inventory</span>
+</a>
+<!-- Inactive: Orders -->
+<a class="flex flex-col items-center justify-center w-16 h-full gap-1 text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">shopping_cart</span>
+<span class="font-label-caps text-label-caps text-[10px]">Orders</span>
+</a>
+<!-- Inactive: Customers -->
+<a class="flex flex-col items-center justify-center w-16 h-full gap-1 text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">group</span>
+<span class="font-label-caps text-label-caps text-[10px]">Customers</span>
+</a>
+</nav>
+</div>
+</body></html>

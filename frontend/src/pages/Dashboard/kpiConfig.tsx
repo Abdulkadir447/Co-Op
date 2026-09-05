@@ -9,7 +9,7 @@ import { getCurrency } from '../../services/currency';
 
 /**
  * KPI definitions for the Dashboard first row (Stitch
- * finch_business_dashboard_qa_polished): Total Revenue • Orders •
+ * coop_business_dashboard_qa_polished): Total Revenue • Orders •
  * Inventory Health • Products.
  *
  * This file stays the single KPI CONFIGURATION layer (title, icon, accent,

@@ -1,0 +1,349 @@
+<!DOCTYPE html><html class="h-full" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Co-op - Create New Order</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "inverse-primary": "#c0c1ff",
+                        "on-primary-fixed": "#05006c",
+                        "on-primary-fixed-variant": "#2c2cc3",
+                        "on-error-container": "#93000a",
+                        "outline-variant": "#c6c5d7",
+                        "on-surface": "#1b1b23",
+                        "on-surface-variant": "#464555",
+                        "surface-dim": "#dbd8e5",
+                        "tertiary": "#904400",
+                        "primary": "#4143d5",
+                        "on-secondary-fixed": "#25005a",
+                        "outline": "#767586",
+                        "inverse-surface": "#303039",
+                        "secondary-container": "#8a4cfc",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#fffbff",
+                        "surface-variant": "#e4e1ed",
+                        "tertiary-container": "#b55700",
+                        "tertiary-fixed-dim": "#ffb689",
+                        "surface-container-highest": "#e4e1ed",
+                        "on-secondary-fixed-variant": "#5a00c6",
+                        "primary-fixed": "#e1e0ff",
+                        "on-background": "#1b1b23",
+                        "inverse-on-surface": "#f2effc",
+                        "on-primary-container": "#f9f6ff",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#ffdbc8",
+                        "on-tertiary-container": "#fff6f2",
+                        "surface": "#fcf8ff",
+                        "surface-bright": "#fcf8ff",
+                        "error": "#ba1a1a",
+                        "secondary": "#712ae2",
+                        "surface-container-low": "#f5f2fe",
+                        "surface-tint": "#474adb",
+                        "primary-container": "#5b5fef",
+                        "secondary-fixed": "#eaddff",
+                        "surface-container": "#efecf9",
+                        "background": "#fcf8ff",
+                        "surface-container-high": "#e9e6f3",
+                        "secondary-fixed-dim": "#d2bbff",
+                        "on-tertiary-fixed": "#311300",
+                        "on-error": "#ffffff",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#733500",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "3xl": "64px",
+                        "xl": "32px",
+                        "2xl": "48px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "section-heading": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "page-title-mobile": ["Inter"],
+                        "body-default": ["Inter"],
+                        "body-compact": ["Inter"],
+                        "page-title": ["Inter"]
+                    },
+                    "fontSize": {
+                        "section-heading": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "page-title-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-default": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-compact": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "page-title": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface h-full flex flex-col antialiased">
+<!-- Top Navigation Bar -->
+<nav class="flex justify-between items-center px-lg py-sm w-full bg-surface/80 backdrop-blur-md z-40 border-b border-outline-variant w-full top-0 sticky">
+<div class="flex items-center gap-md">
+<span class="font-page-title text-page-title text-primary">Co-op</span>
+</div>
+<div class="flex items-center gap-md">
+<button class="bg-primary-container text-on-primary-container rounded-xl px-4 py-2 font-label-caps text-label-caps flex items-center gap-2 hover:bg-surface-container-low transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                AI Assistant
+            </button>
+<div class="flex gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low transition-colors rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</div>
+</nav>
+<!-- Main Workspace area containing Side Nav and Main Content -->
+<div class="flex flex-1 overflow-hidden">
+<!-- Side Navigation -->
+<aside class="bg-surface-container-low border-r border-outline-variant h-full w-64 hidden md:flex flex-col p-md gap-sm">
+<div class="flex items-center gap-sm mb-lg px-2">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined">account_circle</span>
+</div>
+<div>
+<h2 class="font-body-default text-body-default font-semibold">Co-op Manager</h2>
+<p class="font-body-compact text-body-compact text-on-surface-variant">Order Management</p>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary rounded-lg py-2 font-body-default text-body-default mb-lg flex items-center justify-center gap-2 hover:opacity-90">
+<span class="material-symbols-outlined">add</span>
+                New Order
+            </button>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-label-caps text-label-caps">Products</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined">warehouse</span>
+<span class="font-label-caps text-label-caps">Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-primary-container text-on-primary-container rounded-lg font-bold transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span class="font-label-caps text-label-caps">Orders</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-caps text-label-caps">Customers</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined">auto_awesome</span>
+<span class="font-label-caps text-label-caps">Co-op AI</span>
+</a>
+<div class="flex-grow"></div>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-caps text-label-caps">Help</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-label-caps text-label-caps">Billing</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto p-lg relative bg-surface">
+<!-- Background element for visual depth -->
+<div class="absolute inset-0 bg-gradient-to-br from-surface-container-lowest to-surface-container-low opacity-50 pointer-events-none"></div>
+<div class="max-w-4xl mx-auto relative z-10">
+<div class="flex justify-between items-center mb-lg">
+<h1 class="font-page-title text-page-title">Orders</h1>
+</div>
+<!-- Create Order Modal/Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg overflow-hidden flex flex-col">
+<!-- Modal Header -->
+<div class="px-lg py-md border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
+<h2 class="font-section-heading text-section-heading">Create New Order</h2>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors p-1 rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="p-lg flex flex-col gap-xl overflow-y-auto" style="max-height: 70vh;">
+<!-- 1. Customer Selection -->
+<section class="flex flex-col gap-sm">
+<label class="font-label-caps text-label-caps text-on-surface-variant">1. Customer Details</label>
+<div class="relative w-full md:w-2/3">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="w-full pl-10 pr-4 py-2 bg-surface border border-outline-variant rounded-lg font-body-default text-body-default text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search customer name or ID..." type="text">
+<button class="absolute inset-y-0 right-0 pr-3 flex items-center text-primary font-label-caps text-label-caps hover:text-primary-fixed-variant">
+                                    + New
+                                </button>
+</div>
+</section>
+<hr class="border-outline-variant/50">
+<!-- 2. Product Search -->
+<section class="flex flex-col gap-sm">
+<label class="font-label-caps text-label-caps text-on-surface-variant">2. Add Products</label>
+<div class="relative w-full">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="w-full pl-10 pr-4 py-2 bg-surface border border-outline-variant rounded-lg font-body-default text-body-default text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search products to add to order..." type="text">
+<!-- Suggested AI action -->
+<div class="absolute inset-y-0 right-0 pr-2 flex items-center">
+<button class="bg-surface-variant text-on-surface-variant hover:bg-primary-container hover:text-on-primary-container rounded-lg px-2 py-1 flex items-center gap-1 transition-colors text-xs font-medium">
+<span class="material-symbols-outlined text-[14px]">auto_awesome</span> Quick Add
+                                    </button>
+</div>
+</div>
+</section>
+<!-- 3. Line Items Table -->
+<section class="flex flex-col gap-sm">
+<label class="font-label-caps text-label-caps text-on-surface-variant">3. Line Items</label>
+<div class="border border-outline-variant rounded-lg overflow-hidden bg-surface">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant">Product</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant text-center w-32">Qty</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant text-right w-24">Price</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant text-right w-24">Total</th>
+<th class="p-3 w-12"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant font-body-compact text-body-compact">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="p-3">
+<div class="font-medium text-on-surface">Enterprise License - Annual</div>
+<div class="text-on-surface-variant text-xs">SKU: ENT-ANN-01</div>
+</td>
+<td class="p-3">
+<div class="flex items-center justify-center gap-2 border border-outline-variant rounded-md p-1 bg-surface-container-lowest">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[16px]">remove</span></button>
+<span class="w-6 text-center">2</span>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[16px]">add</span></button>
+</div>
+</td>
+<td class="p-3 text-right text-on-surface-variant">$1,200.00</td>
+<td class="p-3 text-right font-medium">$2,400.00</td>
+<td class="p-3 text-center">
+<button class="text-on-surface-variant hover:text-error opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="p-3">
+<div class="font-medium text-on-surface">Onboarding Support Package</div>
+<div class="text-on-surface-variant text-xs">SKU: SVC-ONB-02</div>
+</td>
+<td class="p-3">
+<div class="flex items-center justify-center gap-2 border border-outline-variant rounded-md p-1 bg-surface-container-lowest">
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[16px]">remove</span></button>
+<span class="w-6 text-center">1</span>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[16px]">add</span></button>
+</div>
+</td>
+<td class="p-3 text-right text-on-surface-variant">$500.00</td>
+<td class="p-3 text-right font-medium">$500.00</td>
+<td class="p-3 text-center">
+<button class="text-on-surface-variant hover:text-error opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<hr class="border-outline-variant/50">
+<!-- 4. Order Summary -->
+<section class="flex flex-col gap-sm self-end w-full md:w-1/2">
+<div class="bg-surface-container-low rounded-lg p-md flex flex-col gap-2 font-body-compact text-body-compact">
+<div class="flex justify-between text-on-surface-variant">
+<span>Subtotal</span>
+<span>$2,900.00</span>
+</div>
+<div class="flex justify-between text-on-surface-variant items-center">
+<span>Tax (8.5%) <span class="material-symbols-outlined text-[14px] align-middle cursor-help">info</span></span>
+<span>$246.50</span>
+</div>
+<div class="flex justify-between text-on-surface-variant items-center">
+<span>Discount <span class="text-xs border-b border-dashed border-primary text-primary cursor-pointer ml-2">Add code</span></span>
+<span>$0.00</span>
+</div>
+<div class="border-t border-outline-variant my-2 pt-2 flex justify-between font-section-heading text-section-heading text-on-surface">
+<span>Total</span>
+<span>$3,146.50</span>
+</div>
+</div>
+</section>
+</div>
+<!-- 5. Action Buttons -->
+<div class="px-lg py-md border-t border-outline-variant bg-surface-container-lowest flex justify-end gap-3">
+<button class="px-6 py-2 border border-outline-variant text-primary rounded-lg font-body-default text-body-default hover:bg-surface-container-low transition-colors">
+                            Cancel
+                        </button>
+<button class="px-6 py-2 bg-primary text-on-primary rounded-lg font-body-default text-body-default hover:opacity-90 transition-opacity shadow-sm flex items-center gap-2">
+                            Confirm Order
+                        </button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Bottom Navigation Bar (Mobile) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-md py-sm bg-surface border-t border-outline-variant md:hidden shadow-md">
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant tap-highlight-transparent p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-caps text-label-caps mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-4 py-1 tap-highlight-transparent" href="#">
+<span class="material-symbols-outlined">list_alt</span>
+<span class="font-label-caps text-label-caps mt-1">Orders</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant tap-highlight-transparent p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-caps text-label-caps mt-1">AI</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant tap-highlight-transparent p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-caps text-label-caps mt-1">Clients</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant tap-highlight-transparent p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined">menu</span>
+<span class="font-label-caps text-label-caps mt-1">More</span>
+</a>
+</nav>
+</body></html>

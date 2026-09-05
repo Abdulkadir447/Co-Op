@@ -8,7 +8,7 @@
  * it plugs in HERE (or replaces this file with a provider-supplied catalog).
  * No other component may hard-code a price or a credit rule.
  *
- * Visual spec: finch_pricing_plans_qa_polished + finch_plan_comparison.
+ * Visual spec: coop_pricing_plans_qa_polished + coop_plan_comparison.
  */
 
 export type PlanId = 'free' | 'starter' | 'professional' | 'enterprise';
@@ -107,7 +107,7 @@ export function getPlan(id: PlanId): Plan {
 }
 
 // ---------------------------------------------------------------------------
-// Plan comparison (finch_plan_comparison) — display values, provisional.
+// Plan comparison (coop_plan_comparison) — display values, provisional.
 // ---------------------------------------------------------------------------
 export interface ComparisonRow {
   feature: string;

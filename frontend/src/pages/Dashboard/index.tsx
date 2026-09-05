@@ -18,7 +18,7 @@ import { useCoopTheme } from '../../theme-provider';
 import { CoopErrorState } from '../../components/ui';
 
 /**
- * Co-op Dashboard — Stitch presentation (finch_business_dashboard_qa_polished)
+ * Co-op Dashboard — Stitch presentation (coop_business_dashboard_qa_polished)
  * over the EXISTING data architecture:
  *
  *   useDashboardData (unchanged loader)

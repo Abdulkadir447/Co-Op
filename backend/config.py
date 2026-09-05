@@ -63,9 +63,9 @@ _load_dotenv_once()
 
 
 def _resolve_env() -> str:
+    # COOP_ENV is the current name. FINCH_ENV (the pre-rename project name) is
+    # still honoured so an existing .env keeps working after the rename.
     env = os.getenv("COOP_ENV") or os.getenv("FINCH_ENV") or os.getenv("APP_ENV") or DEFAULT_ENV
-    # COOP_ENV is the renamed variable; FINCH_ENV is kept as a compatibility fallback for existing
-    # .env files.
     return env if env in VALID_ENVS else DEFAULT_ENV
 
 

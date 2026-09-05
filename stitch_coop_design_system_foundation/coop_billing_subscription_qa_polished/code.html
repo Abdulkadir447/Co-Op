@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Billing &amp; Subscription - Co-op</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-container": "#b55700",
+                        "primary-fixed": "#e1e0ff",
+                        "tertiary-fixed": "#ffdbc8",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#311300",
+                        "surface-container-low": "#f5f2fe",
+                        "on-secondary": "#ffffff",
+                        "inverse-primary": "#c0c1ff",
+                        "on-primary-container": "#f9f6ff",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "on-secondary-fixed": "#25005a",
+                        "error": "#ba1a1a",
+                        "surface-container": "#efecf9",
+                        "on-secondary-container": "#fffbff",
+                        "on-primary-fixed-variant": "#2c2cc3",
+                        "primary": "#4143d5",
+                        "surface-dim": "#dbd8e5",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#474adb",
+                        "on-tertiary-fixed-variant": "#733500",
+                        "on-background": "#1b1b23",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#5a00c6",
+                        "surface-bright": "#fcf8ff",
+                        "surface-container-high": "#e9e6f3",
+                        "secondary": "#712ae2",
+                        "on-tertiary-container": "#fff6f2",
+                        "on-surface": "#1b1b23",
+                        "surface-container-highest": "#e4e1ed",
+                        "on-error": "#ffffff",
+                        "surface-variant": "#e4e1ed",
+                        "background": "#fcf8ff",
+                        "tertiary": "#904400",
+                        "on-primary-fixed": "#05006c",
+                        "on-surface-variant": "#464555",
+                        "surface": "#fcf8ff",
+                        "secondary-container": "#8a4cfc",
+                        "outline-variant": "#c6c5d7",
+                        "inverse-surface": "#303039",
+                        "primary-container": "#5b5fef",
+                        "on-primary": "#ffffff",
+                        "inverse-on-surface": "#f2effc",
+                        "outline": "#767586",
+                        "secondary-fixed": "#eaddff",
+                        "secondary-fixed-dim": "#d2bbff",
+                        "tertiary-fixed-dim": "#ffb689"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "2xl": "48px",
+                        "3xl": "64px"
+                    },
+                    "fontFamily": {
+                        "body-compact": ["Inter"],
+                        "page-title": ["Inter"],
+                        "page-title-mobile": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "section-heading": ["Inter"],
+                        "body-default": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-compact": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "page-title": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "page-title-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "section-heading": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-default": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased min-h-screen flex selection:bg-primary-container selection:text-on-primary-container font-body-default">
+<!-- Side Navigation Shell -->
+<nav class="hidden md:flex bg-surface-container-lowest dark:bg-inverse-surface fixed left-0 top-0 h-screen w-[220px] border-r border-border-subtle dark:border-outline-variant flex-col py-lg px-md z-50">
+<div class="flex items-center gap-sm mb-xl px-sm">
+<div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined filled text-on-primary-container text-[20px]">psychiatry</span>
+</div>
+<div>
+<h1 class="font-section-heading text-section-heading text-primary dark:text-primary-fixed-dim">Co-op</h1>
+<p class="font-label-caps text-label-caps text-outline">Premium SaaS</p>
+</div>
+</div>
+<ul class="flex flex-col gap-xs flex-1">
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-compact text-body-compact text-on-surface-variant dark:text-outline hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Overview</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-compact text-body-compact text-on-surface-variant dark:text-outline hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span>Products</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-compact text-body-compact text-on-surface-variant dark:text-outline hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">warehouse</span>
+<span>Inventory</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-compact text-body-compact text-on-surface-variant dark:text-outline hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span>Orders</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-compact text-body-compact text-on-surface-variant dark:text-outline hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Customers</span>
+</a>
+</li>
+<li class="mt-sm mb-sm border-t border-outline-variant/30 pt-sm">
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-compact text-body-compact text-on-surface-variant dark:text-outline hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors group relative overflow-hidden" href="#">
+<div class="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<span class="material-symbols-outlined text-secondary relative z-10">auto_awesome</span>
+<span class="relative z-10">Co-op AI</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-compact text-body-compact text-on-surface-variant dark:text-outline hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-compact text-body-compact text-on-surface-variant dark:text-outline hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>Help</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-body-compact text-body-compact text-primary dark:text-primary-fixed-dim font-bold bg-surface-container-low dark:bg-surface-variant transition-colors opacity-80 duration-200" href="#">
+<span class="material-symbols-outlined filled">payments</span>
+<span>Billing</span>
+</a>
+</li>
+</ul>
+<div class="mt-auto pt-lg border-t border-outline-variant/30">
+<button class="w-full flex items-center justify-center gap-sm bg-primary text-on-primary font-label-caps text-label-caps py-sm px-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-[0_4px_12px_rgba(91,95,239,0.2)]">
+<span class="material-symbols-outlined text-[18px]">upgrade</span>
+                Upgrade Plan
+            </button>
+</div>
+</nav>
+<!-- Top Navigation Bar -->
+<header class="hidden md:flex bg-surface-container-lowest/80 dark:bg-inverse-surface/80 backdrop-blur-md fixed top-0 right-0 h-[64px] left-[220px] border-b border-border-subtle dark:border-outline-variant items-center justify-between px-lg w-[calc(100%-220px)] z-40">
+<div class="flex items-center bg-surface-container-highest rounded-full px-md py-xs border border-outline-variant/50 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all w-96">
+<span class="material-symbols-outlined text-outline text-[20px] mr-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-compact font-body-compact w-full placeholder:text-outline/70" placeholder="Search..." type="text"/>
+</div>
+<div class="flex items-center gap-md">
+<button class="flex items-center gap-xs text-secondary font-label-caps text-label-caps px-md py-xs rounded-full bg-secondary-container/20 hover:bg-secondary-container/30 transition-colors border border-secondary/20">
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                AI Assistant
+            </button>
+<button class="relative text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-container-low">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-error rounded-full border border-surface-container-lowest"></span>
+</button>
+<button class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/50 hover:border-primary transition-colors focus:ring-2 focus:ring-primary/20">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A macro shot of a generic user profile avatar showing a stylized, abstract 3D rendering of a human head and shoulders in a modern, light mode aesthetic, using a soft palette of whites, light grays, and a touch of primary purple." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDE60xGBA-vMJlWRqE5Rj_uO84gC3jIUYu1nGYxt2ybbI-E6f2VnYSN8yAJa2FWyQkqn8RsYNm75bm_9DTaHX2ma2AS3EowCi7MNSXgmZ70FF7XwTc-8YB-TRcYiPZk1D7Y5gO6bMWjxRvzd7w9RH1ysIhk7_YiVBQU9fBm2FmjcoiuY7WYiIF1isR18evJIgZwH0cIvvyo1V48jwICfEcWdDxZYBjdJ-iLucTqEQzam1yUgFhCM3USZQ"/>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-[220px] mt-[64px] p-lg md:p-xl lg:p-2xl max-w-7xl mx-auto w-full relative">
+<!-- Decorative Background Element -->
+<div class="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-primary-fixed/40 to-secondary-fixed/20 rounded-full blur-[100px] -z-10 pointer-events-none opacity-50"></div>
+<header class="mb-xl flex flex-col md:flex-row md:items-end justify-between gap-md">
+<div>
+<h1 class="font-page-title text-page-title-mobile md:text-page-title text-on-background">Billing &amp; Subscription</h1>
+<p class="font-body-default text-body-default text-outline mt-xs max-w-2xl">Manage your current plan, view invoice history, and update payment methods.</p>
+</div>
+<div class="flex gap-sm">
+<button class="bg-surface-container-lowest border border-outline-variant text-on-surface font-label-caps text-label-caps py-sm px-md rounded-lg hover:bg-surface-container-low transition-colors shadow-sm">
+                    View Pricing
+                </button>
+</div>
+</header>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-lg">
+<!-- Plan & Cycle Overview (Spans 8 columns on desktop) -->
+<div class="md:col-span-8 flex flex-col gap-lg">
+<!-- Current Plan Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg relative overflow-hidden group">
+<!-- Subtle AI gradient border top indication -->
+<div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary to-secondary opacity-70"></div>
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-md mb-lg">
+<div>
+<div class="flex items-center gap-sm mb-xs">
+<h2 class="font-section-heading text-section-heading text-on-background">Professional Plan</h2>
+<span class="bg-primary/10 text-primary font-label-caps text-label-caps px-2 py-1 rounded">Active</span>
+</div>
+<p class="font-body-compact text-body-compact text-outline">Ideal for growing teams needing advanced features.</p>
+</div>
+<div class="text-left md:text-right">
+<div class="flex items-baseline gap-xs justify-start md:justify-end">
+<span class="font-page-title text-page-title text-on-background">$49</span>
+<span class="font-body-compact text-body-compact text-outline">/ user / mo</span>
+</div>
+<p class="font-body-compact text-[12px] text-outline mt-1">Billed annually ($588/yr)</p>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-md mb-lg border-y border-outline-variant/20 py-md">
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-label-caps text-outline">Seats Used</span>
+<div class="flex items-end gap-sm">
+<span class="font-section-heading text-section-heading text-on-background">12</span>
+<span class="font-body-compact text-body-compact text-outline mb-1">/ 15</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-label-caps text-outline">Storage</span>
+<div class="flex items-end gap-sm">
+<span class="font-section-heading text-section-heading text-on-background">45</span>
+<span class="font-body-compact text-body-compact text-outline mb-1">GB / 100 GB</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-label-caps text-outline">API Calls</span>
+<div class="flex items-end gap-sm">
+<span class="font-section-heading text-section-heading text-on-background">8.2k</span>
+<span class="font-body-compact text-body-compact text-outline mb-1">/ 10k mo</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-label-caps text-outline">AI Features</span>
+<div class="flex items-end gap-sm text-secondary">
+<span class="material-symbols-outlined text-[20px]">check_circle</span>
+<span class="font-body-compact text-body-compact mb-0.5">Enabled</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col sm:flex-row gap-md justify-between items-center">
+<button class="w-full sm:w-auto bg-primary text-on-primary font-label-caps text-label-caps py-sm px-lg rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-[0_4px_12px_rgba(91,95,239,0.15)] flex items-center justify-center gap-xs">
+                                Manage Seats
+                          </button>
+<a class="font-body-compact text-body-compact text-outline hover:text-error transition-colors underline decoration-outline/30 underline-offset-4" href="#">
+                              Cancel Subscription
+                          </a>
+</div>
+</div>
+<!-- Invoice History Table -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="p-lg border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low/30">
+<h2 class="font-section-heading text-section-heading text-on-background flex items-center gap-sm">
+<span class="material-symbols-outlined text-outline">receipt_long</span>
+                            Invoice History
+                        </h2>
+<button class="text-primary font-label-caps text-label-caps hover:text-primary-container transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">download</span>
+                            Export All
+                        </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant/30 bg-surface-container-lowest">
+<th class="py-sm px-lg font-label-caps text-label-caps text-outline whitespace-nowrap">Date</th>
+<th class="py-sm px-lg font-label-caps text-label-caps text-outline whitespace-nowrap">Invoice ID</th>
+<th class="py-sm px-lg font-label-caps text-label-caps text-outline whitespace-nowrap text-right">Amount</th>
+<th class="py-sm px-lg font-label-caps text-label-caps text-outline whitespace-nowrap">Status</th>
+<th class="py-sm px-lg font-label-caps text-label-caps text-outline whitespace-nowrap text-right">Action</th>
+</tr>
+</thead>
+<tbody class="font-body-compact text-body-compact divide-y divide-outline-variant/20">
+<tr class="hover:bg-surface-container-low/50 transition-colors group">
+<td class="py-md px-lg text-on-surface-variant whitespace-nowrap">Oct 15, 2023</td>
+<td class="py-md px-lg text-outline font-mono text-[13px]">INV-2023-10-421</td>
+<td class="py-md px-lg text-on-background font-medium text-right">$588.00</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-sm text-[12px] font-medium border border-primary/20">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                            Paid
+                                        </span>
+</td>
+<td class="py-md px-lg text-right">
+<button class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high opacity-0 group-hover:opacity-100 focus:opacity-100">
+<span class="material-symbols-outlined text-[20px]">download</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/50 transition-colors group">
+<td class="py-md px-lg text-on-surface-variant whitespace-nowrap">Oct 15, 2022</td>
+<td class="py-md px-lg text-outline font-mono text-[13px]">INV-2022-10-390</td>
+<td class="py-md px-lg text-on-background font-medium text-right">$588.00</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-sm text-[12px] font-medium border border-primary/20">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                            Paid
+                                        </span>
+</td>
+<td class="py-md px-lg text-right">
+<button class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high opacity-0 group-hover:opacity-100 focus:opacity-100">
+<span class="material-symbols-outlined text-[20px]">download</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/50 transition-colors group">
+<td class="py-md px-lg text-on-surface-variant whitespace-nowrap">Oct 15, 2021</td>
+<td class="py-md px-lg text-outline font-mono text-[13px]">INV-2021-10-105</td>
+<td class="py-md px-lg text-on-background font-medium text-right">$499.00</td>
+<td class="py-md px-lg">
+<span class="inline-flex items-center gap-1 bg-outline/10 text-outline px-2 py-0.5 rounded-sm text-[12px] font-medium border border-outline/20">
+<span class="material-symbols-outlined text-[12px]">inventory_2</span>
+                                            Archived
+                                        </span>
+</td>
+<td class="py-md px-lg text-right">
+<button class="text-outline hover:text-primary transition-colors p-1 rounded hover:bg-surface-container-high opacity-0 group-hover:opacity-100 focus:opacity-100">
+<span class="material-symbols-outlined text-[20px]">download</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-md text-center border-t border-outline-variant/30">
+<button class="font-label-caps text-label-caps text-outline hover:text-primary transition-colors">
+                            Load More
+                        </button>
+</div>
+</div>
+</div>
+<!-- Side Panel (Spans 4 columns on desktop) -->
+<div class="md:col-span-4 flex flex-col gap-lg">
+<!-- Payment Method Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
+<h2 class="font-section-heading text-section-heading text-on-background mb-md flex items-center gap-sm">
+<span class="material-symbols-outlined text-outline">credit_card</span>
+                        Payment Method
+                    </h2>
+<div class="bg-surface-container-low rounded-lg p-md border border-outline-variant/30 flex items-center justify-between mb-md">
+<div class="flex items-center gap-md">
+<!-- Faux Visa Icon -->
+<div class="w-12 h-8 bg-surface-container-lowest border border-outline-variant/50 rounded flex items-center justify-center text-primary font-bold italic text-[12px] tracking-tighter">
+                                VISA
+                            </div>
+<div class="flex flex-col">
+<span class="font-body-compact text-body-compact text-on-background font-medium">Visa ending in 4242</span>
+<span class="font-body-compact text-[12px] text-outline">Expires 12/2025</span>
+</div>
+</div>
+<span class="bg-surface-dim text-on-surface-variant font-label-caps text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider">Default</span>
+</div>
+<button class="w-full bg-transparent border border-outline-variant text-on-surface font-label-caps text-label-caps py-sm px-md rounded-lg hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+                        Update Payment Method
+                    </button>
+</div>
+<!-- Billing Cycle Information Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm">
+<h2 class="font-section-heading text-section-heading text-on-background mb-md flex items-center gap-sm">
+<span class="material-symbols-outlined text-outline">calendar_month</span>
+                        Billing Cycle
+                    </h2>
+<div class="flex flex-col gap-md">
+<div class="flex justify-between items-center">
+<span class="font-body-compact text-body-compact text-outline">Next Invoice</span>
+<span class="font-body-compact text-body-compact text-on-background font-medium">Oct 15, 2024</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-compact text-body-compact text-outline">Amount Due</span>
+<span class="font-body-compact text-body-compact text-on-background font-medium">$588.00</span>
+</div>
+<!-- Progress Bar for Cycle -->
+<div class="mt-xs">
+<div class="flex justify-between items-end mb-xs">
+<span class="font-label-caps text-[10px] text-outline uppercase tracking-wider">Cycle Progress</span>
+<span class="font-label-caps text-[10px] text-primary uppercase tracking-wider">18 Days Left</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full w-[85%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Promotional / Upsell Card (Subtle) -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-lg flex flex-col items-center text-center">
+<div class="w-12 h-12 rounded-full bg-secondary-container/20 flex items-center justify-center mb-md">
+<span class="material-symbols-outlined text-secondary text-[24px]">workspace_premium</span>
+</div>
+<h3 class="font-section-heading text-section-heading text-on-background mb-xs">Need Dedicated Support?</h3>
+<p class="font-body-compact text-body-compact text-outline mb-md">Upgrade to Enterprise for a dedicated Account Manager and SLA guarantees.</p>
+<a class="text-secondary font-label-caps text-label-caps hover:underline decoration-secondary/30 underline-offset-4 flex items-center gap-xs" href="#">
+                         Contact Sales <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</main>
+</body></html>

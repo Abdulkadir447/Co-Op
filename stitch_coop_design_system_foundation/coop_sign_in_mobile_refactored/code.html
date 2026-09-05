@@ -1,0 +1,229 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Co-op - Sign In</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-primary": "#ffffff",
+                "on-tertiary-fixed": "#311300",
+                "on-primary-fixed": "#05006c",
+                "inverse-on-surface": "#f2effc",
+                "secondary": "#712ae2",
+                "on-secondary-fixed": "#25005a",
+                "outline": "#767586",
+                "primary-fixed-dim": "#c0c1ff",
+                "on-surface": "#1b1b23",
+                "on-surface-variant": "#464555",
+                "surface-container-high": "#e9e6f3",
+                "on-primary-container": "#f9f6ff",
+                "error-container": "#ffdad6",
+                "primary-container": "#5b5fef",
+                "outline-variant": "#c6c5d7",
+                "secondary-fixed-dim": "#d2bbff",
+                "surface-container-low": "#f5f2fe",
+                "on-tertiary": "#ffffff",
+                "surface-bright": "#fcf8ff",
+                "surface-variant": "#e4e1ed",
+                "inverse-surface": "#303039",
+                "surface-container-lowest": "#ffffff",
+                "surface": "#fcf8ff",
+                "tertiary": "#904400",
+                "error": "#ba1a1a",
+                "inverse-primary": "#c0c1ff",
+                "on-primary-fixed-variant": "#2c2cc3",
+                "secondary-container": "#8a4cfc",
+                "surface-tint": "#474adb",
+                "tertiary-container": "#b55700",
+                "secondary-fixed": "#eaddff",
+                "surface-container": "#efecf9",
+                "on-secondary": "#ffffff",
+                "on-tertiary-fixed-variant": "#733500",
+                "on-error-container": "#93000a",
+                "surface-container-highest": "#e4e1ed",
+                "on-background": "#1b1b23",
+                "surface-dim": "#dbd8e5",
+                "tertiary-fixed": "#ffdbc8",
+                "tertiary-fixed-dim": "#ffb689",
+                "on-secondary-fixed-variant": "#5a00c6",
+                "primary": "#4143d5",
+                "on-tertiary-container": "#fff6f2",
+                "background": "#fcf8ff",
+                "primary-fixed": "#e1e0ff",
+                "on-secondary-container": "#fffbff",
+                "on-error": "#ffffff"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "sm": "8px",
+                "xs": "4px",
+                "2xl": "48px",
+                "md": "16px",
+                "3xl": "64px",
+                "lg": "24px",
+                "xl": "32px"
+        },
+        "fontFamily": {
+                "section-heading": [
+                        "Inter"
+                ],
+                "body-compact": [
+                        "Inter"
+                ],
+                "page-title-mobile": [
+                        "Inter"
+                ],
+                "label-caps": [
+                        "Inter"
+                ],
+                "body-default": [
+                        "Inter"
+                ],
+                "page-title": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "section-heading": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-compact": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "page-title-mobile": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "label-caps": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-default": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "page-title": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col justify-center px-6 py-3xl md:hidden font-body-default text-body-default">
+<!-- Intent: Transactional/Sign-In. Suppressing SideNav and TopAppBar as per guidelines. -->
+<main class="w-full max-w-sm mx-auto flex flex-col items-center">
+<!-- Brand / Header -->
+<div class="flex flex-col items-center mb-xl w-full">
+<div class="h-12 w-12 rounded-lg bg-surface-container-high flex items-center justify-center mb-md border border-outline-variant">
+<span class="material-symbols-outlined text-primary text-[28px]" style="font-variation-settings: 'FILL' 1;">
+                    auto_awesome
+                </span>
+</div>
+<h1 class="font-page-title-mobile text-page-title-mobile text-center text-on-background mb-xs">Welcome back</h1>
+<p class="font-body-default text-body-default text-on-surface-variant text-center">Sign in to your Co-op account</p>
+</div>
+<!-- Form Area -->
+<div class="w-full bg-surface-container-lowest rounded-xl p-6 border border-outline-variant">
+<form class="flex flex-col gap-lg w-full">
+<!-- Email Input -->
+<div class="flex flex-col gap-xs w-full">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase" for="email">Email Address</label>
+<input class="w-full h-[48px] px-md rounded-lg border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all font-body-default text-body-default text-on-background placeholder:text-outline" id="email" placeholder="name@company.com" type="email">
+</div>
+<!-- Password Input -->
+<div class="flex flex-col gap-xs w-full">
+<div class="flex justify-between items-center w-full">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase" for="password">Password</label>
+<a class="font-body-compact text-body-compact text-primary hover:text-primary-fixed-dim transition-colors" href="#">Forgot?</a>
+</div>
+<div class="relative w-full">
+<input class="w-full h-[48px] px-md pr-[40px] rounded-lg border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all font-body-default text-body-default text-on-background placeholder:text-outline" id="password" placeholder="••••••••" type="password">
+<button class="absolute right-md top-1/2 -translate-y-1/2 text-outline hover:text-on-surface-variant transition-colors flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[20px]">
+                                visibility_off
+                            </span>
+</button>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex flex-col gap-md w-full mt-sm">
+<button class="w-full h-[48px] rounded-lg bg-primary text-on-primary font-body-compact text-body-compact font-bold hover:bg-primary/90 transition-colors shadow-[0_4px_12px_rgba(91,95,239,0.08)]" type="button">
+                        Sign In
+                    </button>
+<div class="relative flex items-center justify-center py-md w-full">
+<div class="absolute inset-0 flex items-center w-full">
+<div class="w-full border-t border-outline-variant"></div>
+</div>
+<div class="relative bg-surface-container-lowest px-md font-label-caps text-label-caps text-outline uppercase">
+                            Or continue with
+                        </div>
+</div>
+<div class="flex flex-col gap-md">
+<button class="w-full h-[48px] rounded-lg border border-outline-variant bg-surface text-on-background font-body-compact text-body-compact flex items-center justify-center gap-sm hover:bg-surface-container-low transition-colors" type="button">
+<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
+</svg>
+                        Google
+                    </button>
+<button class="w-full h-[48px] rounded-lg border border-outline-variant bg-surface text-on-background font-body-compact text-body-compact flex items-center justify-center gap-sm hover:bg-surface-container-low transition-colors" type="button">
+<svg aria-hidden="true" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+<path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.61 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45z"></path>
+</svg>
+                        Apple
+                    </button>
+</div>
+</div>
+</form>
+</div>
+<div class="mt-xl text-center">
+<p class="font-body-compact text-body-compact text-on-surface-variant">
+                Don't have an account? <a class="text-primary font-bold hover:text-primary-fixed-dim transition-colors" href="#">Sign up</a>
+</p>
+</div>
+</main>
+</body></html>
