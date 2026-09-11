@@ -49,6 +49,7 @@ from .ai import forecast as ai_forecast_mod
 from .ai import history as ai_history_mod
 from .ai import prompts as ai_prompts_mod
 from .ai.ratelimit import SlidingWindowRateLimiter, enforce_ai_rate_limit
+from .ratelimits import enforce_export_rate_limit, enforce_import_rate_limit
 from .exports import export_report, ExportError
 from .notifications import build_daily_summary
 from .notifications import delivery as delivery_mod
@@ -1997,6 +1998,7 @@ async def imports_commit(
     mapping: str = Form("{}"),
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_import_rate_limit),
 ) -> dict:
     """The ONLY mutating import endpoint (spec item 7): one transaction,
     all-or-nothing, every created row stamped with its ImportBatch (item 9)."""
@@ -2898,6 +2900,7 @@ async def export_report_route(
     category: Optional[str] = Query(None),
     product_id: Optional[int] = Query(None),
     customer_id: Optional[int] = Query(None),
+    _rate: None = Depends(enforce_export_rate_limit),
 ) -> Response:
     """Export EXACTLY what the screen shows: same engine, same filters."""
     if key not in REPORT_TITLES:

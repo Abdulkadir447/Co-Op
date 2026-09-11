@@ -29,14 +29,14 @@ you don't have yet · ➖ not applicable
 | 7 | Session/token compromise | 🚧 | Clerk-owned. Token lifetime, revocation and rotation are dashboard settings — verify there, not here |
 | 8 | Hardcoded secrets | ✅ | Same grep as #3, plus `backend/config.py` reads everything from env/`config/<env>.json` |
 | 9 | SQL injection | ✅ | No interpolated SQL anywhere: `grep -rn "text(f\|execute(f\"" backend/` → 0 hits; all queries are SQLAlchemy expressions with bound parameters |
-| 10 | Electron privilege escape | ⚠️ | `contextIsolation: true`, `nodeIntegration: false` (`electron/main.js:79-80`) but **`sandbox: true` is not set** — see §3 |
+| 10 | Electron privilege escape | ✅ | `contextIsolation: true`, `nodeIntegration: false`, **`sandbox: true`** and the navigation guard, all in `electron/security.js` — see §3 |
 | 11 | Unsafe IPC | ✅ | Allow-list only: unknown methods throw `Blocked non-allow-listed …` (`electron/main.js`); the preload exposes named functions, never a generic invoke (`electron/preload.js:24`) |
 | 12 | XSS | ✅ | React escapes by default; `grep -rn "dangerouslySetInnerHTML" frontend/src` → 0 hits |
 | 13 | Unrestricted API operations | ✅ | Role matrix in `backend/team.py` `WRITE_MATRIX`, enforced server-side in `get_current_business` |
-| 14 | Rate limiting | ⚠️ | Only `/ai/chat` is limited (`backend/main.py:2124`). Login is Clerk's job, but the import and export endpoints are unlimited — see §4 |
-| 15 | File upload / import | ✅ size+type · ⚠️ formula injection | 5 MB cap and csv/xlsx only (`backend/main.py:1845`); **CSV export does not neutralise leading `= + - @`** — see §4 |
+| 14 | Rate limiting | ✅ | `/ai/chat` (8/60 s) plus `/imports/commit` (20/5 min) and `/reports/{key}/export` (30/60 s), per Clerk user — `backend/ratelimits.py` |
+| 15 | File upload / import | ✅ | 5 MB cap and csv/xlsx only (`backend/main.py:1845`); exports neutralise leading `= + - @` in csv **and** xlsx — `backend/csvsafe.py` |
 | 16 | SSRF | ➖ | The backend never fetches a user-supplied URL |
-| 17 | Supply chain | ⚠️ | Backend pinned exactly (`backend/requirements.txt`), pnpm lockfile committed; `electron/package.json` (3) and `frontend/package.json` (27) use `^` ranges — see §4 |
+| 17 | Supply chain | ⚠️ | Backend pinned exactly, pnpm lockfile committed, **`electron` and `electron-builder` now pinned exactly**; `frontend/package.json` (27) still uses `^` ranges against the lockfile |
 | 18 | AI prompt injection | ✅ partially | Zeno answers from a verified context and a fixed, validated action registry; it cannot invent an action |
 | 19 | AI excessive agency | ✅ | AI actions require user confirmation; credit balance enforced with 402 on every AI request |
 | 20 | Monitoring / backups | 🚧 | Audit log exists (`/audit`, migration 0008) and backups exist; **no alerting** — nothing pages anybody |
@@ -69,29 +69,38 @@ built per environment and applied via `onHeadersReceived`, no
 `shell.openExternal` anywhere, no `<webview>`, no custom protocol, IPC
 allow-list, single-instance lock.
 
-⚠️ Open:
+✅ Fixed (all three, tested in `electron/test/security.test.js`):
 
-1. **No renderer sandbox** (`sandbox: true` missing in `BrowserWindow`
-   webPreferences). The preload needs no Node API today, so this is free
-   hardening.
-2. **No navigation guard.** Nothing calls `setWindowOpenHandler` or listens for
-   `will-navigate`. A link that reaches the renderer from imported content or an
-   AI answer can navigate the privileged window away from `file://`.
-3. **Electron `^33.4.11`.** Electron ships Chromium; a caret range on a
-   security-critical runtime is the wrong default. Pin it and bump deliberately.
+1. **Renderer sandbox** — `sandbox: true` is set for every window. The preload
+   only bridges `ipcRenderer`, so this cost nothing.
+2. **Navigation guard** — `web-contents-created` installs
+   `setWindowOpenHandler` (deny; `http(s)` links are handed to the user's real
+   browser via `shell.openExternal`) and a `will-navigate` listener that calls
+   `preventDefault()` for anything that is not `file:`/`devtools:`. The logic
+   lives in `electron/security.js` so the suite can drive it with a stub
+   renderer instead of grepping source.
+3. **Electron pinned** — `electron` and `electron-builder` are exact versions.
+   `electron/test/windows.test.js` asserts every module `main.js` requires is
+   in `build.files`; adding `security.js` without listing it failed that test,
+   which is the packaging check doing its job.
 
 ## 4. What I would fix, in order
 
-1. **CSV formula injection** — `backend/reports/` and `backend/invoicing.py`
-   write cells verbatim. A product named `=HYPERLINK(...)` or
-   `=cmd|'/c calc'!A1` becomes a live formula when the owner opens the export in
-   Excel. Prefix any cell starting with `= + - @` with a `'` on the way out.
-   Cheap, and it is the one item here that reaches an end user's machine.
-2. **Electron sandbox + navigation guard** — three lines in `electron/main.js`,
-   no behaviour change.
-3. **Rate limits beyond `/ai/chat`** — `/imports/commit` and `/reports/*/export`
-   are the expensive ones; both are unbounded today.
-4. **Pin `electron`** and re-check the frontend ranges against the lockfile.
+1. ✅ **CSV formula injection** — `backend/csvsafe.py` prefixes any cell
+   starting with `= + - @` (or a tab/CR) with a `'`, leaving plain numbers
+   numeric. Applied in `backend/exports/renderers.py` for both csv and xlsx
+   (`defuse_workbook`, because openpyxl types a leading `=` as a formula on
+   assignment) and in `backend/invoicing.py` for customer name and email.
+   `backend/tests/test_export_safety.py` drives the real endpoints with
+   `=cmd|'/c calc'!A1`, `=HYPERLINK(...)`, `@SUM(A1)` and `+234 …` and asserts
+   no exported cell — in either format — can execute.
+2. ✅ **Electron sandbox + navigation guard** — see §3.
+3. ✅ **Rate limits beyond `/ai/chat`** — `backend/ratelimits.py` adds
+   per-Clerk-user sliding windows for `/imports/commit` (20 per 5 minutes) and
+   `/reports/{key}/export` (30 per 60 seconds), configured per environment in
+   `config/<env>.json` (`requests: 0` disables, which the testing environment
+   does). `backend/tests/test_ratelimits.py` proves the 429 path on both routes.
+4. ✅ **`electron` pinned**; frontend ranges still sit against the lockfile.
 5. **Supabase RLS** before any table is exposed to a client, plus a key
    rotation runbook. 🚧
 6. **Alerting**: nothing currently tells you that an admin token was used, that

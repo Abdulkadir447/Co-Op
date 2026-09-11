@@ -1,10 +1,11 @@
-const { app, BrowserWindow, session, ipcMain, net, dialog } = require('electron');
+const { app, BrowserWindow, session, ipcMain, net, dialog, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { createDataLayer, defaultDbPath } = require('./db');
 const { createDataLayerApp } = require('./dataLayerApp');
 const { isSqliteFile, snapshot, replaceDbFile, assertRestoreSafe } = require('./db/backup');
 const { APP_USER_MODEL_ID, backupFileName } = require('./platform');
+const { containNavigation, rendererPreferences } = require('./security');
 
 // ---------------------------------------------------------------------------
 // Content Security Policy for the Co-op desktop app.
@@ -74,11 +75,7 @@ function createWindow () {
     title: 'Co-op',
     icon: path.join(__dirname, 'coop-icon.png'),
     show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-    }
+    webPreferences: rendererPreferences(path.join(__dirname, 'preload.js'))
   });
 
   // Show only once the first paint is ready (no blank-frame flicker).
@@ -225,7 +222,16 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow.focus();
   });
 
-  app.whenReady().then(() => {
+  // ---------------------------------------------------------------------------
+// Navigation containment (electron/security.js).
+//
+// The app loads one local file and nothing else; see that module for why.
+// ---------------------------------------------------------------------------
+app.on('web-contents-created', (_event, contents) => {
+  containNavigation(contents, { openExternal: (url) => shell.openExternal(url) });
+});
+
+app.whenReady().then(() => {
     // Taskbar grouping and notifications on Windows use the AppUserModelID;
     // without it the pinned icon reads "Electron". Kept equal to the
     // electron-builder appId (asserted in electron/test/windows.test.js).

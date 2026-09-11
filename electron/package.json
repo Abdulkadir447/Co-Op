@@ -12,8 +12,8 @@
     "dist": "npm run build:renderer && electron-builder"
   },
   "devDependencies": {
-    "electron": "^33.4.11",
-    "electron-builder": "^24.13.3"
+    "electron": "33.4.11",
+    "electron-builder": "24.13.3"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0"
@@ -30,6 +30,7 @@
       "dataLayerApp.js",
       "sync.js",
       "platform.js",
+      "security.js",
       "db/**/*",
       "renderer-dist/**/*",
       "coop-icon.png",

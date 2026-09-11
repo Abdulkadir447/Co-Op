@@ -24,6 +24,8 @@ from __future__ import annotations
 import csv
 import datetime as dt
 import io
+
+from .csvsafe import csv_safe
 from typing import Any, Optional
 
 from sqlalchemy import func, or_, select
@@ -288,8 +290,9 @@ def render_csv(business: Business, items: list[dict[str, Any]]) -> bytes:
             (it["issue_date"] or "")[:10],
             (it["due_date"] or "")[:10],
             it["order"]["id"] if it["order"] else "",
-            it["customer"]["full_name"] if it["customer"] else "",
-            it["customer"]["email"] or "" if it["customer"] else "",
+            # Customer names are user input: keep them text, never a formula.
+            csv_safe(it["customer"]["full_name"]) if it["customer"] else "",
+            csv_safe(it["customer"]["email"] or "") if it["customer"] else "",
             f"{it['total']:.2f}",
             it["currency"],
         ])

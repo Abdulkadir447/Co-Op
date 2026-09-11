@@ -81,7 +81,7 @@
     ]
   },
   "licensing": {
-    "_comment": "Signed activation keys (PRD Ch7 §7.19). The signing key lives ONLY in LICENSE_SIGNING_KEY and admin tokens in LICENSE_ADMIN_TOKENS — neither belongs in this file.",
+    "_comment": "Signed activation keys (PRD Ch7 \u00a77.19). The signing key lives ONLY in LICENSE_SIGNING_KEY and admin tokens in LICENSE_ADMIN_TOKENS \u2014 neither belongs in this file.",
     "enabled": true,
     "default_days": 365
   },
@@ -93,6 +93,17 @@
       "password": "",
       "from": "Co-op <no-reply@coop.app>",
       "tls": true
+    }
+  },
+  "rate_limits": {
+    "_comment": "Per-tenant limits for the expensive non-AI endpoints. requests <= 0 disables a section.",
+    "imports": {
+      "requests": 20,
+      "window_seconds": 300
+    },
+    "exports": {
+      "requests": 30,
+      "window_seconds": 60
     }
   }
 }

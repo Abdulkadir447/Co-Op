@@ -37,10 +37,15 @@ class SlidingWindowRateLimiter:
         requests: int,
         window_seconds: float,
         now_fn: Callable[[], float] = time.monotonic,
+        detail: str | None = None,
     ) -> None:
         self.requests = max(0, int(requests))
         self.window = float(window_seconds)
         self._now = now_fn
+        # Non-AI sections (imports, exports) reuse this limiter with their own
+        # wording — telling someone to "ask Zeno more slowly" mid-import is
+        # not helpful.
+        self.detail = detail or _RATE_LIMIT_DETAIL
         self._hits: dict[str, deque[float]] = defaultdict(deque)
 
     def check(self, key: str) -> None:
@@ -55,7 +60,7 @@ class SlidingWindowRateLimiter:
             retry_after = max(1, int(window[0] + self.window - now) + 1)
             raise HTTPException(
                 status_code=429,
-                detail=_RATE_LIMIT_DETAIL,
+                detail=self.detail,
                 headers={"Retry-After": str(retry_after)},
             )
         window.append(now)
