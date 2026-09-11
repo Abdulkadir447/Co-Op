@@ -189,8 +189,12 @@ async def build_briefing(db, business_id: int) -> dict[str, Any]:
             prev = cust_last.get(o.customer_id)
             if prev is None or od > prev:
                 cust_last[o.customer_id] = od
+    # Dict, not a scan: `next(x for x in orders ...)` per item is O(items x
+    # orders) — 8,000 imported orders turned the briefing into a 16-second
+    # request (scripts/stress_test.py). One index makes it linear.
+    order_by_id = {o.id: o for o in orders}
     for it in items:
-        o = next((x for x in orders if x.id == it.order_id), None)
+        o = order_by_id.get(it.order_id)
         if o is not None and o.customer_id is not None:
             cust_units.setdefault(o.customer_id, {})
             cust_units[o.customer_id][it.product_id] = (
