@@ -224,8 +224,14 @@ def write_large(products: int, orders: int) -> None:
     names = ["Yam tuber", "Cassava flour", "Garri", "Rice 50kg", "Maize 100kg",
              "Millet 50kg", "Cowpea 50kg", "Groundnut oil 25L", "Palm oil 25L",
              "Tomato paste 400g", "Sugar 50kg", "Detergent carton"]
-    people = ["Amina Yusuf", "Musa Ibrahim", "Fatima Sani", "Chinedu Okafor",
-              "Bello Abdullahi", "Zainab Mohammed", "Sani Garba", "Hauwa Aliyu"]
+    people = [
+        ("Amina Yusuf", "+234 803 111 2233"), ("Musa Ibrahim", "+234 802 445 6677"),
+        ("Fatima Sani", "+234 806 222 3344"), ("Chinedu Okafor", "+234 805 333 4455"),
+        ("Bello Abdullahi", "+234 809 444 5566"), ("Zainab Mohammed", "+234 813 555 6677"),
+        ("Sani Garba", "+234 816 666 7788"), ("Hauwa Aliyu", "+234 810 777 8899"),
+    ]
+    # One phone per person: sharing a phone across different names makes every
+    # order row ambiguous, and the importer refuses to guess (correctly).
 
     rows = [["name", "sku", "description", "category", "unit_price", "cost_price",
              "current_stock", "reorder_level"]]
@@ -241,12 +247,12 @@ def write_large(products: int, orders: int) -> None:
     for i in range(orders):
         sku = f"SKU-{i % products:05d}"
         name = f"{names[i % len(names)]} #{i % products:05d}"
-        who = people[i % len(people)]
+        who, phone = people[i % len(people)]
         qty = rng.randint(1, 60)
         price = rng.randint(800, 95000)
         day = 1 + (i % 28)
         month = 4 + (i // 28) % 6
-        orows.append([f"2026-{month:02d}-{day:02d}", who, "", "+234 800 000 0000",
+        orows.append([f"2026-{month:02d}-{day:02d}", who, "", phone,
                       name, sku, qty, price, qty * price, f"L-{i:06d}-L1"])
     write_csv("orders-large.csv", orows)
 

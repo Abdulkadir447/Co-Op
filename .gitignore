@@ -56,3 +56,4 @@ electron/e2e/renderer/
 package-lock.json
 # generated on demand by make_fixtures.py --rows N (5 MB upload cap)
 samples/imports/*-large.csv
+stress-report.json
