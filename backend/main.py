@@ -322,6 +322,13 @@ async def get_current_business(
     request.state.team_role = role
     request.state.is_owner = role == "owner"
     team_mod.assert_can_write(role, request.method, request.url.path)
+
+    # Database-side tenant backstop (Supabase RLS): carry the tenant in the
+    # app.business_id GUC for this transaction. No-op on SQLite; the owner
+    # bypasses RLS anyway, so this only constrains future non-owner roles.
+    from .rls import set_tenant_context
+
+    await set_tenant_context(db, business.id)
     return business
 
 

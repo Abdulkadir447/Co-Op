@@ -24,8 +24,8 @@ Legend:
 | 3 | ✅ | every repository query filters `business_id` |
 | 4 | ✅ | 65 routes `Depends(get_current_business)`; only `/` + `/healthcheck` public |
 | 5 | ✅ | `/admin/*` require `X-Admin-Token` (503 unconfigured, 403 mismatch) |
-| 6 | 🚧 | Supabase RLS: 0 policies today; add before any table is exposed client-side |
-| 7 | 🚧 | same as 6 |
+| 6 | ⚠️ | `backend/rls.py` + migration `0014_rls` enable RLS + per-tenant policy (GUC, not forced); **operator must run it on Postgres** | |
+| 7 | ⚠️ | same migration adds tenant-isolation policies on every `business_id` table; **operator: apply + verify on Postgres** | |
 | 8 | ✅ | `grep -rnIE "service_role\|sk-[A-Za-z0-9]{16,}\|AKIA[0-9A-Z]{12}" .` → 0 |
 | 9 | ✅ | no secret in `electron/`; `PAYSTACK_SECRET_KEY` etc. are backend env-only |
 | 10 | ✅ | `backend/config.py` reads DB URL from env; no literal creds |
