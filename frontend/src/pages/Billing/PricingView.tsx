@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { message } from 'antd';
-import { radius, type } from '../../theme';
+import { radius, tint, type } from '../../theme';
 import { useCoopTheme } from '../../theme-provider';
 import {
   COMPARISON_SECTIONS,
@@ -9,7 +9,7 @@ import {
   type Plan,
   type PlanId,
 } from '../../billing/plans';
-import { useBilling } from '../../billing/useBilling';
+import { useBilling, type PaymentRecord } from '../../billing/useBilling';
 import { CoopButton, SparkleIcon } from '../../components/ui';
 
 /**
@@ -38,9 +38,18 @@ const PlanCard: React.FC<{
   onSelect: (plan: PlanId) => void;
   /** Start the free trial on this plan (only passed when one is available). */
   onTrial?: (plan: PlanId) => void;
+  /** Pay for this plan with Paystack (only passed when payments are live). */
+  onCheckout?: (plan: PlanId) => void;
+  /** The paid CTA's label, from the billing service. */
+  ctaLabel: string;
+  /** Currency the charge will be taken in (shown under a paid CTA). */
+  currency: string;
   trialDays: number;
   processing: boolean;
-}> = ({ plan, annual, currentPlan, onSelect, onTrial, trialDays, processing }) => {
+}> = ({
+  plan, annual, currentPlan, onSelect, onTrial, onCheckout, ctaLabel, currency,
+  trialDays, processing,
+}) => {
   const { colors, isDark } = useCoopTheme();
   const price = displayPrice(plan, annual);
   const isCurrent = currentPlan === plan.id;
@@ -100,9 +109,42 @@ const PlanCard: React.FC<{
           <CoopButton variant="secondary" block disabled>
             Current Plan
           </CoopButton>
+        ) : onCheckout ? (
+          /* Payments are live: the honest primary CTA is the paid upgrade,
+             with the free trial kept as the no-card alternative. */
+          <>
+            <CoopButton
+              block
+              loading={processing}
+              onClick={() => onCheckout(plan.id)}
+              icon={plan.id === 'professional' ? <SparkleIcon size={14} color={colors.onPrimary} /> : undefined}
+            >
+              {ctaLabel}
+            </CoopButton>
+            {onTrial && (
+              <button
+                type="button"
+                onClick={() => onTrial(plan.id)}
+                disabled={processing}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  marginTop: 8,
+                  border: 'none',
+                  background: 'transparent',
+                  color: colors.outline,
+                  ...type.bodyCompact,
+                  fontSize: 12.5,
+                  cursor: processing ? 'default' : 'pointer',
+                }}
+              >
+                {`Or try ${plan.name} free for ${trialDays} days`}
+              </button>
+            )}
+          </>
         ) : onTrial ? (
-          /* A trial is still available: leading with it is the honest CTA —
-             nothing can be charged yet, so "buy" would be a lie. */
+          /* A trial is still available and payments are not wired up: leading
+             with the trial is the honest CTA, so "buy" would not be a lie. */
           <>
             <CoopButton
               block
@@ -141,9 +183,14 @@ const PlanCard: React.FC<{
             {plan.cta}
           </CoopButton>
         )}
-        {onTrial && (
+        {onTrial && !onCheckout && (
           <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, marginTop: 8, textAlign: 'center' }}>
             No card required · cancel anytime
+          </div>
+        )}
+        {onCheckout && (
+          <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, marginTop: 8, textAlign: 'center' }}>
+            {`Secure checkout by Paystack · billed in ${currency}`}
           </div>
         )}
       </div>
@@ -182,79 +229,201 @@ const PlanCard: React.FC<{
 };
 
 /**
- * Result panel — the payment success/failure states (Stitch
- * coop_payment_success_failure), honest about preview mode.
+ * Result panel — payment success/failure, built to the Stitch
+ * coop_payment_success_failure screen: an icon disc on a soft glow, a heading
+ * and sub-line, and — on a paid success — the Amount Paid / Transaction ID /
+ * Date receipt card; on failure a "Reason" callout with Contact Support and
+ * Try Again. The receipt comes from the verified charge, never from the URL.
  */
 const ResultPanel: React.FC<{
   target: PlanId | 'free';
   /** 'trial' = the free trial was started, not a paid plan change. */
-  kind: 'plan' | 'trial';
+  kind: 'plan' | 'trial' | 'checkout';
   trialDays: number;
   ok: boolean;
   reason?: string;
   paymentConnected: boolean;
+  /** The verified charge, when this result is a paid checkout. */
+  payment?: PaymentRecord | null;
   onRetry?: () => void;
   onClose: () => void;
-}> = ({ target, kind, trialDays, ok, reason, paymentConnected, onRetry, onClose }) => {
+}> = ({ target, kind, trialDays, ok, reason, paymentConnected, payment, onRetry, onClose }) => {
   const { colors } = useCoopTheme();
   const planName = target === 'free' ? 'Free' : target.charAt(0).toUpperCase() + target.slice(1);
+  const paidSuccess = ok && kind === 'checkout' && payment?.status === 'success';
+
+  const money = (kobo: number | null | undefined, cur: string | null | undefined) => {
+    if (kobo == null) return '—';
+    const sym = cur === 'NGN' ? '₦' : cur ? `${cur} ` : '';
+    return `${sym}${(kobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  };
+  const when = (iso: string | null | undefined) =>
+    iso
+      ? new Date(iso).toLocaleString('en-US', {
+          month: 'short', day: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        })
+      : '—';
+
+  const heading = ok
+    ? kind === 'trial'
+      ? `Your ${trialDays}-day ${planName} trial has started`
+      : kind === 'checkout'
+        ? 'Payment Successful'
+        : target === 'free'
+          ? 'Subscription cancelled'
+          : `Moved to ${planName}`
+    : kind === 'trial'
+      ? 'Could not start your free trial'
+      : kind === 'checkout'
+        ? 'Payment Failed'
+        : 'Plan change failed';
+
+  const sub = ok
+    ? kind === 'checkout'
+      ? 'Your transaction has been processed securely.'
+      : kind === 'trial'
+        ? 'The paid allowance is live until the trial ends. No card was taken.'
+        : `Your plan has been updated on Co-op${target === 'free' ? ' — you’re on the Free plan' : ''}.${!paymentConnected ? ' No payment was taken.' : ''}`
+    : kind === 'checkout'
+      ? "We couldn't process your transaction."
+      : reason ?? 'We could not complete the change.';
 
   return (
     <div
       role={ok ? 'status' : 'alert'}
       style={{
+        position: 'relative',
+        overflow: 'hidden',
         background: colors.surfaceContainerLowest,
-        border: `1px solid ${ok ? 'rgba(46,158,91,0.35)' : 'rgba(186,26,26,0.3)'}`,
+        border: `1px solid ${colors.borderSubtle}`,
         borderRadius: radius.xl,
-        padding: '28px 24px',
+        padding: '48px 32px 32px',
         textAlign: 'center',
-        boxShadow: ok ? '0 12px 40px rgba(46,158,91,0.1)' : '0 12px 40px rgba(186,26,26,0.08)',
+        boxShadow: '0 12px 40px rgba(27,27,35,0.08)',
       }}
     >
+      {/* Decorative glow, as on the Stitch screen. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: -96,
+          [ok ? 'right' : 'left']: -96,
+          width: 192,
+          height: 192,
+          borderRadius: '50%',
+          background: ok ? tint(colors.success, 0.16) : tint(colors.error, 0.14),
+          filter: 'blur(48px)',
+          opacity: 0.5,
+        }}
+      />
       <span
         aria-hidden
         style={{
-          width: 56,
-          height: 56,
+          position: 'relative',
+          width: 80,
+          height: 80,
           borderRadius: '50%',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 26,
-          background: ok ? 'rgba(46,158,91,0.14)' : 'rgba(186,26,26,0.12)',
+          fontSize: 40,
+          background: ok ? tint(colors.success, 0.2) : colors.errorContainer,
           color: ok ? colors.success : colors.error,
-          marginBottom: 14,
+          marginBottom: 24,
         }}
       >
         {ok ? <CheckCircleFilled /> : <CloseCircleFilled />}
       </span>
-      <div style={{ ...type.sectionHeading, fontSize: 20, color: colors.onSurface }}>
-        {ok
-          ? kind === 'trial'
-            ? `Your ${trialDays}-day ${planName} trial has started`
-            : target === 'free'
-              ? 'Subscription cancelled'
-              : `Moved to ${planName}`
-          : kind === 'trial'
-            ? 'Could not start your free trial'
-            : 'Plan change failed'}
+
+      <div style={{ ...type.sectionHeading, fontSize: 20, color: colors.onSurface, position: 'relative' }}>
+        {heading}
       </div>
-      <p style={{ margin: '8px auto 0', maxWidth: 420, ...type.bodyCompact, color: colors.onSurfaceVariant }}>
-        {ok
-          ? `Your plan has been updated on Co-op${target === 'free' ? ' — you\u2019re on the Free plan' : ''}. Your credit allowance changed immediately.${!paymentConnected ? ' No payment was taken — charges begin when a payment provider connects.' : ''}`
-          : reason ?? 'We could not complete the plan change.'}
+      <p style={{ margin: '8px auto 0', maxWidth: 420, ...type.bodyDefault, color: colors.onSurfaceVariant, position: 'relative' }}>
+        {sub}
       </p>
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 18 }}>
-        {!ok && onRetry && (
-          <CoopButton variant="secondary" onClick={onRetry}>
-            Try Again
+
+      {/* Receipt — only when a real charge was confirmed. */}
+      {paidSuccess && payment && (
+        <div
+          style={{
+            width: '100%',
+            background: colors.surfaceContainerLow,
+            border: `1px solid ${colors.borderSubtle}`,
+            borderRadius: radius.lg,
+            padding: 24,
+            marginTop: 32,
+            textAlign: 'left',
+            position: 'relative',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: `1px solid ${colors.borderSubtle}`, paddingBottom: 8 }}>
+            <span style={{ ...type.bodyCompact, color: colors.onSurfaceVariant }}>Amount Paid</span>
+            <span style={{ ...type.sectionHeading, fontSize: 20, color: colors.onSurface }}>
+              {money(payment.amount_kobo, payment.currency)}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ ...type.bodyCompact, color: colors.onSurfaceVariant }}>Transaction ID</span>
+            <span style={{ ...type.bodyCompact, color: colors.onSurface, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', textTransform: 'uppercase' }}>
+              {payment.reference}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ ...type.bodyCompact, color: colors.onSurfaceVariant }}>Date</span>
+            <span style={{ ...type.bodyCompact, color: colors.onSurface }}>{when(payment.paid_at)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Reason callout on a failed paid checkout. */}
+      {!ok && kind === 'checkout' && (
+        <div
+          style={{
+            width: '100%',
+            background: tint(colors.error, 0.08),
+            border: `1px solid ${colors.errorContainer}`,
+            borderRadius: radius.lg,
+            padding: 16,
+            marginTop: 32,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 16,
+            textAlign: 'left',
+            position: 'relative',
+          }}
+        >
+          <CloseCircleFilled style={{ color: colors.error, marginTop: 2 }} />
+          <div>
+            <div style={{ ...type.labelCaps, color: colors.error, marginBottom: 4 }}>Reason</div>
+            <p style={{ margin: 0, ...type.bodyCompact, color: colors.onSurfaceVariant }}>
+              {reason ?? "We couldn't confirm this charge. If you completed it, it will appear shortly; otherwise try a different card or contact your bank."}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 32, position: 'relative' }}>
+        {!ok && kind === 'checkout' && (
+          <CoopButton variant="secondary" onClick={() => onClose()}>
+            Contact Support
           </CoopButton>
         )}
-        <CoopButton onClick={onClose}>{ok ? 'Done' : 'Close'}</CoopButton>
+        {!ok && onRetry && (
+          <CoopButton onClick={onRetry}>Try Again</CoopButton>
+        )}
+        {ok && (
+          <CoopButton onClick={onClose}>{kind === 'checkout' ? 'Back to Billing' : 'Done'}</CoopButton>
+        )}
+        {!ok && kind !== 'checkout' && (
+          <CoopButton variant="secondary" onClick={onClose}>Close</CoopButton>
+        )}
       </div>
     </div>
   );
 };
+
 
 export interface PricingViewProps {
   onBack: () => void;
@@ -264,7 +433,7 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack }) => {
   const { colors } = useCoopTheme();
   const {
     plans, currentPlan, action, selectPlan, dismissResult, retry, paymentConnected,
-    trial, trialDays, startTrial,
+    trial, trialDays, startTrial, canCheckout, checkout, ctaFor, paymentCurrency, lastPayment,
   } = useBilling();
   const [annual, setAnnual] = useState(true);
 
@@ -280,7 +449,7 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack }) => {
   const processing = action.status === 'processing';
 
   const contactSales = () =>
-    message.info('Sales contact connects when billing goes live — the plan details are already in your workspace.');
+    message.info('Talk to us about Enterprise — we will tailor seats, invoicing and support to your team.');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -371,6 +540,7 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack }) => {
             ok={result.ok}
             reason={result.reason}
             paymentConnected={paymentConnected}
+            payment={lastPayment}
             onRetry={retry}
             onClose={dismissResult}
           />
@@ -401,8 +571,13 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack }) => {
                 ? (id) => void startTrial(id)
                 : undefined
             }
+            onCheckout={
+              canCheckout(p.id) && p.id !== currentPlan ? (id) => void checkout(id) : undefined
+            }
+            ctaLabel={ctaFor(p.id)}
+            currency={paymentCurrency}
             onSelect={(id) => {
-              if (id === 'enterprise') {
+              if (id === 'enterprise' && !canCheckout(id)) {
                 contactSales();
                 return;
               }

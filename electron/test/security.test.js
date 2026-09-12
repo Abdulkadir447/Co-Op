@@ -20,6 +20,7 @@ const path = require('node:path');
 const {
   ALLOWED_PROTOCOLS,
   containNavigation,
+  isExternalSafeUrl,
   isLocalAppUrl,
   rendererPreferences,
 } = require('../security');
@@ -135,6 +136,44 @@ test('unparseable URLs are not ours', () => {
   assert.strictEqual(isLocalAppUrl('file:///app/index.html'), true);
   assert.ok(ALLOWED_PROTOCOLS.has('file:'));
   assert.ok(!ALLOWED_PROTOCOLS.has('https:'));
+});
+
+// ---------------------------------------------------------------------------
+// The bridge out to the OS browser (used for Paystack payment pages)
+// ---------------------------------------------------------------------------
+
+test('only http(s) may be handed to the OS browser', () => {
+  assert.strictEqual(isExternalSafeUrl('https://paystack.com/pay/abc'), true);
+  assert.strictEqual(isExternalSafeUrl('http://localhost:5173/billing'), true);
+  assert.strictEqual(isExternalSafeUrl('https://pay.example.shop/pay/x?a=1&b=2'), true);
+});
+
+test('nothing else may be handed to the OS browser', () => {
+  for (const url of [
+    'file:///etc/passwd',
+    'file://server/share/app.exe',
+    'javascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'about:blank',
+    'devtools://devtools/x',
+    'C:\\Windows\\System32\\calc.exe',
+    '',
+    null,
+    undefined,
+    42,
+  ]) {
+    assert.strictEqual(isExternalSafeUrl(url), false, `expected deny for ${String(url)}`);
+  }
+});
+
+test('the shell bridge is allow-listed and re-checks the URL in main', () => {
+  const PRELOAD = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8');
+  assert.ok(PRELOAD.includes("invoke('coop:shell'"), 'preload must use the shell channel');
+  assert.ok(MAIN_JS.includes("registerShellIpc"), 'main must register the shell bridge');
+  assert.ok(MAIN_JS.includes("method !== 'openExternal'"), 'the channel must be allow-listed');
+  assert.ok(MAIN_JS.includes('isExternalSafeUrl(arg)'), 'main must re-check the URL itself');
+  // the bridge is not a generic invoke
+  assert.ok(!/ipcRenderer\.invoke\(\s*method/.test(PRELOAD), 'no generic invoke channel');
 });
 
 // ---------------------------------------------------------------------------

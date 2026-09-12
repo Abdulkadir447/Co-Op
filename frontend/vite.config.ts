@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // One .env for the whole repo (the root `.env`, documented by the committed
+  // `.env.example`). Vite would otherwise look in this directory and tempt a
+  // second `frontend/.env` into existence — a duplicate source of truth.
+  envDir: '..',
   server: {
     port: 3000,
     host: '0.0.0.0',

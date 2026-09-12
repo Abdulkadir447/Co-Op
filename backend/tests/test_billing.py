@@ -358,18 +358,96 @@ async def test_expired_trial_enforces_free_allowance_at_the_ai_boundary(
     assert "free trial has ended" in detail["message"]
 
 
-async def test_converting_during_a_trial_ends_it_immediately(api, session_factory):
+async def test_cancelling_a_running_trial_is_refused(api):
+    """A started trial runs to its end: a free downgrade can't stop it early."""
+    await api.client.post("/billing/trial", json={"plan": "professional"})
+
+    r = await api.client.post("/billing/plan", json={"plan": "free"})
+    assert r.status_code == 409
+    assert r.json()["detail"]["error"] == "trial_locked"
+    assert "cannot be cancelled" in r.json()["detail"]["message"]
+
+    # The paid capability keeps applying until the window closes.
+    body = await _summary(api)
+    assert body["plan"] == "professional"
+    assert body["trial"]["active"] is True
+
+
+async def test_paid_switch_during_a_trial_requires_payment_when_live(api, monkeypatch):
+    """With Paystack configured, converting mid-trial must go through checkout."""
+    import backend.paystack as ps
+    from backend import payments as payments_mod
+    from backend.paystack import PaystackConfig
+
+    enabled = PaystackConfig(enabled=True, payment_pages={"starter": "https://p/x"})
+    monkeypatch.setattr(payments_mod, "paystack_config", lambda: enabled)
+    monkeypatch.setattr(ps, "paystack_config", lambda: enabled)
+    monkeypatch.setenv("PAYSTACK_SECRET_KEY", "sk_test_x")
+
     await api.client.post("/billing/trial", json={"plan": "professional"})
     r = await api.client.post("/billing/plan", json={"plan": "starter"})
+    assert r.status_code == 402
+    assert r.json()["detail"]["error"] == "payment_required"
+
+
+async def test_paying_during_a_trial_converts_and_ends_it(api, monkeypatch):
+    """The one way out of a trial early is to pay: it converts and closes it."""
+    import backend.paystack as ps
+    from backend import payments as payments_mod
+    from backend.paystack import PaystackConfig
+
+    enabled = PaystackConfig(
+        enabled=True,
+        payment_pages={"starter": "https://p/x"},
+        prices_kobo={"starter": {"monthly": 100}},
+    )
+    monkeypatch.setattr(payments_mod, "paystack_config", lambda: enabled)
+    monkeypatch.setattr(ps, "paystack_config", lambda: enabled)
+    monkeypatch.setenv("PAYSTACK_SECRET_KEY", "sk_test_x")
+    api.set_user("user-a", "owner@example.com")  # Paystack charges an email
+
+    await api.client.post("/billing/trial", json={"plan": "professional"})
+    out = await api.client.post("/billing/checkout", json={"plan": "starter"})
+    assert out.status_code == 200, out.text
+    reference = out.json()["reference"]
+
+    # Simulate the webhook confirming the charge.
+    import hashlib
+    import hmac
+    import json as json_mod
+
+    payload = {
+        "event": "charge.success",
+        "data": {
+            "reference": reference,
+            "status": "success",
+            "amount": 100,
+            "currency": "NGN",
+            "paid_at": "2026-09-11T10:00:00.000Z",
+            "metadata": {
+                "business_id": "1", "plan": "starter", "interval": "monthly",
+                "reference": reference,
+            },
+        },
+    }
+    raw = json_mod.dumps(payload).encode()
+    sig = hmac.new(b"sk_test_x", raw, hashlib.sha512).hexdigest()
+    r = await api.client.post(
+        "/webhooks/paystack", content=raw, headers={"x-paystack-signature": sig}
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["applied"] is True
+
+    body = await _summary(api)
+    assert body["plan"] == "starter"
+    assert body["trial"]["active"] is False   # the trial closed on payment
+
+
+async def test_free_switch_still_works_before_any_provider(api):
+    """No provider configured → the manual switch keeps working (dev/testing)."""
+    r = await api.client.post("/billing/plan", json={"plan": "professional"})
     assert r.status_code == 200
-    body = r.json()
-    assert body["plan"] == "starter"      # the plan they now own
-    assert body["base_plan"] == "starter"
-    assert body["granted"] == 200         # starter allowance, not the trial's
-    assert body["trial"]["active"] is False
-    assert body["trial"]["used"] is True
-    sub = await _sub(session_factory)
-    assert sub.status == "active"
+    assert r.json()["plan"] == "professional"
 
 
 async def test_trial_is_tenant_scoped(api, session_factory):

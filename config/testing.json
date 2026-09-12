@@ -97,5 +97,22 @@
       "requests": 0,
       "window_seconds": 60
     }
+  },
+  "paystack": {
+    "_comment": "Payments are off in the test environment; the suite monkeypatches paystack_config() with its own pages and prices.",
+    "enabled": false,
+    "currency": "NGN",
+    "api_base": "https://api.paystack.co",
+    "timeout_seconds": 15,
+    "secret_key_env": "PAYSTACK_SECRET_KEY",
+    "public_key_env": "PAYSTACK_PUBLIC_KEY",
+    "callback_url": null,
+    "allowed_callback_hosts": [],
+    "payment_pages": {
+      "starter": "https://paystack.shop/pay/cc0he0cghk",
+      "professional": "https://paystack.shop/pay/8behy0j95a",
+      "enterprise": "https://paystack.shop/pay/17zi09vwev"
+    },
+    "prices_kobo": {}
   }
 }

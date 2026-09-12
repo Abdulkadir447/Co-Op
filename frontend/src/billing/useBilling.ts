@@ -15,9 +15,10 @@
  * the backend reports. Selecting a plan is async and can succeed/fail, so
  * both result screens exist and are wired.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiClient } from '../services/api/client';
 import { PLAN_CATALOG, PlanId, getPlan, type Plan } from './plans';
+import { clearReferenceFromUrl, openExternal, referenceFromSearch } from './checkout';
 
 // ---------------------------------------------------------------------------
 // Backend contract
@@ -70,6 +71,56 @@ export interface BillingSummary {
     credits_used: number;
   };
   payment_connected: boolean;
+  business_id: number;
+}
+
+// ---------------------------------------------------------------------------
+// Payments (Paystack) — the server tells us what it can actually charge for.
+// ---------------------------------------------------------------------------
+
+/** `GET /billing/payment-config` — no secret ever crosses this line. */
+export interface PaymentConfig {
+  provider: string | null;
+  enabled: boolean;
+  currency: string;
+  intervals: string[];
+  plans: Partial<Record<PlanId, { checkout_url: string | null; prices_kobo: Record<string, number> }>>;
+  /** True when the backend can confirm a charge itself (not just redirect). */
+  verification: boolean;
+}
+
+/** One row of the charge ledger (`GET /billing/payments`). */
+export interface PaymentRecord {
+  id: number;
+  reference: string;
+  plan: PlanId;
+  interval: string;
+  mode: 'page' | 'api' | null;
+  amount_kobo: number | null;
+  currency: string | null;
+  status: 'pending' | 'success' | 'failed';
+  provider_status: string | null;
+  channel: string | null;
+  paid_at: string | null;
+  created_at: string | null;
+}
+
+export interface CheckoutResult {
+  reference: string;
+  mode: 'page' | 'api';
+  url: string;
+  plan: PlanId;
+  interval: string;
+  amount_kobo: number | null;
+  currency: string;
+  callback_url: string | null;
+}
+
+export interface VerifyResult {
+  payment: PaymentRecord;
+  applied: boolean;
+  already_applied: boolean;
+  summary: BillingSummary;
 }
 
 // Local (this device) conversation activity — real, but not metered billing.
@@ -108,7 +159,7 @@ function readLocalAiUsage(): LocalAiUsage {
 // Hook — the only surface the billing UI consumes
 // ---------------------------------------------------------------------------
 
-export type PlanActionKind = 'plan' | 'trial';
+export type PlanActionKind = 'plan' | 'trial' | 'checkout';
 
 export type PlanActionState =
   | { status: 'idle' }
@@ -122,6 +173,24 @@ export function useBilling() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [localUsage, setLocalUsage] = useState<LocalAiUsage>(readLocalAiUsage);
   const [action, setAction] = useState<PlanActionState>({ status: 'idle' });
+  // What the backend can actually charge for, and what it has already charged.
+  const [payment, setPayment] = useState<PaymentConfig | null>(null);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  /** Set when we sent the owner off to pay; used to verify on return. */
+  const [pendingReference, setPendingReference] = useState<string | null>(null);
+  /** The charge a verify confirmed — the success screen renders its receipt. */
+  const [lastPayment, setLastPayment] = useState<PaymentRecord | null>(null);
+  // A returned ?reference= must be verified once, even under StrictMode.
+  const verifyingRef = useRef<string | null>(null);
+
+  const loadPayments = useCallback(async () => {
+    try {
+      const { data } = await api.get<{ items: PaymentRecord[] }>('/billing/payments');
+      setPayments(data.items ?? []);
+    } catch {
+      /* history is a nice-to-have; never fail the screen over it */
+    }
+  }, [api]);
 
   const refresh = useCallback(async () => {
     setLoadError(null);
@@ -132,11 +201,102 @@ export function useBilling() {
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Could not load billing.');
     }
-  }, [api]);
+    try {
+      const { data } = await api.get<PaymentConfig>('/billing/payment-config');
+      setPayment(data);
+    } catch {
+      setPayment(null);
+    }
+    await loadPayments();
+  }, [api, loadPayments]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  /**
+   * Confirm a charge with the backend. This is what actually moves the plan —
+   * the browser coming back from Paystack proves nothing on its own.
+   */
+  const verifyReference = useCallback(async (reference: string): Promise<VerifyResult | null> => {
+    try {
+      const { data } = await api.post<VerifyResult>('/billing/payments/verify', { reference });
+      setSummary(data.summary);
+      if (data.payment) setLastPayment(data.payment);
+      await loadPayments();
+      return data;
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setAction({
+        status: 'failure',
+        target: 'free',
+        kind: 'checkout',
+        reason:
+          typeof detail === 'string'
+            ? detail
+            : e instanceof Error
+              ? e.message
+              : 'Could not confirm the payment.',
+      });
+      return null;
+    }
+  }, [api, loadPayments]);
+
+  // The owner came back from Paystack with ?reference=… on the URL.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const reference = referenceFromSearch(window.location.search) ?? pendingReference;
+    if (!reference || verifyingRef.current === reference) return;
+    verifyingRef.current = reference;
+    clearReferenceFromUrl();
+    void verifyReference(reference).then((result) => {
+      if (result?.applied) {
+        setAction({ status: 'success', target: result.payment.plan, kind: 'checkout' });
+      } else if (result && !result.already_applied) {
+        setAction({
+          status: 'failure',
+          target: result.payment.plan,
+          kind: 'checkout',
+          reason:
+            result.payment.status === 'pending'
+              ? 'Paystack has not confirmed this payment yet. If you completed it, it will appear here shortly.'
+              : 'This payment was not completed.',
+        });
+      }
+    });
+  }, [pendingReference, verifyReference]);
+
+  /**
+   * Send the owner to Paystack. The backend creates the pending charge first
+   * and hands back the URL; the desktop app opens it in the real browser
+   * (the renderer is not allowed to navigate anywhere).
+   */
+  const checkout = useCallback(async (plan: PlanId, interval: string = 'monthly') => {
+    setAction({ status: 'processing', target: plan, kind: 'checkout' });
+    try {
+      const { data } = await api.post<CheckoutResult>('/billing/checkout', {
+        plan,
+        interval,
+        return_url: typeof window === 'undefined' ? undefined : window.location.href.split('?')[0],
+      });
+      setPendingReference(data.reference);
+      await openExternal(data.url);
+      setAction({ status: 'success', target: plan, kind: 'checkout' });
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setAction({
+        status: 'failure',
+        target: plan,
+        kind: 'checkout',
+        reason:
+          typeof detail === 'string'
+            ? detail
+            : e instanceof Error
+              ? e.message
+              : 'Could not start the payment.',
+      });
+    }
+  }, [api]);
 
   const applyPlan = useCallback(async (plan: PlanId | 'free') => {
     setAction({ status: 'processing', target: plan, kind: 'plan' });
@@ -187,22 +347,36 @@ export function useBilling() {
       await startTrial(action.target);
       return;
     }
+    if (action.kind === 'checkout' && action.target !== 'free') {
+      await checkout(action.target);
+      return;
+    }
     await applyPlan(action.target);
-  }, [action, applyPlan, startTrial]);
+  }, [action, applyPlan, checkout, startTrial]);
 
   const currentPlan: PlanId = summary?.plan ?? 'free';
   const plan: Plan = getPlan(currentPlan);
   const trial: TrialState | null = summary?.trial ?? null;
   const trialDays = summary?.trial_days ?? 10;
-  /** Trial-aware CTA label for a pricing card. */
+  /** Can this plan be bought right now (a payment page or API is wired up)? */
+  const canCheckout = useCallback(
+    (id: PlanId): boolean =>
+      Boolean(payment?.enabled && payment.plans?.[id]?.checkout_url),
+    [payment],
+  );
+
+  /** CTA label for a pricing card: paid upgrade > trial > sales. */
   const ctaFor = useCallback((id: PlanId): string => {
     if (id === currentPlan) return 'Current Plan';
+    if (canCheckout(id)) return id === 'enterprise' ? 'Subscribe' : 'Upgrade';
     if (id === 'enterprise') return 'Contact Sales';
     if (trial?.available) return `Start ${trialDays}-Day Free Trial`;
     return getPlan(id).cta;
-  }, [currentPlan, trial, trialDays]);
-  // Payment collection is the only preview concern left; plans/credits are real.
-  const paymentConnected = summary?.payment_connected ?? false;
+  }, [canCheckout, currentPlan, trial, trialDays]);
+  // True when the backend has a payment provider wired up (Paystack).
+  const paymentConnected = summary?.payment_connected ?? payment?.enabled ?? false;
+  /** Interval the toggle maps to when buying: the pricing screen's own state. */
+  const paymentCurrency = payment?.currency ?? 'NGN';
 
   return {
     plans: PLAN_CATALOG,
@@ -212,6 +386,14 @@ export function useBilling() {
     localUsage,
     loadError,
     paymentConnected,
+    payment,
+    payments,
+    lastPayment,
+    paymentCurrency,
+    pendingReference,
+    canCheckout,
+    checkout,
+    verifyReference,
     trial,
     trialDays,
     ctaFor,

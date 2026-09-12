@@ -5,7 +5,7 @@ const { createDataLayer, defaultDbPath } = require('./db');
 const { createDataLayerApp } = require('./dataLayerApp');
 const { isSqliteFile, snapshot, replaceDbFile, assertRestoreSafe } = require('./db/backup');
 const { APP_USER_MODEL_ID, backupFileName } = require('./platform');
-const { containNavigation, rendererPreferences } = require('./security');
+const { containNavigation, isExternalSafeUrl, rendererPreferences } = require('./security');
 
 // ---------------------------------------------------------------------------
 // Content Security Policy for the Co-op desktop app.
@@ -115,6 +115,27 @@ let mainWindow = null;
 // Restore rebuilds the data layer in place, so the running app switches to
 // the restored database without a relaunch.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// The one bridge out to the OS browser.
+//
+// The renderer cannot navigate anywhere (see electron/security.js), so paying
+// a bill or opening a receipt has to be handed to the user's real browser.
+// http(s) only, checked in the main process — the renderer is not trusted to
+// decide what is safe.
+// ---------------------------------------------------------------------------
+function registerShellIpc() {
+  ipcMain.handle('coop:shell', async (_event, { method, arg }) => {
+    if (method !== 'openExternal') {
+      throw new Error(`Blocked non-allow-listed shell method: ${method}`);
+    }
+    if (!isExternalSafeUrl(arg)) {
+      throw new Error(`Refusing to open a non-http(s) URL: ${String(arg).slice(0, 120)}`);
+    }
+    await shell.openExternal(arg);
+    return true;
+  });
+}
 
 function registerBackupIpc() {
   ipcMain.handle('coop:backup', async (_event, { method }) => {
@@ -242,6 +263,7 @@ app.whenReady().then(() => {
     dataLayerApp = createDataLayerApp(dataLayer); // cold start: trust an existing mirror
     registerDataLayerIpc();
     registerBackupIpc();
+    registerShellIpc();
     const win = createWindow();
     mainWindow = win;
     watchConnectivity(win);

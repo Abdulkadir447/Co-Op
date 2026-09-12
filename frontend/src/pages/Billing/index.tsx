@@ -40,6 +40,7 @@ const BillingPage: React.FC = () => {
   const {
     plan, currentPlan, summary, localUsage, loadError, paymentConnected,
     trial, trialDays, action, cancelToFree, dismissResult, retry, refresh,
+    payments, payment, paymentCurrency, verifyReference, pendingReference,
   } = useBilling();
   const [cancelOpen, setCancelOpen] = useState(false);
 
@@ -113,8 +114,8 @@ const BillingPage: React.FC = () => {
               {trial.label} trial.
             </strong>{' '}
             You have the full {trial.label} credit allowance until{' '}
-            {new Date(trial.ends_at ?? '').toLocaleDateString()}. Nothing is charged — when the
-            trial ends you go back to Free unless you choose a plan.
+            {new Date(trial.ends_at ?? '').toLocaleDateString()}. The trial can’t be cancelled — it
+            runs to the end, and when it does you keep the paid features only by subscribing.
           </span>
           <CoopButton size="sm" onClick={() => setView('pricing')} disabled={processing}>
             Choose a plan
@@ -326,22 +327,30 @@ const BillingPage: React.FC = () => {
                 <CoopButton icon={<CreditCardOutlined />} onClick={() => setView('pricing')} disabled={processing}>
                   Manage Plan
                 </CoopButton>
-                {currentPlan !== 'free' && (
-                  <button
-                    type="button"
-                    onClick={() => setCancelOpen(true)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      color: colors.error,
-                      fontWeight: 600,
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      padding: '6px 4px',
-                    }}
-                  >
-                    Cancel subscription
-                  </button>
+                {trial?.active ? (
+                  /* A started trial cannot be stopped: it runs to the end and
+                     the only way to keep the paid features is to subscribe. */
+                  <span style={{ ...type.bodyCompact, color: colors.outline }}>
+                    Trial runs to {new Date(trial.ends_at ?? '').toLocaleDateString()} — subscribe to continue.
+                  </span>
+                ) : (
+                  currentPlan !== 'free' && (
+                    <button
+                      type="button"
+                      onClick={() => setCancelOpen(true)}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: colors.error,
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        padding: '6px 4px',
+                      }}
+                    >
+                      Cancel subscription
+                    </button>
+                  )
                 )}
               </div>
             </CoopCard>
@@ -417,20 +426,106 @@ const BillingPage: React.FC = () => {
                 </span>
               }
             >
-              <div
-                style={{
-                  borderRadius: radius.lg,
-                  border: `1px dashed ${colors.outlineVariant}`,
-                  padding: '16px',
-                  ...type.bodyCompact,
-                  color: colors.onSurfaceVariant,
-                }}
-              >
-                No payment method on file.
-                <div style={{ fontSize: 12.5, color: colors.outline, marginTop: 4 }}>
-                  Payment connects when a provider is added — until then, nothing is charged.
+              {paymentConnected ? (
+                <>
+                  <div
+                    style={{
+                      borderRadius: radius.lg,
+                      border: `1px solid ${colors.borderSubtle}`,
+                      padding: '14px 16px',
+                      ...type.bodyCompact,
+                      color: colors.onSurfaceVariant,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CreditCardOutlined style={{ color: colors.primary }} />
+                      <strong style={{ color: colors.onSurface }}>Paystack</strong>
+                      <span style={{ color: colors.outline }}>· charges in {paymentCurrency}</span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: colors.outline, marginTop: 6 }}>
+                      Card, bank transfer and USSD at checkout. Co-op only sees the confirmed
+                      result — card details never touch this app.
+                    </div>
+                  </div>
+
+                  {/* Charge history — the ledger the backend keeps */}
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ ...type.labelCaps, color: colors.outline, marginBottom: 8 }}>
+                      Payment history
+                    </div>
+                    {payments.length === 0 ? (
+                      <div style={{ ...type.bodyCompact, color: colors.outline }}>
+                        No payments yet.
+                      </div>
+                    ) : (
+                      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {payments.slice(0, 5).map((row) => (
+                          <li
+                            key={row.reference}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 10,
+                              ...type.bodyCompact,
+                              color: colors.onSurfaceVariant,
+                            }}
+                          >
+                            <span>
+                              {row.plan.charAt(0).toUpperCase() + row.plan.slice(1)}
+                              <span style={{ color: colors.outline }}> · {row.interval}</span>
+                            </span>
+                            <span
+                              style={{
+                                ...type.labelCaps,
+                                color:
+                                  row.status === 'success'
+                                    ? colors.success
+                                    : row.status === 'failed'
+                                      ? colors.error
+                                      : colors.outline,
+                              }}
+                            >
+                              {row.status === 'success'
+                                ? 'Paid'
+                                : row.status === 'failed'
+                                  ? 'Failed'
+                                  : 'Pending'}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {pendingReference && (
+                      <div style={{ marginTop: 12 }}>
+                        <CoopButton
+                          size="sm"
+                          variant="secondary"
+                          icon={<ReloadOutlined />}
+                          onClick={() => void verifyReference(pendingReference)}
+                        >
+                          Check payment status
+                        </CoopButton>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={{
+                    borderRadius: radius.lg,
+                    border: `1px dashed ${colors.outlineVariant}`,
+                    padding: '16px',
+                    ...type.bodyCompact,
+                    color: colors.onSurfaceVariant,
+                  }}
+                >
+                  No payment method on file.
+                  <div style={{ fontSize: 12.5, color: colors.outline, marginTop: 4 }}>
+                    Payment connects when a provider is added — until then, nothing is charged.
+                  </div>
                 </div>
-              </div>
+              )}
             </CoopCard>
 
             {/* Credit period — real */}
@@ -484,7 +579,11 @@ const BillingPage: React.FC = () => {
                     size="sm"
                     variant="secondary"
                     onClick={() =>
-                      message.info('Sales contact connects when billing goes live.')
+                      message.info(
+                        payment?.plans?.enterprise?.checkout_url
+                          ? 'Enterprise checkout opens in your browser — tell us if you need invoicing instead.'
+                          : 'Talk to us about Enterprise — we will tailor seats, invoicing and support.',
+                      )
                     }
                   >
                     Contact Sales

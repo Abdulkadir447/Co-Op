@@ -643,3 +643,46 @@ class BusinessInvitation(Base):
     accepted_by = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     expires_at = Column(DateTime, nullable=True)
+
+
+class Payment(Base):
+    """One Paystack charge attempt for a plan (migration 0011).
+
+    The ledger of every checkout Co-op started and what Paystack said about
+    it. ``reference`` is Paystack's own idempotency key, so it is unique —
+    a duplicated webhook cannot create a second row or upgrade a plan twice.
+
+    The plan is NOT changed by this row alone: ``status`` only becomes
+    ``success`` after the charge is verified with Paystack (API verify or a
+    signature-checked ``charge.success`` webhook). A browser returning from
+    the payment page proves nothing and never touches this table's status.
+    """
+
+    __tablename__ = "payments"
+    __table_args__ = (
+        Index("uq_payments_reference", "reference", unique=True),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), index=True, nullable=False)
+    provider = Column(String(30), nullable=False, default="paystack")
+    reference = Column(String(80), nullable=False)
+    plan = Column(String(20), nullable=False)            # starter|professional|enterprise
+    interval = Column(String(20), nullable=False, default="monthly")  # monthly|annual
+    # How the owner was sent to pay: "page" (hosted payment page) or "api"
+    # (transaction/initialize -> authorization_url).
+    mode = Column(String(20), nullable=True)
+    amount_kobo = Column(Integer, nullable=True)
+    currency = Column(String(8), nullable=True)
+    email = Column(String(255), nullable=True)           # payer's email at checkout
+    status = Column(String(20), nullable=False, default="pending")  # pending|success|failed
+    provider_status = Column(String(40), nullable=True)  # Paystack's own word
+    channel = Column(String(40), nullable=True)          # card|bank|ussd|…
+    metadata_json = Column(Text, nullable=True)          # metadata we sent (JSON)
+    started_by = Column(String(255), nullable=True)      # Clerk user id
+    paid_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<Payment {self.reference} {self.plan} {self.status}>"

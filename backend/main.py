@@ -167,6 +167,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ---------------------------------------------------------------------------
+# Defence-in-depth HTTP hardening (checklist 148-155).
+#
+# Auth is a Bearer token, not a cookie, so the browser never holds a session
+# that a third-party page could ride on — but the headers below remove whole
+# classes of browser-side attacks anyway and cost nothing.
+# ---------------------------------------------------------------------------
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
+    # The API is never rendered as a page; a strict CSP is safe here and
+    # stops any accidental HTML/JS from executing if an error page leaks.
+    response.headers.setdefault(
+        "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+    )
+    return response
+
+
+@app.exception_handler(Exception)
+async def _unhandled_error_handler(request, exc):
+    """Never let a traceback or an internal detail reach a client (149).
+
+    HTTPException keeps its own (already-sanitised) detail; anything else is
+    a bug, and the client gets a generic 500 while the real error goes to the
+    server log.
+    """
+    import logging
+    import traceback
+
+    logging.getLogger("coop").error(
+        "Unhandled error on %s %s\n%s",
+        request.method, request.url.path, traceback.format_exc(),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error."},
+    )
+
 # Order statuses that count toward revenue/profit (not pending/cancelled).
 _ACTIVE_STATUSES = ["shipped", "delivered"]
 
@@ -2287,12 +2330,20 @@ async def billing_change_plan(
     """Switch plans. Real state (enforcement updates immediately); payment
     is deliberately NOT taken in this phase."""
     from . import billing as billing_mod
-    from .billing import InvalidPlan
+    from .billing import InvalidPlan, PaymentRequired, TrialLockedError
 
     try:
         await billing_mod.change_plan(db, business, req.plan, actor=business.owner_id)
     except InvalidPlan as e:
         raise HTTPException(status_code=422, detail=str(e))
+    except TrialLockedError as e:
+        # A started trial cannot be stopped — it runs to the end.
+        raise HTTPException(status_code=409, detail={"error": "trial_locked",
+                                                     "message": str(e)})
+    except PaymentRequired as e:
+        # Paid plans go through the paid checkout, not a free switch.
+        raise HTTPException(status_code=402, detail={"error": "payment_required",
+                                                     "message": str(e)})
     await audit_mod.record_audit(
         db, business.id, "subscriptions", None, "plan",
         change={"plan": req.plan}, actor=business.owner_id,
@@ -2330,6 +2381,148 @@ async def billing_start_trial(
         actor=business.owner_id,
     )
     return await billing_mod.billing_summary(db, business)
+
+
+class CheckoutRequest(BaseModel):
+    plan: str
+    interval: str = "monthly"
+    return_url: Optional[str] = None
+
+
+class VerifyPaymentRequest(BaseModel):
+    reference: str
+
+
+@app.get("/billing/payment-config", tags=["Billing"])
+async def billing_payment_config_route() -> dict:
+    """What the UI needs to render a real checkout.
+
+    Reports whether payments are live, the currency, the intervals on offer
+    and each plan's hosted payment page. Secret keys are never returned —
+    ``verification`` only says whether the backend can confirm a charge.
+    """
+    from .paystack import public_config
+
+    return public_config()
+
+
+@app.post("/billing/checkout", tags=["Billing"])
+async def billing_checkout_route(
+    req: CheckoutRequest,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Start a Paystack charge and return the URL the owner should pay at.
+
+    Writes a ``pending`` row in ``payments`` first, so the reference exists
+    before the browser leaves — the plan only changes once Paystack confirms
+    the charge (``/billing/payments/verify`` or the webhook).
+    """
+    from . import payments as payments_mod
+
+    try:
+        result = await payments_mod.start_checkout(
+            db,
+            business,
+            plan=req.plan,
+            interval=req.interval,
+            email=business.owner_email or user.email,
+            user_id=user.user_id,
+            return_url=req.return_url,
+        )
+    except payments_mod.PaymentsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    await audit_mod.record_audit(
+        db, business.id, "payments", None, "checkout_started",
+        change={"reference": result["reference"], "plan": result["plan"],
+                "interval": result["interval"], "mode": result["mode"]},
+        actor=user.user_id,
+    )
+    return result
+
+
+@app.get("/billing/payments", tags=["Billing"])
+async def billing_payments_route(
+    limit: int = Query(20, ge=1, le=100),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """This business's charge history (newest first)."""
+    from . import payments as payments_mod
+
+    return {"items": await payments_mod.list_payments(db, business, limit)}
+
+
+@app.post("/billing/payments/verify", tags=["Billing"])
+async def billing_verify_payment_route(
+    req: VerifyPaymentRequest,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Confirm a reference with Paystack and upgrade the plan if it was paid.
+
+    Called when the owner comes back from the payment page. The browser
+    returning is NOT proof of anything: the plan changes only if Paystack
+    reports the charge as successful, and it happens exactly once.
+    """
+    from . import billing as billing_mod
+    from . import payments as payments_mod
+
+    try:
+        result = await payments_mod.verify_and_apply(db, business, req.reference)
+    except payments_mod.PaymentsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    if result["applied"]:
+        await audit_mod.record_audit(
+            db, business.id, "payments", None, "payment_applied",
+            change={"reference": req.reference, "plan": result["plan"]},
+            actor=user.user_id,
+        )
+    return {"payment": result["payment"], "applied": result["applied"],
+            "already_applied": result.get("already_applied", False),
+            "summary": await billing_mod.billing_summary(db, business)}
+
+
+@app.post("/webhooks/paystack", tags=["Billing"])
+async def paystack_webhook_route(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Paystack's ``charge.success`` webhook — the authoritative confirmation.
+
+    Unauthenticated by nature, so the body is checked against the
+    ``x-paystack-signature`` HMAC-SHA512 over the RAW bytes before anything
+    is parsed. A bad signature is a 401 and nothing else happens; a good
+    signature always gets a 200 (Paystack retries otherwise, forever).
+    """
+    import json as json_mod
+
+    from . import payments as payments_mod
+    from .paystack import SIGNATURE_HEADER, paystack_config, verify_webhook_signature
+
+    raw = await request.body()
+    cfg = paystack_config()
+    if not verify_webhook_signature(raw, request.headers.get(SIGNATURE_HEADER), cfg.secret_key):
+        raise HTTPException(status_code=401, detail="Invalid Paystack signature.")
+    try:
+        payload = json_mod.loads(raw or b"{}")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Webhook body is not valid JSON.")
+
+    result = await payments_mod.apply_webhook_event(db, payload)
+
+    if result.get("applied") and result.get("business_id"):
+        await audit_mod.record_audit(
+            db, int(result["business_id"]), "payments", None, "payment_applied",
+            change={"reference": result.get("reference"), "plan": result.get("plan"),
+                    "source": "webhook"},
+            actor="paystack-webhook",
+        )
+    return {"received": True, **result}
 
 
 # ---------------------------------------------------------------------------

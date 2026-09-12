@@ -27,6 +27,20 @@ function rendererPreferences(preloadPath) {
   };
 }
 
+/**
+ * True for URLs the renderer may ask the OS to open (payments, docs, receipts).
+ * http(s) only — never file:, never a shell command, never a UNC path.
+ */
+function isExternalSafeUrl(url) {
+  if (typeof url !== 'string' || !url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /** True for URLs that belong to the packaged app itself. */
 function isLocalAppUrl(url) {
   try {
@@ -63,4 +77,10 @@ function containNavigation(contents, options = {}) {
   });
 }
 
-module.exports = { ALLOWED_PROTOCOLS, containNavigation, isLocalAppUrl, rendererPreferences };
+module.exports = {
+  ALLOWED_PROTOCOLS,
+  containNavigation,
+  isExternalSafeUrl,
+  isLocalAppUrl,
+  rendererPreferences,
+};

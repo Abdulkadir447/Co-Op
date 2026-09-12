@@ -9,16 +9,27 @@
  * here keeps `npm test` a single cross-platform command instead of a shell
  * one-liner that behaves differently on Windows.
  */
-import { writeFileSync } from 'node:fs';
+import { readdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const outDir = new URL('../test-build/', import.meta.url);
-const target = new URL('test/analytics.test.js', outDir);
 
 writeFileSync(new URL('package.json', outDir), '{ "type": "commonjs" }\n');
 
-const result = spawnSync(process.execPath, ['--test', fileURLToPath(target)], {
+// Every compiled suite, not a hardcoded one — adding test/foo.test.ts is enough.
+const testDir = new URL('test/', outDir);
+const suites = readdirSync(fileURLToPath(testDir))
+  .filter((name) => name.endsWith('.test.js'))
+  .map((name) => fileURLToPath(new URL(name, testDir)))
+  .sort();
+
+if (suites.length === 0) {
+  console.error('No compiled test suites found in test-build/test/');
+  process.exit(1);
+}
+
+const result = spawnSync(process.execPath, ['--test', ...suites], {
   stdio: 'inherit',
 });
 process.exit(result.status ?? 1);

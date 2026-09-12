@@ -14,6 +14,11 @@ outcome of an audit.
 Legend: ✅ verified in code · ⚠️ open, fixable here · 🚧 needs infrastructure
 you don't have yet · ➖ not applicable
 
+**For the item-by-item disposition of all 170 checklist numbers, see
+`SECURITY_CHECKLIST_STATUS.md`** (tally: 110 done in code, 23 code-done +
+operator step, 31 ops/infra, 6 n/a). This document is the narrative; that one
+is the accountability table.
+
 ---
 
 ## 1. The 20 that could actually destroy the app

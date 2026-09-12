@@ -17,9 +17,10 @@ Design decisions
 * **Config-driven allowances.** Plan names/prices are product decisions
   (config/<env>.json "billing" section), so the credit economy can change
   without touching this code — same rule that governs the credit policy.
-* **Payments are NOT in this phase.** Plan changes are real server-side
-  state (enforcement and remaining are real), but nothing is charged until
-  a payment provider is connected. The UI keeps its honest preview banner.
+* **Payments run through Paystack.** ``backend/paystack.py`` and
+  ``backend/payments.py`` own the charge; this module only exposes whether a
+  provider is live (``payment_connected``) and applies the plan change the
+  same way a manual switch would, so trial and credit bookkeeping agree.
 """
 from __future__ import annotations
 
@@ -32,6 +33,7 @@ from sqlalchemy import func, select
 
 from .config import load_config
 from .models import AiUsage, Business, Subscription
+from .paystack import is_configured as paystack_is_configured
 
 PLAN_FREE = "free"
 PLAN_STARTER = "starter"
@@ -159,6 +161,14 @@ async def get_or_create_subscription(db, business: Business) -> Subscription:
 
 class TrialError(ValueError):
     """A trial cannot be started (already used, ineligible plan, disabled)."""
+
+
+class TrialLockedError(ValueError):
+    """A started trial is running and cannot be cancelled before it ends."""
+
+
+class PaymentRequired(ValueError):
+    """A paid plan was requested without going through the paid checkout."""
 
 
 def _now() -> dt.datetime:
@@ -429,25 +439,52 @@ async def check_credits(db, business: Business) -> CreditState:
 # ---------------------------------------------------------------------------
 
 async def change_plan(
-    db, business: Business, plan: str, actor: Optional[str] = None
+    db,
+    business: Business,
+    plan: str,
+    actor: Optional[str] = None,
+    via_payment: bool = False,
 ) -> Subscription:
     """Switch the business's plan.
 
-    Real server-side state (enforcement + remaining change immediately),
-    but deliberately payment-free: a payment provider is a later phase.
-    The new allowance applies for the whole current calendar month; usage
-    keeps counting month-to-date (no proration — keep it explainable).
+    Rules once a payment provider is connected:
+
+    * **A started trial cannot be cancelled.** It runs to ``trial_ends_at``;
+      requesting ``free`` (a downgrade) while a trial is active is refused,
+      so a trial never stops early. To keep the paid features afterwards the
+      business pays.
+    * **A paid plan must be paid for.** With Paystack configured the only path
+      to a paid plan is the paid checkout (or a licence); a direct free switch
+      is refused unless ``via_payment`` is set.
+
+    When payment is not configured (testing, or before launch) the manual
+    switch still works, so development stays usable. The new allowance applies
+    for the whole current calendar month; usage keeps counting month-to-date
+    (no proration — keep it explainable).
     """
     plan = (plan or "").strip().lower()
     if plan not in VALID_PLANS:
         raise InvalidPlan(f"plan must be one of: {', '.join(VALID_PLANS)}")
     sub = await get_or_create_subscription(db, business)
+
+    if trial_is_active(sub) and plan == PLAN_FREE and not via_payment:
+        raise TrialLockedError(
+            "Your trial runs until it ends and cannot be cancelled early. "
+            "When it is over you can subscribe to keep the paid features."
+        )
+
+    if plan != PLAN_FREE and not via_payment and paystack_is_configured():
+        raise PaymentRequired(
+            f"{plan_label(plan)} is a paid plan — use the paid checkout. "
+            "A free switch is only available before a payment provider exists."
+        )
+
     sub.plan = plan
     sub.status = "active"
-    # Converting (or downgrading) ends any live trial immediately: the base
-    # plan now applies, and the trial stays marked as used so it can't be
-    # taken twice. The window itself is preserved as billing history.
-    if trial_is_active(sub):
+    # Leaving a live trial now only happens by paying (or a licence grant):
+    # the business owns the new plan, so the trial window is closed and kept
+    # as billing history. It can never be closed by a free switch.
+    if trial_is_active(sub) and via_payment:
         sub.trial_ends_at = _now()
     sub.updated_by = actor or business.owner_id
     await db.flush()
@@ -471,6 +508,7 @@ async def billing_summary(db, business: Business) -> dict[str, Any]:
     )).one()
     return {
         **state.to_dict(),
+        "business_id": business.id,
         "plans": [
             {
                 "key": p,
@@ -487,5 +525,7 @@ async def billing_summary(db, business: Business) -> dict[str, Any]:
             "output_tokens": int(usage[2] or 0),
             "credits_used": state.used,
         },
-        "payment_connected": False,  # real in this phase: nothing is charged yet
+        # Real: payments go through Paystack when it is configured
+        # (paystack.enabled + a payment page or PAYSTACK_SECRET_KEY).
+        "payment_connected": paystack_is_configured(),
     }

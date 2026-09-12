@@ -74,6 +74,12 @@ contextBridge.exposeInMainWorld('coop', {
   onNet: (cb) => {
     ipcRenderer.on('coop:net', (_e, data) => cb(data));
   },
+  // Hand a URL to the user's real browser (payments, receipts, docs).
+  // http/https only — the main process re-checks, the renderer is not trusted.
+  shell: {
+    openExternal: (url) =>
+      ipcRenderer.invoke('coop:shell', { method: 'openExternal', arg: url }),
+  },
   // Local database backup & restore (PRD Phase 4 "Backup system").
   backup: {
     create: () => ipcRenderer.invoke('coop:backup', { method: 'create' }),
