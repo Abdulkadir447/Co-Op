@@ -103,7 +103,7 @@
   "paystack": {
     "_comment": "Paystack. The three hosted payment pages below map to plans in the order they were supplied (starter, professional, enterprise) \u2014 CONFIRM and swap if the dashboard says otherwise. The secret key is read from the PAYSTACK_SECRET_KEY environment variable, never from this file; the hosted pages need no key to redirect, but PAYSTACK_SECRET_KEY is required to verify a charge or receive webhooks. prices_kobo is empty on purpose: each hosted page carries the amount set when it was created.",
     "enabled": true,
-    "currency": "NGN",
+    "currency": "USD",
     "api_base": "https://api.paystack.co",
     "timeout_seconds": 15,
     "secret_key_env": "PAYSTACK_SECRET_KEY",

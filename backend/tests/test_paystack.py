@@ -615,7 +615,7 @@ def test_shipped_config_wires_the_three_payment_pages():
 
     raw = load_config("development").get("paystack", {})
     assert raw["enabled"] is True
-    assert raw["currency"] == "NGN"
+    assert raw["currency"] == "USD"
     assert set(raw["payment_pages"]) == {"starter", "professional", "enterprise"}
     assert all(u.startswith("https://") for u in raw["payment_pages"].values())
     # the testing environment never takes money

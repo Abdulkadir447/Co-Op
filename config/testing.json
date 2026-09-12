@@ -101,7 +101,7 @@
   "paystack": {
     "_comment": "Payments are off in the test environment; the suite monkeypatches paystack_config() with its own pages and prices.",
     "enabled": false,
-    "currency": "NGN",
+    "currency": "USD",
     "api_base": "https://api.paystack.co",
     "timeout_seconds": 15,
     "secret_key_env": "PAYSTACK_SECRET_KEY",

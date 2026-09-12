@@ -254,8 +254,9 @@ const ResultPanel: React.FC<{
 
   const money = (kobo: number | null | undefined, cur: string | null | undefined) => {
     if (kobo == null) return '—';
-    const sym = cur === 'NGN' ? '₦' : cur ? `${cur} ` : '';
-    return `${sym}${(kobo / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+    const sym = cur === 'NGN' ? '₦' : cur === 'USD' ? '$' : cur ? `${cur} ` : '';
+    const locale = cur === 'NGN' ? 'en-NG' : 'en-US';
+    return `${sym}${(kobo / 100).toLocaleString(locale, { minimumFractionDigits: 2 })}`;
   };
   const when = (iso: string | null | undefined) =>
     iso

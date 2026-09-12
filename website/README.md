@@ -1,28 +1,33 @@
 # Co-op — marketing website
 
-A static marketing site for Co-op. It is deliberately **dependency-free**
-(plain HTML/CSS/JS — no build step) so it can be hosted anywhere.
+A React + Vite marketing site for Co-op.
 
-## Design system parity
+## Design system parity (the point)
 
-Every colour, the Inter typeface, the full type scale, radii and shadows in
-`styles.css` mirror the app's design tokens in
-`frontend/src/theme/{colors,typography,tokens,dark}.ts` (the single source of
-truth). The CSS custom properties at the top of `styles.css` are a 1:1 copy of
-those tokens, and `[data-theme="dark"]` mirrors `theme/dark.ts`. If a token
-changes in the app, update it here too — the header comment in `styles.css`
-flags this.
+The website imports the app's **real** design tokens and plan catalog directly:
+
+- `src/theme.ts` reads `frontend/src/theme/{colors,dark,typography,tokens}.ts`
+  and paints them onto `:root` as CSS variables (light + dark).
+- `src/App.tsx` applies the `type` scale from `frontend/src/theme/typography.ts`
+  to headings/body, and renders pricing from `frontend/src/billing/plans.ts`
+  (`PLAN_CATALOG` + `displayPrice`).
+
+So colours, the Inter typeface, the type scale, radii, shadows **and the prices**
+are literally the same objects the product uses — they cannot drift.
 
 ## Run locally
 
 ```sh
 cd website
-python -m http.server 5178 --bind 0.0.0.0
-# open http://localhost:5178
+npm install
+npm run dev      # http://localhost:5178
+npm run build    # type-check + production build into dist/
 ```
 
 ## Files
 
-- `index.html` — the landing page (hero, five systems, Co-op AI, pricing, FAQ, CTA).
-- `styles.css` — design tokens (as CSS variables) + components.
-- `main.js` — light/dark toggle (persisted to localStorage).
+- `index.html` — Vite entry.
+- `src/main.tsx` — mounts the app, paints the tokens.
+- `src/theme.ts` — maps the app tokens (light/dark) to CSS variables.
+- `src/App.tsx` — the landing page (hero, five systems, Zeno AI, pricing, FAQ, CTA).
+- `src/styles.css` — layout & components (colours come from the injected variables).

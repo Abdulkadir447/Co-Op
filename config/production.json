@@ -109,7 +109,7 @@
   "paystack": {
     "_comment": "Paystack. Set paystack.callback_url to the absolute URL of the deployed Billing page (e.g. https://app.example.com/billing) or add the host to allowed_callback_hosts; without one, Paystack uses the callback configured on the payment page. The plan -> page mapping below is the order the pages were supplied in \u2014 confirm it against the dashboard before launch. PAYSTACK_SECRET_KEY must be set for webhook signature verification.",
     "enabled": true,
-    "currency": "NGN",
+    "currency": "USD",
     "api_base": "https://api.paystack.co",
     "timeout_seconds": 15,
     "secret_key_env": "PAYSTACK_SECRET_KEY",
