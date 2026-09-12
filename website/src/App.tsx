@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { type as t } from '../../frontend/src/theme/typography';
 import { colors } from '../../frontend/src/theme/colors';
 import {
@@ -9,6 +9,77 @@ import {
 import { applyTheme, type Mode } from './theme';
 
 const caps = { ...t.labelCaps, textTransform: 'uppercase' as const };
+
+// --- Site config (fill these in when ready) -------------------------------
+const CONTACT = {
+  // Set when the domain email is ready, e.g. "hello@coop.app".
+  email: '',
+  // Optional — a call/WhatsApp number converts well for this audience.
+  phone: '',
+  whatsapp: '',
+};
+// Prefer a YouTube/Vimeo embed for the founders story? Paste the embed URL here
+// (e.g. "https://www.youtube.com/embed/VIDEO_ID") and it wins over the mp4.
+const FOUNDERS_EMBED = '';
+
+// Product tour — one entry per app page. Assets live in public/ (see
+// public/README.md): screenshots/<id>.png and videos/<id>.mp4.
+const PAGES = [
+  { id: 'dashboard', name: 'Dashboard', blurb: 'KPIs, revenue and low-stock at a glance.' },
+  { id: 'products', name: 'Products', blurb: 'Your catalog, prices, stock and SKUs.' },
+  { id: 'inventory', name: 'Inventory', blurb: 'Adjust stock and read the movement ledger.' },
+  { id: 'orders', name: 'Orders', blurb: 'Create, track and fulfil orders in one flow.' },
+  { id: 'customers', name: 'Customers', blurb: 'Add, sort and search; see purchase history.' },
+  { id: 'invoices', name: 'Invoices', blurb: 'Generate and export invoices as PDF.' },
+  { id: 'ai', name: 'Co-op AI', blurb: 'Ask Zeno to explain, forecast and draft.' },
+];
+
+/** Shows a page's video (on hover) over its screenshot, or a styled placeholder
+ *  until the real asset is dropped into public/. */
+function Shot({ id, name }: { id: string; name: string }) {
+  const img = `screenshots/${id}.png`;
+  const vid = `videos/${id}.mp4`;
+  const [imgFailed, setImgFailed] = useState(false);
+  const [vidFailed, setVidFailed] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const play = () => videoRef.current?.play().catch(() => {});
+  const pause = () => videoRef.current?.pause();
+
+  return (
+    <div
+      className="shot"
+      onMouseEnter={play}
+      onMouseLeave={pause}
+      onClick={play}
+      role="img"
+      aria-label={`${name} screenshot`}
+    >
+      {!vidFailed && (
+        <video
+          ref={videoRef}
+          src={vid}
+          poster={img}
+          muted
+          loop
+          playsInline
+          preload="none"
+          onError={() => setVidFailed(true)}
+          className="shot-media"
+        />
+      )}
+      {vidFailed && !imgFailed && (
+        <img src={img} alt={name} className="shot-media" onError={() => setImgFailed(true)} />
+      )}
+      {(vidFailed && imgFailed) && (
+        <div className="shot-placeholder">
+          <span style={caps}>{name}</span>
+          <small style={t.bodyCompact}>screenshot / clip goes here</small>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Logo() {
   return (
@@ -25,9 +96,10 @@ function TopBar({ mode, onToggle }: { mode: Mode; onToggle: () => void }) {
         <Logo />
         <nav className="nav">
           <a href="#features">Features</a>
+          <a href="#tour">Tour</a>
           <a href="#ai">Co-op AI</a>
           <a href="#pricing">Pricing</a>
-          <a href="#faq">FAQ</a>
+          <a href="#contact">Contact</a>
         </nav>
         <button className="theme-toggle" onClick={onToggle} aria-label="Toggle dark mode">
           {mode === 'dark' ? '☀' : '◐'}
@@ -217,6 +289,113 @@ function Cta() {
   );
 }
 
+function ProductTour() {
+  return (
+    <section id="tour">
+      <div className="container">
+        <div className="section-head">
+          <span className="caps" style={caps}>Product tour</span>
+          <h2 style={t.pageTitle}>See every page</h2>
+          <p className="muted" style={t.bodyDefault}>
+            Hover a page to watch it in action — adding a customer, sorting, creating an order.
+          </p>
+        </div>
+        <div className="tour-grid">
+          {PAGES.map((p) => (
+            <div className="card tour-card" key={p.id}>
+              <Shot id={p.id} name={p.name} />
+              <h3 style={t.titleMd}>{p.name}</h3>
+              <p style={t.bodyCompact}>{p.blurb}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FoundersVideo() {
+  return (
+    <section id="founders" className="ai-band">
+      <div className="container">
+        <div className="section-head">
+          <span className="caps" style={caps}>From the founders</span>
+          <h2 style={t.pageTitle}>Why we built Co-op</h2>
+          <p className="muted" style={t.bodyDefault}>
+            A short word from the team behind Co-op.
+          </p>
+        </div>
+        <div className="video-frame">
+          {FOUNDERS_EMBED ? (
+            <iframe
+              src={FOUNDERS_EMBED}
+              title="Founders video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <video
+              src="videos/founders.mp4"
+              poster="screenshots/founders-poster.jpg"
+              controls
+              playsInline
+              preload="none"
+            />
+          )}
+          <div className="video-hint" style={t.bodyCompact}>
+            Founders video slot — drop <code>videos/founders.mp4</code> (or set the embed) to play it here.
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Contact() {
+  const hasEmail = Boolean(CONTACT.email);
+  const hasPhone = Boolean(CONTACT.phone || CONTACT.whatsapp);
+  const wa = CONTACT.whatsapp || CONTACT.phone;
+  return (
+    <section id="contact">
+      <div className="container">
+        <div className="section-head">
+          <span className="caps" style={caps}>Contact</span>
+          <h2 style={t.pageTitle}>Talk to a human</h2>
+          <p className="muted" style={t.bodyDefault}>
+            Questions about plans, onboarding or migrating your data? Reach us any time.
+          </p>
+        </div>
+        <div className="contact-grid">
+          <div className="card contact-item">
+            <div className="icon">✉</div>
+            <h3 style={t.titleMd}>Email</h3>
+            {hasEmail ? (
+              <a className="contact-link" style={t.bodyDefault} href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
+            ) : (
+              <p style={t.bodyCompact}>Support email coming soon.</p>
+            )}
+          </div>
+          <div className="card contact-item">
+            <div className="icon">{wa ? '💬' : '📞'}</div>
+            <h3 style={t.titleMd}>{wa ? 'Call / WhatsApp' : 'Phone'}</h3>
+            {hasPhone ? (
+              <a
+                className="contact-link"
+                style={t.bodyDefault}
+                href={CONTACT.whatsapp ? `https://wa.me/${CONTACT.whatsapp.replace(/[^0-9]/g, '')}` : `tel:${CONTACT.phone}`}
+              >
+                {CONTACT.phone || CONTACT.whatsapp}
+              </a>
+            ) : (
+              <p style={t.bodyCompact}>Add a number in <code>CONTACT</code> to enable this.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Footer() {
   return (
     <footer>
@@ -242,9 +421,12 @@ export default function App() {
       <main>
         <Hero />
         <Features />
+        <ProductTour />
         <AiBand />
+        <FoundersVideo />
         <Pricing />
         <Faq />
+        <Contact />
         <Cta />
       </main>
       <Footer />
