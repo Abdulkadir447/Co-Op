@@ -88,7 +88,7 @@ Legend:
 | 62 | ✅ | `isExternalSafeUrl` = http(s) only, re-checked in main |
 | 63 | ✅ | preload exposes named methods only |
 | 64 | ✅ | no generic invoke channel |
-| 65 | ⚠️ | single-window app; handlers re-validate args; add `event.sender` checks if multi-window ever lands |
+| 65 | ✅ | every IPC channel (`coop:db`, `coop:backup`, `coop:shell`) re-checks `event.sender` against the main window's WebContents; args still validated |
 | 66 | ✅ | no IPC handler trusts renderer-provided authorization |
 | 67 | ✅ | backup paths come from a native dialog; db path fixed |
 | 68 | ✅ | no command execution over IPC |
@@ -108,7 +108,7 @@ Legend:
 | 77 | ✅ | no secrets in `src`, hence none in source maps |
 | 78 | ✅ | no secrets in build output |
 | 79 | 🚧 | CI secrets via GitHub env (auto-masked); keep out of `echo` |
-| 80 | ⚠️ | 500 handler logs tracebacks server-side; keep secrets out of exception text (PaystackError strips detail) |
+| 80 | ✅ | 500 handler scrubs secret shapes (`redact.scrub_text`) before logging; audit diffs redacted (`redact.deep_redact`) |
 | 81 | ➖ | no crash reporter |
 | 82 | ✅ | clients get a generic `Internal server error.` |
 | 83 | 🚧 | GitHub masks secrets in logs |
@@ -188,14 +188,14 @@ Legend:
 | 147 | 🚧 | sign/verify releases (runbook) |
 | 148 | ✅ | FastAPI debug off; generic 500 handler |
 | 149 | ✅ | tracebacks logged server-side only |
-| 150 | 🚧 | alerting not wired — tracked as an ops task |
+| 150 | ⚠️ | security events logged at WARNING (`coop.security`) + optional `SECURITY_ALERT_WEBHOOK` alert; wiring a real pager is ops |
 
 ## 🔵 151–170 (headers + monitoring + process)
 
 | # | Status | Evidence |
 |---|--------|----------|
 | 151 | ✅ | security-headers middleware on every response |
-| 152 | 🚧 | HSTS at the reverse proxy |
+| 152 | ✅ | `Strict-Transport-Security` set by the middleware in production (deliberately absent in dev) |
 | 153 | ✅ | `X-Content-Type-Options: nosniff` |
 | 154 | ✅ | `X-Frame-Options: DENY` + `frame-ancestors 'none'` |
 | 155 | ✅ | `Permissions-Policy` strips camera/geo/mic |
@@ -219,12 +219,12 @@ Legend:
 
 ## Tally
 
-* ✅ done in code: **110**
-* ⚠️ code done, operator/review step remains: **23**
-* 🚧 ops/infra (Clerk, Supabase, CI, monitoring): **31**
+* ✅ done in code: **113**
+* ⚠️ code done, operator/review step remains: **22**
+* 🚧 ops/infra (Clerk, Supabase, CI, monitoring): **29**
 * ➖ not applicable: **6**
 
-(110 + 23 + 31 + 6 = 170.)
+(113 + 22 + 29 + 6 = 170.)
 
 Every P0 item that this codebase can fix is fixed and tested; the remaining P0s
 (6, 7 Supabase RLS and the Clerk auth-policy items) are configuration in

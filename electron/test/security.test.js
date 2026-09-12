@@ -22,6 +22,7 @@ const {
   containNavigation,
   isExternalSafeUrl,
   isLocalAppUrl,
+  isTrustedSender,
   rendererPreferences,
 } = require('../security');
 
@@ -174,6 +175,35 @@ test('the shell bridge is allow-listed and re-checks the URL in main', () => {
   assert.ok(MAIN_JS.includes('isExternalSafeUrl(arg)'), 'main must re-check the URL itself');
   // the bridge is not a generic invoke
   assert.ok(!/ipcRenderer\.invoke\(\s*method/.test(PRELOAD), 'no generic invoke channel');
+});
+
+// ---------------------------------------------------------------------------
+// IPC sender validation (only the app's own window may drive the bridge)
+// ---------------------------------------------------------------------------
+
+function stubWin(id) {
+  return {
+    isDestroyed: () => false,
+    webContents: { id },
+  };
+}
+
+test('IPC from the main window is trusted, anything else is not', () => {
+  const win = stubWin(7);
+  assert.strictEqual(isTrustedSender({ sender: { id: 7 } }, win), true);
+  assert.strictEqual(isTrustedSender({ sender: { id: 8 } }, win), false, 'other window');
+  assert.strictEqual(isTrustedSender({}, win), false, 'no sender');
+  assert.strictEqual(isTrustedSender({ sender: { id: 7 } }, null), false, 'no window');
+  const destroyed = { isDestroyed: () => true, webContents: { id: 7 } };
+  assert.strictEqual(isTrustedSender({ sender: { id: 7 } }, destroyed), false, 'destroyed');
+});
+
+test('every IPC channel re-checks its sender in the main process', () => {
+  for (const channel of ['coop:shell', 'coop:backup', 'coop:db']) {
+    assert.ok(MAIN_JS.includes(channel), `${channel} present`);
+  }
+  const checks = (MAIN_JS.match(/isTrustedSender\(event, mainWindow\)/g) || []).length;
+  assert.ok(checks >= 3, `expected sender checks on all 3 channels, found ${checks}`);
 });
 
 // ---------------------------------------------------------------------------

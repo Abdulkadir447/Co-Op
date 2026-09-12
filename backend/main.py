@@ -187,6 +187,12 @@ async def security_headers(request, call_next):
     response.headers.setdefault(
         "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
     )
+    # HSTS only makes sense over HTTPS in production; adding it in dev would
+    # make local browsers refuse plain-http localhost afterwards.
+    if get_env() == "production":
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+        )
     return response
 
 
@@ -201,9 +207,11 @@ async def _unhandled_error_handler(request, exc):
     import logging
     import traceback
 
+    from .redact import scrub_text
+
     logging.getLogger("coop").error(
         "Unhandled error on %s %s\n%s",
-        request.method, request.url.path, traceback.format_exc(),
+        request.method, request.url.path, scrub_text(traceback.format_exc()),
     )
     return JSONResponse(
         status_code=500,
@@ -2507,6 +2515,9 @@ async def paystack_webhook_route(
     raw = await request.body()
     cfg = paystack_config()
     if not verify_webhook_signature(raw, request.headers.get(SIGNATURE_HEADER), cfg.secret_key):
+        from .security_events import security_event
+
+        security_event("paystack_bad_signature", path=request.url.path)
         raise HTTPException(status_code=401, detail="Invalid Paystack signature.")
     try:
         payload = json_mod.loads(raw or b"{}")
@@ -2575,6 +2586,9 @@ async def require_admin_token(request: Request) -> str:
         )
     presented = request.headers.get("x-admin-token", "")
     if not presented or not any(secrets.compare_digest(presented, t) for t in tokens):
+        from .security_events import security_event
+
+        security_event("admin_token_rejected", path=request.url.path)
         raise HTTPException(status_code=403, detail="Admin token rejected")
     return "admin-token"
 

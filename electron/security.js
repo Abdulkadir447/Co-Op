@@ -77,10 +77,25 @@ function containNavigation(contents, options = {}) {
   });
 }
 
+/**
+ * True when an IPC event came from the app's own window.
+ *
+ * Electron recommends validating IPC senders: with context isolation on, the
+ * preload is the only bridge, but a stray or future window must not be able to
+ * drive the data layer / backup / shell channels. Compare WebContents ids.
+ */
+function isTrustedSender(event, win) {
+  return Boolean(win)
+    && !win.isDestroyed()
+    && Boolean(event && event.sender)
+    && event.sender.id === win.webContents.id;
+}
+
 module.exports = {
   ALLOWED_PROTOCOLS,
   containNavigation,
   isExternalSafeUrl,
   isLocalAppUrl,
+  isTrustedSender,
   rendererPreferences,
 };

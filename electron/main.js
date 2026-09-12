@@ -5,7 +5,7 @@ const { createDataLayer, defaultDbPath } = require('./db');
 const { createDataLayerApp } = require('./dataLayerApp');
 const { isSqliteFile, snapshot, replaceDbFile, assertRestoreSafe } = require('./db/backup');
 const { APP_USER_MODEL_ID, backupFileName } = require('./platform');
-const { containNavigation, isExternalSafeUrl, rendererPreferences } = require('./security');
+const { containNavigation, isExternalSafeUrl, isTrustedSender, rendererPreferences } = require('./security');
 
 // ---------------------------------------------------------------------------
 // Content Security Policy for the Co-op desktop app.
@@ -125,7 +125,10 @@ let mainWindow = null;
 // decide what is safe.
 // ---------------------------------------------------------------------------
 function registerShellIpc() {
-  ipcMain.handle('coop:shell', async (_event, { method, arg }) => {
+  ipcMain.handle('coop:shell', async (event, { method, arg }) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      throw new Error('Blocked coop:shell from an untrusted renderer.');
+    }
     if (method !== 'openExternal') {
       throw new Error(`Blocked non-allow-listed shell method: ${method}`);
     }
@@ -138,7 +141,10 @@ function registerShellIpc() {
 }
 
 function registerBackupIpc() {
-  ipcMain.handle('coop:backup', async (_event, { method }) => {
+  ipcMain.handle('coop:backup', async (event, { method }) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      throw new Error('Blocked coop:backup from an untrusted renderer.');
+    }
     if (method === 'create') {
       // A name Windows will actually accept: no <>:"|?*, no trailing dot or
       // space, never a reserved device name (a business called "NUL" or
@@ -203,6 +209,9 @@ function registerDataLayerIpc() {
     if (mainWindow && !mainWindow.isDestroyed()) broadcastSync(mainWindow);
   });
   ipcMain.handle('coop:db', (event, { method, arg }) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      throw new Error('Blocked coop:db from an untrusted renderer.');
+    }
     if (typeof method !== 'string' || !Object.prototype.hasOwnProperty.call(handlers, method)) {
       throw new Error(`Blocked non-allow-listed data-layer method: ${method}`);
     }
