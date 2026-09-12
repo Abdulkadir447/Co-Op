@@ -845,7 +845,7 @@ async def backups_export(
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Download the tenant's business data as a Co-op backup file."""
-    payload = await backups_mod.build_backup(db, business)
+    payload = backups_mod.encrypt_backup(await backups_mod.build_backup(db, business))
     stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     return JSONResponse(
         content=payload,
@@ -863,6 +863,7 @@ async def backups_restore(
 ) -> Dict[str, Any]:
     """Restore a Co-op backup into an EMPTY business (409 otherwise)."""
     try:
+        payload = backups_mod.decrypt_backup(payload)
         result = await backups_mod.restore_backup(db, business, payload)
     except backups_mod.RestoreRefused as e:
         raise HTTPException(status_code=409, detail=str(e))

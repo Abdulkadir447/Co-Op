@@ -61,7 +61,7 @@ Legend:
 |---|--------|----------|
 | 36 | ✅ | all routes authed except `/`, `/healthcheck`; admin token-gated |
 | 37 | ✅ | `/ai/chat`, `/imports/commit`, `/reports/{key}/export` rate-limited |
-| 38 | ✅ | credits enforced with 402 + per-user limiters |
+| 38 | ✅ | `backups.encrypt_backup`/`decrypt_backup` (Fernet) — the exported file carries only ciphertext; restore decrypts, legacy plaintext still accepted |
 | 39 | ✅ | see 4 |
 | 40 | ✅ | see 5 |
 | 41 | ✅ | ids resolved scoped to the caller's business |

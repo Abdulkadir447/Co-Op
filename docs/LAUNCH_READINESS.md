@@ -45,11 +45,14 @@ payroll, accounting ledger, public API, plugins) are correctly absent.
 
 ## Blocking before launch
 
-1. **Encryption at rest is NOT implemented (checklist 5).** No `sqlcipher` /
-   `PRAGMA key` anywhere in `backend/` or `electron/` — the local SQLite DB is
-   plaintext on disk. PRD lists "Encryption" as a v1.0 Security requirement.
-   This is the one genuine *code* gap. (Checklist 37/42 "data in transit" and
-   43 "PII redaction" are done; at-rest is not.)
+1. **Local SQLite is not encrypted at rest (checklist 5).** *Backup* files are
+   now encrypted (checklist 38 — `backups.encrypt_backup`, done this round), and
+   the production backend runs on Supabase/Postgres, which encrypts at rest at
+   the managed-disk level (operator). But the desktop app's local offline
+   SQLite cache (via `aiosqlite`) is still plaintext: Python's stdlib `sqlite3`
+   has no cipher. Closing this needs SQLCipher (a native library + a DB-rekey
+   migration) and cannot be built or verified in this sandbox — do it where the
+   SQLCipher toolchain is available.
 2. **Supabase RLS is written but unrun.** Migration `0014_rls` + `rls.py` exist,
    but must be applied to the real Postgres; there is no Postgres in this
    sandbox. RLS is intentionally not FORCED, so it only constrains non-owner

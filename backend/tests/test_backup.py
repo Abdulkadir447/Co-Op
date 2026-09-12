@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import pytest
 
+from backend import backups as backups_mod
+
 
 async def _seed_business(api) -> dict:
     """One product, one customer, one order (two lines) + ledger movements."""
@@ -61,8 +63,12 @@ async def test_export_snapshots_everything(api):
     assert resp.status_code == 200
     assert "coop-backup-" in resp.headers["content-disposition"]
 
-    payload = resp.json()
-    assert payload["app"] == "coop"
+    envelope = resp.json()
+    assert envelope["app"] == "coop"
+    assert envelope["encrypted"] is True
+    # The wire format is an encrypted envelope — no plaintext business data.
+    assert "entities" not in envelope and "ciphertext" in envelope
+    payload = backups_mod.decrypt_backup(envelope)
     assert payload["version"] == 1
     entities = payload["entities"]
     assert len(entities["products"]) == 2
@@ -162,8 +168,8 @@ async def test_restore_rejects_invalid_status_and_reason(api):
 async def test_export_is_tenant_scoped(api):
     await _seed_business(api)
     api.set_user("user-b")
-    backup = (await api.client.get("/backups/export")).json()
-    entities = backup["entities"]
+    envelope = (await api.client.get("/backups/export")).json()
+    entities = backups_mod.decrypt_backup(envelope)["entities"]
     assert all(len(entities[k]) == 0 for k in entities)
 
 
@@ -176,3 +182,43 @@ async def test_restore_writes_an_audit_row(api):
     rows = (await api.client.get("/audit")).json()
     assert rows[0]["action"] == "restore"
     assert rows[0]["table_name"] == "businesses"
+
+
+def test_encrypt_decrypt_round_trip_is_lossless():
+    inner = {"app": "coop", "version": 1, "entities": {"products": [{"name": "Widget"}]}}
+    env = backups_mod.encrypt_backup(inner)
+    assert env["encrypted"] is True
+    assert "entities" not in env and "ciphertext" in env
+    # the plaintext never appears in the envelope
+    assert "Widget" not in env["ciphertext"]
+    assert backups_mod.decrypt_backup(env) == inner
+
+
+def test_decrypt_accepts_a_legacy_plaintext_backup():
+    legacy = {"app": "coop", "version": 1, "entities": {}}
+    # a pre-encryption file has no "encrypted" flag and passes through untouched
+    assert backups_mod.decrypt_backup(legacy) == legacy
+
+
+def test_decrypt_rejects_the_wrong_key(monkeypatch):
+    inner = {"app": "coop", "version": 1, "entities": {}}
+    env = backups_mod.encrypt_backup(inner)
+    monkeypatch.setenv("BACKUP_ENCRYPTION_KEY", "a-completely-different-key")
+    with pytest.raises(backups_mod.BackupValidationError):
+        backups_mod.decrypt_backup(env)
+
+
+@pytest.mark.asyncio
+async def test_export_hides_plaintext_and_tampered_ciphertext_is_rejected(api):
+    await _seed_business(api)
+    envelope = (await api.client.get("/backups/export")).json()
+    raw_text = str(envelope)
+    # seeded names/values must not be readable in the downloaded file
+    assert "Widget" not in raw_text and "SKU-1" not in raw_text
+
+    bad = dict(envelope)
+    ct = bad["ciphertext"]
+    bad["ciphertext"] = ("A" if ct[0] != "A" else "B") + ct[1:]
+    api.set_user("user-b")
+    resp = await api.client.post("/backups/restore", json=bad)
+    assert resp.status_code == 400

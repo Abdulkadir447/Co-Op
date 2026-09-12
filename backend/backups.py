@@ -18,11 +18,15 @@ so the backup format is a stable, reviewed contract.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
+import os
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +44,53 @@ from .models import (
 
 BACKUP_APP = "coop"
 BACKUP_VERSION = 1
+
+_BACKUP_KEY_ENV = "BACKUP_ENCRYPTION_KEY"
+# A stable fallback so dev/test always works; production MUST set
+# BACKUP_ENCRYPTION_KEY (or SECRET) — backups are only restorable with the
+# same key, so rotate with care (checklist 38: encrypted backup files).
+_DEV_FALLBACK = "coop-backup-default-key-not-for-production"
+
+
+def _fernet_key() -> bytes:
+    """Derive a Fernet key from BACKUP_ENCRYPTION_KEY, else SECRET, else a dev
+    constant. The same key must be present at export and restore time."""
+    raw = os.getenv(_BACKUP_KEY_ENV) or os.getenv("SECRET") or _DEV_FALLBACK
+    return base64.urlsafe_b64encode(hashlib.sha256(raw.encode()).digest())
+
+
+def encrypt_backup(payload: dict[str, Any]) -> dict[str, Any]:
+    """Wrap a built backup in an encrypted envelope (Fernet/AES-128-CBC+HMAC).
+
+    The plaintext business data never leaves the server unencrypted: the
+    downloaded file holds only a ciphertext blob.
+    """
+    token = Fernet(_fernet_key()).encrypt(json.dumps(payload, default=str).encode())
+    return {
+        "app": BACKUP_APP,
+        "encrypted": True,
+        "version": BACKUP_VERSION,
+        "ciphertext": token.decode(),
+    }
+
+
+def decrypt_backup(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return the inner backup dict.
+
+    Accepts both the encrypted envelope (current) and a legacy plaintext
+    backup, so files exported before encryption still restore.
+    """
+    if not isinstance(payload, dict):
+        raise BackupValidationError("This file is not a Co-op backup.")
+    if not payload.get("encrypted"):
+        return payload
+    try:
+        inner = json.loads(Fernet(_fernet_key()).decrypt(payload["ciphertext"].encode()))
+    except (InvalidToken, KeyError, ValueError, TypeError) as e:
+        raise BackupValidationError(
+            "This backup could not be decrypted — wrong key or corrupt file."
+        ) from e
+    return inner
 
 # Field allow-lists, in restore order (referenced entities first).
 ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
