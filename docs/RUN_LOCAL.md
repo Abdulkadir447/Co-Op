@@ -15,6 +15,22 @@ Everything below is the exact command CI runs (`.github/workflows/ci.yml`), so
 | pnpm | 9 | `corepack enable` (reads nothing here) or `npm i -g pnpm@9` |
 | C++ toolchain | — | **only** if you build the Electron desktop app (better-sqlite3). On Windows: Visual Studio Build Tools. Not needed for backend/frontend/website/tests-on-non-Windows. |
 
+### On Windows (PowerShell)
+
+Windows PowerShell (5.x) does **not** accept `&&` as a separator — run one command
+per line (or join with `;`). The venv executables live in `.venv\Scripts\`, not
+`.venv/bin/`. So everywhere this doc shows `.venv/bin/python`, use
+`.venv\Scripts\python` (and `pip` likewise), and split chained commands:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install -r backend\requirements.txt
+.venv\Scripts\pip install pytest pytest-asyncio ruff
+.venv\Scripts\python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+(`python` may be `py` on some installs.) PowerShell 7+ accepts `&&` if you prefer.
+
 ## 2. Environment
 
 ```sh
