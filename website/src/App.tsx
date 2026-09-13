@@ -84,7 +84,7 @@ function Shot({ id, name }: { id: string; name: string }) {
 function Logo() {
   return (
     <a className="logo" href="#top">
-      <span className="logo-tile">C</span> Co-op
+      <img className="logo-img" src="logo.png" alt="Co-op logo" /> Co-op
     </a>
   );
 }
