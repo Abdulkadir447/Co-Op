@@ -21,6 +21,8 @@ const CONTACT = {
 // Prefer a YouTube/Vimeo embed for the founders story? Paste the embed URL here
 // (e.g. "https://www.youtube.com/embed/VIDEO_ID") and it wins over the mp4.
 const FOUNDERS_EMBED = '';
+// Where the desktop installer is published. Swap for your own release/download URL.
+const DOWNLOAD_URL = 'https://github.com/Abdulkadir447/Co-Op/releases';
 
 // Product tour — one entry per app page. Assets live in public/ (see
 // public/README.md): screenshots/<id>.png and videos/<id>.mp4.
@@ -116,6 +118,7 @@ function TopBar({ mode, onToggle }: { mode: Mode; onToggle: () => void }) {
           <a href="#ai">CO OP AI</a>
           <a href="#pricing">Pricing</a>
           <a href="#contact">Contact</a>
+          <a href={DOWNLOAD_URL} target="_blank" rel="noreferrer">Download</a>
         </nav>
         <button className="theme-toggle" onClick={onToggle} aria-label="Toggle dark mode">
           {mode === 'dark' ? '☀' : '◐'}
@@ -144,6 +147,7 @@ function Hero() {
           <div className="hero-cta">
             <a className="btn btn-primary" href="#pricing">Start 10-day free trial</a>
             <a className="btn btn-ghost" href="#features">See how it works</a>
+            <a className="btn btn-ghost" href={DOWNLOAD_URL} target="_blank" rel="noreferrer">Download for Windows</a>
           </div>
           <p className="hero-note">No credit card required · Windows desktop app · Your data, backed up and encrypted</p>
         </div>
@@ -299,6 +303,7 @@ function Cta() {
           <h2 style={t.pageTitle}>Start your 10-day free trial</h2>
           <p style={{ ...t.bodyDefault, opacity: 0.92, margin: '0 0 24px' }}>Set up in minutes. No credit card required.</p>
           <a className="btn" href="#top">Get started free</a>
+          <a className="btn btn-ghost" href={DOWNLOAD_URL} target="_blank" rel="noreferrer" style={{ marginLeft: 12 }}>Download the app</a>
         </div>
       </div>
     </section>

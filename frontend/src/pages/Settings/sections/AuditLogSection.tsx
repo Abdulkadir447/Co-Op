@@ -21,13 +21,58 @@ interface AuditEntry {
 
 const PAGE_SIZE = 50;
 
-function prettyChange(change: string | null): string {
+function titleCase(s: string): string {
+  return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatValue(v: unknown): string {
+  if (v === null || v === undefined) return '—';
+  if (Array.isArray(v)) return v.length ? v.map((x) => formatValue(x)).join(', ') : '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+/**
+ * Turn the stored change blob into a sentence a person can read, instead of
+ * raw JSON. Falls back to a "Field: value" list for shapes we don't recognise.
+ */
+function humanizeChange(action: string, change: string | null): string {
   if (!change) return '—';
+  let data: unknown;
   try {
-    return JSON.stringify(JSON.parse(change), null, 2);
+    data = JSON.parse(change);
   } catch {
     return change;
   }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return formatValue(data);
+  const d = data as Record<string, unknown>;
+
+  // Team invite / member change.
+  if (typeof d.email === 'string' && typeof d.role === 'string') {
+    const verb = action === 'delete' ? 'Removed' : 'Invited';
+    return `${verb} ${d.email} as ${d.role}`;
+  }
+
+  // Import batch.
+  if (typeof d.entity === 'string' && (d.created || d.skipped)) {
+    const created =
+      d.created && typeof d.created === 'object'
+        ? Object.values(d.created as Record<string, unknown>)
+            .filter((n): n is number => typeof n === 'number')
+            .reduce((a, b) => a + b, 0)
+        : 0;
+    const skipped = (d.skipped as Record<string, number> | undefined)?.existing ?? 0;
+    const errors = (d.skipped as Record<string, number> | undefined)?.errors ?? 0;
+    let s = `${created} ${titleCase(d.entity)} added`;
+    if (skipped) s += ` · ${skipped} skipped (already existed)`;
+    if (errors) s += ` · ${errors} failed`;
+    return s;
+  }
+
+  // Generic field changes.
+  const entries = Object.entries(d).filter(([k]) => !k.startsWith('_'));
+  if (!entries.length) return '—';
+  return entries.map(([k, v]) => `${titleCase(k)}: ${formatValue(v)}`).join(' · ');
 }
 
 const AuditLogSection: React.FC = () => {
@@ -87,10 +132,8 @@ const AuditLogSection: React.FC = () => {
     {
       title: 'Details',
       dataIndex: 'change',
-      render: (c: string | null) => (
-        <Typography.Text style={{ fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap' }}>
-          {prettyChange(c)}
-        </Typography.Text>
+      render: (c: string | null, row: AuditEntry) => (
+        <Typography.Text style={{ fontSize: 13 }}>{humanizeChange(row.action, c)}</Typography.Text>
       ),
     },
   ];

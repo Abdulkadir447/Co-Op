@@ -31,7 +31,7 @@ const SecuritySection: React.FC = () => {
         </CoopButton>
       </Space>
 
-      <CoopModal open={open} onCancel={() => setOpen(false)} hideFooter width={720} title="Account security">
+      <CoopModal open={open} onCancel={() => setOpen(false)} hideFooter width={960} title="Account security">
         <UserProfile routing="hash" />
       </CoopModal>
     </CoopCard>
