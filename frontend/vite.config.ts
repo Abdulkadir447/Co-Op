@@ -25,18 +25,11 @@ export default defineConfig({
       },
     },
   },
-  // ApexCharts v6 tree-shaking entries used by the Dashboard must be listed
-  // here so Vite's dependency optimizer does not bundle the library twice
-  // (ApexCharts tree-shaking reference, "Vite Configuration").
+  // ApexCharts: we use the full `react-apexcharts` bundle (see
+  // src/components/dashboard/chart.ts). Pre-bundle it once so the dev server
+  // doesn't split it into duplicate copies.
   optimizeDeps: {
-    include: [
-      'react-apexcharts/core',
-      'apexcharts/area',
-      'apexcharts/bar',
-      'apexcharts/pie',
-      'apexcharts/features/legend',
-      'apexcharts/features/keyboard',
-    ],
+    include: ['react-apexcharts', 'apexcharts'],
   },
   base: './', // This tells Vite to use relative paths
   build: {

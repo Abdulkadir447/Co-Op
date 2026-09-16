@@ -1,32 +1,22 @@
 /**
- * Tree-shaken ApexCharts bootstrap for Co-op (ApexCharts v6).
+ * ApexCharts bootstrap for CO OP.
  *
- * Per the ApexCharts tree-shaking reference, the full `apexcharts` bundle is
- * replaced by the core wrapper variant plus only the chart-type entries and
- * features the Dashboard actually uses:
+ * We import the FULL `react-apexcharts` bundle so every chart type
+ * (line, area, bar, column, pie, donut) is registered against a single
+ * ApexCharts core instance.
  *
- *   - `react-apexcharts/core`  wrapper (same reactive props / lifecycle)
- *   - `apexcharts/area`        registers line, area, scatter, bubble, rangeArea
- *   - `apexcharts/bar`         registers bar, column, horizontalBar (Reports)
- *   - `apexcharts/pie`         registers pie, donut, polarArea
- *   - `features/legend`        interactive legend (donut)
- *   - `features/keyboard`      keyboard navigation (UXDS 9.27 / 9.28
- *                              accessibility requirements)
+ * Why not tree-shake? The previous setup (`react-apexcharts/core` plus
+ * per-type side-effect imports like `apexcharts/bar` / `apexcharts/pie`) is
+ * fragile: in dev, Vite can pre-bundle the wrapper's core separately from the
+ * per-type entries, so a chart type's controller registers on one ApexCharts
+ * instance while the chart renders against another. The result is exactly the
+ * "duplicate bundle" pitfall — some types (we saw column + donut) silently
+ * render nothing. The full bundle trades a little size for guaranteed
+ * correctness, which is the right call for the Reports/Dashboard charts.
  *
- * All Dashboard chart components MUST import Chart from this module so the
- * app never mixes the full bundle with per-type entries (that duplication is
- * the reference's Common Pitfall #2). New chart types added later must
- * register their entry point HERE (missing feature imports fail silently —
- * reference Common Pitfall #1).
- *
- * `vite.config.ts` lists every entry below in `optimizeDeps.include`
- * (reference: "Vite duplicate bundle issue").
+ * All chart components MUST import Chart from this module so the app never
+ * mixes the full bundle with per-type entries.
  */
-import Chart from 'react-apexcharts/core';
-import 'apexcharts/area';
-import 'apexcharts/bar';
-import 'apexcharts/pie';
-import 'apexcharts/features/legend';
-import 'apexcharts/features/keyboard';
+import Chart from 'react-apexcharts';
 
 export default Chart;
