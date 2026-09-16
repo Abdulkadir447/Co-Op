@@ -11,9 +11,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* Boot loader: shown until React mounts. Animation per the approved design. */
+      .boot { position: fixed; inset: 0; display: grid; place-items: center; background: #fcf8ff; }
+      .loader {
+        width: 45px;
+        aspect-ratio: .75;
+        --c: no-repeat linear-gradient(#4143d5 0 0);
+        background:
+          var(--c) 0%   100%,
+          var(--c) 50%  100%,
+          var(--c) 100% 100%;
+        background-size: 20% 65%;
+        animation: l5 1s infinite linear;
+      }
+      @keyframes l5 {
+        20% {background-position: 0% 50% ,50% 100%,100% 100%}
+        40% {background-position: 0% 0%  ,50% 50% ,100% 100%}
+        60% {background-position: 0% 100%,50% 0%  ,100% 50% }
+        80% {background-position: 0% 100%,50% 100%,100% 0%  }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="boot"><div class="loader"></div></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
