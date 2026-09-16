@@ -31,7 +31,7 @@ const PAGES = [
   { id: 'orders', name: 'Orders', blurb: 'Create, track and fulfil orders in one flow.' },
   { id: 'customers', name: 'Customers', blurb: 'Add, sort and search; see purchase history.' },
   { id: 'invoices', name: 'Invoices', blurb: 'Generate and export invoices as PDF.' },
-  { id: 'ai', name: 'Co-op AI', blurb: 'Ask Zeno to explain, forecast and draft.' },
+  { id: 'ai', name: 'CO OP AI', blurb: 'Ask Zeno to explain, forecast and draft.' },
 ];
 
 /** Shows a page's video (on hover) over its screenshot, or a styled placeholder
@@ -81,10 +81,26 @@ function Shot({ id, name }: { id: string; name: string }) {
   );
 }
 
+function WeaveMark({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label="CO OP">
+      <defs>
+        <linearGradient id="wmA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#5b5fef" /><stop offset="1" stopColor="#4143d5" /></linearGradient>
+        <linearGradient id="wmB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8a4cfc" /><stop offset="1" stopColor="#712ae2" /></linearGradient>
+        <linearGradient id="wmC" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#c0c1ff" /><stop offset="1" stopColor="#8a8df5" /></linearGradient>
+      </defs>
+      <rect x="14" y="5" width="20" height="21" rx="9" fill="url(#wmA)" />
+      <rect x="6" y="19" width="20" height="21" rx="9" fill="url(#wmB)" opacity="0.94" />
+      <rect x="22" y="19" width="20" height="21" rx="9" fill="url(#wmC)" opacity="0.9" />
+      <path d="M24 17 Q26.6 22.4 30.5 25 Q26.6 27.6 24 33 Q21.4 27.6 17.5 25 Q21.4 22.4 24 17 Z" fill="#ffffff" opacity="0.96" />
+    </svg>
+  );
+}
+
 function Logo() {
   return (
     <a className="logo" href="#top">
-      <img className="logo-img" src="logo.png" alt="Co-op logo" /> Co-op
+      <WeaveMark size={24} /> <span>CO OP</span>
     </a>
   );
 }
@@ -97,7 +113,7 @@ function TopBar({ mode, onToggle }: { mode: Mode; onToggle: () => void }) {
         <nav className="nav">
           <a href="#features">Features</a>
           <a href="#tour">Tour</a>
-          <a href="#ai">Co-op AI</a>
+          <a href="#ai">CO OP AI</a>
           <a href="#pricing">Pricing</a>
           <a href="#contact">Contact</a>
         </nav>
@@ -121,7 +137,7 @@ function Hero() {
             Run your whole business from <span className="grad">one calm place</span>
           </h1>
           <p className="lede">
-            Co-op brings inventory, orders, customers and invoicing together — plus an AI
+            CO OP brings inventory, orders, customers and invoicing together — plus an AI
             assistant that explains your numbers and tells you what to do next. It keeps
             working when the internet doesn't.
           </p>
@@ -150,7 +166,7 @@ const FEATURES = [
   { icon: '🧾', title: 'Orders & invoices', body: 'Create orders, track status, and generate invoices and PDFs in one flow.' },
   { icon: '📦', title: 'Inventory', body: 'Products, categories, low-stock alerts, valuation and a full movement ledger.' },
   { icon: '👥', title: 'Customers', body: 'A central database with purchase history and spending analysis per customer.' },
-  { icon: '✨', title: 'Co-op AI', body: 'Reports, explanations, forecasts and recommended restocks — grounded in your real data.' },
+  { icon: '✨', title: 'CO OP AI', body: 'Reports, explanations, forecasts and recommended restocks — grounded in your real data.' },
   { icon: '🔌', title: 'Works offline', body: 'Core operations run locally and sync automatically when you are back online.' },
 ];
 
@@ -255,8 +271,8 @@ function Pricing() {
 
 const FAQ = [
   { q: 'Does it work without internet?', a: 'Yes. Inventory, orders, customers and dashboards run locally; everything syncs when you reconnect.' },
-  { q: 'What happens when the trial ends?', a: 'The 10-day trial runs to the end and cannot be cancelled early. Subscribe to keep using Co-op.' },
-  { q: 'Which platforms?', a: 'Co-op v1 is a Windows desktop app (Electron), with your data backed by the cloud.' },
+  { q: 'What happens when the trial ends?', a: 'The 10-day trial runs to the end and cannot be cancelled early. Subscribe to keep using CO OP.' },
+  { q: 'Which platforms?', a: 'CO OP v1 is a Windows desktop app (Electron), with your data backed by the cloud.' },
   { q: 'Is my data safe?', a: 'Tenant isolation, encrypted backups and strict security headers are on by default.' },
 ];
 
@@ -320,9 +336,9 @@ function FoundersVideo() {
       <div className="container">
         <div className="section-head">
           <span className="caps" style={caps}>From the founders</span>
-          <h2 style={t.pageTitle}>Why we built Co-op</h2>
+          <h2 style={t.pageTitle}>Why we built CO OP</h2>
           <p className="muted" style={t.bodyDefault}>
-            A short word from the team behind Co-op.
+            A short word from the team behind CO OP.
           </p>
         </div>
         <div className="video-frame">
@@ -401,7 +417,7 @@ function Footer() {
     <footer>
       <div className="container foot">
         <Logo />
-        <p style={{ ...t.bodyCompact, margin: 0 }}>© 2026 Co-op. The operating system for small businesses.</p>
+        <p style={{ ...t.bodyCompact, margin: 0 }}>© 2026 CO OP. The operating system for small businesses.</p>
         <nav className="nav" style={{ margin: 0 }}><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></nav>
       </div>
     </footer>

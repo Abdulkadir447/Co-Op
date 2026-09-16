@@ -95,7 +95,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
             </button>
           ) : undefined
         }
-        destroyOnClose
+        destroyOnHidden
         width={640}
       >
         <Form form={form} layout="vertical" requiredMark>

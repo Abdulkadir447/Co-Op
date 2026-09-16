@@ -39,17 +39,19 @@ export const CoopMark: React.FC<CoopMarkProps> = ({ size = 32, className, title 
           <stop offset="0" stopColor="#8a4cfc" />
           <stop offset="1" stopColor="#712ae2" />
         </linearGradient>
-        <linearGradient id={`${id}-o`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#474adb" />
-          <stop offset="1" stopColor="#4143d5" />
+        <linearGradient id={`${id}-c`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#c0c1ff" />
+          <stop offset="1" stopColor="#8a8df5" />
         </linearGradient>
       </defs>
-      <rect x="4" y="9" width="27" height="27" rx="9" fill={`url(#${id}-a)`} />
-      <rect x="17" y="12" width="27" height="27" rx="9" fill={`url(#${id}-b)`} />
-      <rect x="17" y="12" width="14" height="24" rx="8" fill={`url(#${id}-o)`} />
+      {/* Weave: three overlapping rounded petals, transparent background. */}
+      <rect x="14" y="5" width="20" height="21" rx="9" fill={`url(#${id}-a)`} />
+      <rect x="6" y="19" width="20" height="21" rx="9" fill={`url(#${id}-b)`} opacity="0.94" />
+      <rect x="22" y="19" width="20" height="21" rx="9" fill={`url(#${id}-c)`} opacity="0.9" />
       <path
-        d="M24 15 Q25.2 21.2 31 24 Q25.2 26.8 24 33 Q22.8 26.8 17 24 Q22.8 21.2 24 15 Z"
+        d="M24 17 Q26.6 22.4 30.5 25 Q26.6 27.6 24 33 Q21.4 27.6 17.5 25 Q21.4 22.4 24 17 Z"
         fill="#ffffff"
+        opacity="0.96"
       />
     </svg>
   );
@@ -74,7 +76,7 @@ export const CoopLogo: React.FC<CoopLogoProps> = ({ size = 32, iconOnly = false,
   const { colors } = useCoopTheme();
   return (
     <span className={className} style={{ display: 'inline-flex', alignItems: 'center', gap: Math.max(8, size * 0.26) }}>
-      <CoopMark size={size} title="Co-op" />
+      <CoopMark size={size} title="CO OP" />
       {!iconOnly && (
         <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1, minWidth: 0 }}>
           <span
@@ -86,7 +88,7 @@ export const CoopLogo: React.FC<CoopLogoProps> = ({ size = 32, iconOnly = false,
               whiteSpace: 'nowrap',
             }}
           >
-            Co-op
+            CO OP
           </span>
           {subtitle && (
             <span

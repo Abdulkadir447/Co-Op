@@ -17,7 +17,7 @@ if (!clerkPublishableKey) {
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
-    {/* Stage 3: if Clerk cannot initialise, show the Co-op error state
+    {/* Stage 3: if Clerk cannot initialise, show the CO OP error state
         instead of a white screen. */}
     <ClerkErrorBoundary>
       <ClerkProvider publishableKey={clerkPublishableKey}>
@@ -26,3 +26,13 @@ root.render(
     </ClerkErrorBoundary>
   </React.StrictMode>
 );
+
+// Offline app shell: cache the built app so a signed-in user can re-open it
+// without a network. Production builds only (dev needs fresh modules).
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* offline caching is best-effort; ignore registration errors */
+    });
+  });
+}

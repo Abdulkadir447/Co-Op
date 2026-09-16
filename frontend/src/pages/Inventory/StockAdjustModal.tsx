@@ -94,7 +94,7 @@ const StockAdjustModal: React.FC<StockAdjustModalProps> = ({
       cancelText="Cancel"
       confirmLoading={submitting}
       okButtonProps={{ disabled: !product || wouldGoNegative }}
-      destroyOnClose
+      destroyOnHidden
       width={520}
     >
       {product && (

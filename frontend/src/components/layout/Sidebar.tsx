@@ -149,7 +149,7 @@ const SidebarContent: React.FC<RailContentProps> = ({ variant, onNavigate }) => 
           padding: `0 ${rail ? 0 : spacing.sm}px ${spacing.xl}px`,
         }}
       >
-        {rail ? <CoopMark size={40} title="Co-op" /> : <CoopLogo size={40} subtitle="Premium SaaS" />}
+        {rail ? <CoopMark size={40} title="CO OP" /> : <CoopLogo size={40} subtitle="Premium SaaS" />}
       </div>
 
       {/* Primary nav */}

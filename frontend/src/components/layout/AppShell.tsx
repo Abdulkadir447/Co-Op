@@ -72,7 +72,7 @@ const AppShell: React.FC<AppShellProps> = ({ children, user, onSignOut }) => {
   // Window/title area: "<Module> · Co-op" follows the active route.
   useEffect(() => {
     const active = [...NAV_ITEMS, ...NAV_SECONDARY].find((i) => i.path === location.pathname);
-    document.title = active ? `${active.label} · Co-op` : 'Co-op';
+    document.title = active ? `${active.label} · CO OP` : 'CO OP';
   }, [location.pathname]);
 
   return (

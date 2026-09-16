@@ -322,3 +322,36 @@ body .ant-table-thead > tr > td {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* --- Batch UX fixes ------------------------------------------------------ */
+
+/* 1) No hover highlight around modal titles / headers (e.g. "Update Customer"). */
+.ant-modal-title,
+.ant-modal-title *,
+.ant-modal-header,
+.ant-modal-close {
+  background: transparent !important;
+}
+.ant-modal-title:hover,
+.ant-modal-title *:hover,
+.ant-modal-header:hover,
+.ant-modal-close:hover {
+  background: transparent !important;
+}
+
+/* 2) Pagination: clearer spacing between prev / page numbers / next. */
+.ant-pagination .ant-pagination-prev,
+.ant-pagination .ant-pagination-item,
+.ant-pagination .ant-pagination-next {
+  margin-inline-end: 8px !important;
+}
+
+/* 3) Invoices print on white paper even when the on-screen theme is dark. */
+@media print {
+  .coop-invoice-print,
+  .coop-invoice-print * {
+    background: #fff !important;
+    color: #1b1b23 !important;
+    border-color: #e9e6f3 !important;
+  }
+}
