@@ -16,6 +16,7 @@
  * both result screens exist and are wired.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useUser } from '@clerk/react';
 import { useApiClient } from '../services/api/client';
 import { PLAN_CATALOG, PlanId, getPlan, type Plan } from './plans';
 import { clearReferenceFromUrl, openExternal, referenceFromSearch } from './checkout';
@@ -169,6 +170,10 @@ export type PlanActionState =
 
 export function useBilling() {
   const api = useApiClient();
+  const { user } = useUser();
+  // Paystack requires the payer's email; send the signed-in user's so checkout
+  // works even when the business has no owner_email on file.
+  const payerEmail = user?.primaryEmailAddress?.emailAddress;
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [localUsage, setLocalUsage] = useState<LocalAiUsage>(readLocalAiUsage);
@@ -277,6 +282,7 @@ export function useBilling() {
       const { data } = await api.post<CheckoutResult>('/billing/checkout', {
         plan,
         interval,
+        email: payerEmail,
         return_url: typeof window === 'undefined' ? undefined : window.location.href.split('?')[0],
       });
       setPendingReference(data.reference);
@@ -296,7 +302,7 @@ export function useBilling() {
               : 'Could not start the payment.',
       });
     }
-  }, [api]);
+  }, [api, payerEmail]);
 
   const applyPlan = useCallback(async (plan: PlanId | 'free') => {
     setAction({ status: 'processing', target: plan, kind: 'plan' });

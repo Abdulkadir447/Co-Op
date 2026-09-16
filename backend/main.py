@@ -2403,6 +2403,9 @@ class CheckoutRequest(BaseModel):
     plan: str
     interval: str = "monthly"
     return_url: Optional[str] = None
+    # Payer email for Paystack. The UI sends the signed-in user's email so the
+    # charge works even when the business has no owner_email on file.
+    email: Optional[str] = None
 
 
 class VerifyPaymentRequest(BaseModel):
@@ -2443,7 +2446,7 @@ async def billing_checkout_route(
             business,
             plan=req.plan,
             interval=req.interval,
-            email=business.owner_email or user.email,
+            email=req.email or business.owner_email or user.email,
             user_id=user.user_id,
             return_url=req.return_url,
         )

@@ -355,3 +355,21 @@ body .ant-table-thead > tr > td {
     border-color: #e9e6f3 !important;
   }
 }
+
+/* --- CO OP loader (equalizer bars) --------------------------------------- */
+/* Reusable in-app loader. Color is themed via --loader-color (set by the
+   CoopLoader component); falls back to the brand indigo. */
+.loader {
+  width: 45px;
+  aspect-ratio: 0.75;
+  --c: no-repeat linear-gradient(var(--loader-color, #4143d5) 0 0);
+  background: var(--c) 0% 100%, var(--c) 50% 100%, var(--c) 100% 100%;
+  background-size: 20% 65%;
+  animation: l5 1s infinite linear;
+}
+@keyframes l5 {
+  20% { background-position: 0% 50%, 50% 100%, 100% 100%; }
+  40% { background-position: 0% 0%, 50% 50%, 100% 100%; }
+  60% { background-position: 0% 100%, 50% 0%, 100% 50%; }
+  80% { background-position: 0% 100%, 50% 100%, 100% 0%; }
+}

@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
-import { Spin, message } from 'antd';
+import { message } from 'antd';
+import CoopLoader from './components/ui/CoopLoader';
 import { InfoCircleFilled } from '@ant-design/icons';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -44,7 +45,7 @@ const SyncPage = lazy(() => import('./pages/Sync'));
 
 const RouteFallback = () => (
   <div style={{ minHeight: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <Spin size="large" />
+    <CoopLoader />
   </div>
 );
 import { setCurrency } from './services/currency';
@@ -68,14 +69,14 @@ const SplashScreen: React.FC = () => {
       transition: 'background-color 300ms',
     }}
   >
-    <CoopMark size={64} title="Co-op" />
+    <CoopMark size={64} title="CO OP" />
     <div style={{ textAlign: 'center' }}>
-      <div style={{ ...type.sectionHeading, color: colors.primary, fontSize: 26, lineHeight: '34px' }}>Co-op</div>
+      <div style={{ ...type.sectionHeading, color: colors.primary, fontSize: 26, lineHeight: '34px' }}>CO OP</div>
       <div style={{ ...type.labelCaps, color: colors.onSurfaceVariant, marginTop: 2, letterSpacing: '0.1em' }}>
         Better business, together.
       </div>
     </div>
-    <Spin size="large" />
+    <CoopLoader />
   </div>
   );
 };
@@ -97,7 +98,7 @@ const AuthLoadingScreen: React.FC = () => {
         background: colors.surface,
       }}
     >
-      <Spin size="large" />
+      <CoopLoader />
     </div>
   );
 };
@@ -143,7 +144,7 @@ const AuthPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {children}
       </div>
       <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.outline }}>
-        © {year} Co-op SaaS. All rights reserved.
+        © {year} CO OP SaaS. All rights reserved.
       </div>
     </div>
   );

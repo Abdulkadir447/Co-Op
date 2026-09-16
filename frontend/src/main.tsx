@@ -2,6 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ClerkProvider } from '@clerk/react';
 import { ClerkErrorBoundary } from './auth/ClerkErrorBoundary';
+// antd v5 global reset (box-sizing: border-box, margin/padding resets). The
+// grid (Row/Col) relies on this — without it every guttered Col is content-box
+// and 16px too wide, so cards overflow and overlap on every page.
+import 'antd/dist/reset.css';
 import './styles.css';
 import App from './App';
 
