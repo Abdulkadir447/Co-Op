@@ -581,6 +581,15 @@ async def create_team_invite(
         {"email": email, "role": payload.role},
         actor=user.user_id,
     )
+    # Best-effort invite email. The invite exists regardless — the invitee can
+    # always accept by signing in to the app — so a delivery failure must never
+    # block the invite itself.
+    try:
+        await run_in_threadpool(
+            delivery_mod.send_invite_email, email, business.name, payload.role
+        )
+    except Exception:  # noqa: BLE001 — email is best-effort, never fatal here
+        pass
     return _invite_out(invite, business.name)
 
 
