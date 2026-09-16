@@ -14,11 +14,18 @@ const ReportChartCard: React.FC<{ chart: ReportChart; title?: string }> = ({ cha
   const { colors } = useCoopTheme();
 
   if (chart.kind === 'donut') {
-    const series: ApexNonAxisChartSeries = chart.series[0]?.data ?? [];
+    // ApexCharts v6 pie/donut requires object data points ({ x, y }); a flat
+    // number array is rejected ("Expected object data point") and the failed
+    // parse then crashes the renderer. Labels are derived from the x values.
+    const values = chart.series[0]?.data ?? [];
+    const series: ApexNonAxisChartSeries = [
+      {
+        data: chart.labels.map((label, i) => ({ x: label, y: values[i] ?? 0 })),
+      },
+    ];
     const options: ApexOptions = {
       colors: PALETTE,
       legend: { show: true, position: 'right', labels: { colors: colors.onSurfaceVariant } },
-      labels: chart.labels,
       plotOptions: { pie: { donut: { size: '62%' } } },
     };
     return (
