@@ -44,7 +44,7 @@ export const PLAN_CATALOG: Plan[] = [
     tagline: 'Essential tools for small teams getting started.',
     priceMonthly: 29,
     annualDiscountPct: 20,
-    cta: 'Get Started',
+    cta: 'Start Free Trial',
     includesLabel: 'Includes:',
     features: [
       { label: 'Up to 3 users', included: true },

@@ -110,21 +110,34 @@ const PlanCard: React.FC<{
             Current Plan
           </CoopButton>
         ) : onCheckout ? (
-          /* Payments are live: the honest primary CTA is the paid upgrade,
-             with the free trial kept as the no-card alternative. */
+          /* Payments are live, but the no-card trial is the friendlier primary
+             CTA — lead with "Start Trial" and keep the paid upgrade as the
+             alternative. (Custom/Enterprise never reaches here: it has no
+             priceMonthly and is handled by the "Contact Sales" branch above.) */
           <>
-            <CoopButton
-              block
-              loading={processing}
-              onClick={() => onCheckout(plan.id)}
-              icon={plan.id === 'professional' ? <SparkleIcon size={14} color={colors.onPrimary} /> : undefined}
-            >
-              {ctaLabel}
-            </CoopButton>
+            {onTrial ? (
+              <CoopButton
+                block
+                loading={processing}
+                onClick={() => onTrial(plan.id)}
+                icon={plan.id === 'professional' ? <SparkleIcon size={14} color={colors.onPrimary} /> : undefined}
+              >
+                {`Start ${trialDays}-Day Free Trial`}
+              </CoopButton>
+            ) : (
+              <CoopButton
+                block
+                loading={processing}
+                onClick={() => onCheckout(plan.id)}
+                icon={plan.id === 'professional' ? <SparkleIcon size={14} color={colors.onPrimary} /> : undefined}
+              >
+                {ctaLabel}
+              </CoopButton>
+            )}
             {onTrial && (
               <button
                 type="button"
-                onClick={() => onTrial(plan.id)}
+                onClick={() => onCheckout(plan.id)}
                 disabled={processing}
                 style={{
                   display: 'block',
@@ -138,7 +151,7 @@ const PlanCard: React.FC<{
                   cursor: processing ? 'default' : 'pointer',
                 }}
               >
-                {`Or try ${plan.name} free for ${trialDays} days`}
+                {`Or ${ctaLabel.toLowerCase()} now`}
               </button>
             )}
           </>
