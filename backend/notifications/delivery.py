@@ -218,3 +218,49 @@ def send_invite_email(
         "If you weren't expecting this, you can ignore it."
     )
     send_email(invitee_email, f"You're invited to {business_name} on CO OP", text)
+
+
+def feedback_inbox() -> str | None:
+    """Where product feedback is emailed. Env wins over config; None if unset.
+
+    The owner wires this to a real inbox later (``FEEDBACK_INBOX`` env or
+    ``notifications.feedback.to``). Until then feedback is still stored, just
+    not emailed.
+    """
+    cfg = load_config().get("notifications", {}).get("feedback", {})
+    return os.getenv("FEEDBACK_INBOX") or cfg.get("to") or None
+
+
+def send_feedback_email(
+    business_name: str,
+    *,
+    rating: int | None = None,
+    overall: str | None = None,
+    likes: str | None = None,
+    issues: str | None = None,
+    improvements: str | None = None,
+    submitted_by: str | None = None,
+) -> None:
+    """Email one feedback response to the product inbox (best-effort).
+
+    Silently no-ops when no inbox is configured yet, so wiring this in before
+    the destination exists is safe.
+    """
+    inbox = feedback_inbox()
+    if not inbox:
+        return
+
+    body: list[str] = [f"New in-app feedback from {business_name}.", ""]
+    if rating:
+        body += [f"Rating: {rating}/5", ""]
+    for heading, value in (
+        ("Overall thoughts", overall),
+        ("What they like", likes),
+        ("Issues / problems", issues),
+        ("What they'd love added", improvements),
+    ):
+        if value and value.strip():
+            body += [f"{heading}:", value.strip(), ""]
+    body += ["—", f"Business: {business_name}", f"Submitted by: {submitted_by or 'owner'}"]
+
+    send_email(inbox, f"[CO OP feedback] {business_name}", "\n".join(body).rstrip())

@@ -92,6 +92,10 @@
       "_comment": "Resend API email (preferred over SMTP). Put the key in RESEND_API_KEY (env), never here. onboarding@resend.dev only delivers to your own account email - use a verified domain address for real sending.",
       "api_key": "",
       "from": "CO OP <onboarding@resend.dev>"
+    },
+    "feedback": {
+      "_comment": "Where in-app product feedback is emailed. FEEDBACK_INBOX (env) overrides this. Empty = feedback is stored but not emailed.",
+      "to": ""
     }
   },
   "rate_limits": {

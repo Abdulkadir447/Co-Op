@@ -2601,6 +2601,17 @@ async def feedback_submit_route(
         kind="submitted", rating=req.rating, overall=req.overall,
         likes=req.likes, issues=req.issues, improvements=req.improvements,
     )
+    # Best-effort email to the product inbox. The response is already stored,
+    # so a delivery failure (or no inbox configured yet) must never block it.
+    try:
+        await run_in_threadpool(
+            delivery_mod.send_feedback_email, business.name,
+            rating=req.rating, overall=req.overall, likes=req.likes,
+            issues=req.issues, improvements=req.improvements,
+            submitted_by=user.user_id,
+        )
+    except Exception:  # noqa: BLE001 — email is best-effort, never fatal here
+        pass
     return await feedback_mod.feedback_status(db, business)
 
 

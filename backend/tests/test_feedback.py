@@ -106,3 +106,38 @@ async def test_next_window_is_skippable(api, session_factory):
     assert r.status_code == 200, r.text
     after = await _status(api)
     assert after["due"] is False
+
+
+async def test_feedback_emailed_when_inbox_configured(api, session_factory, monkeypatch):
+    await api.client.get("/billing/summary")  # auto-provisions the tenant
+    await _set_trial_start(session_factory, days_ago=22)
+
+    from backend.notifications import delivery as delivery_mod
+    sent: list[tuple] = []
+    monkeypatch.setenv("FEEDBACK_INBOX", "team@coop.app")
+    monkeypatch.setattr(
+        delivery_mod, "send_email",
+        lambda to, subject, text, **kw: sent.append((to, subject, text)),
+    )
+
+    r = await api.client.post(
+        "/feedback", json={"rating": 5, "overall": "Loving it", "likes": "reports"}
+    )
+    assert r.status_code == 200, r.text
+    assert sent, "feedback email was not sent"
+    assert sent[0][0] == "team@coop.app"
+    assert "Loving it" in sent[0][2]
+
+
+async def test_feedback_email_skipped_when_no_inbox(api, session_factory, monkeypatch):
+    await api.client.get("/billing/summary")  # auto-provisions the tenant
+    await _set_trial_start(session_factory, days_ago=22)
+
+    from backend.notifications import delivery as delivery_mod
+    sent: list = []
+    monkeypatch.delenv("FEEDBACK_INBOX", raising=False)
+    monkeypatch.setattr(delivery_mod, "send_email", lambda *a, **k: sent.append(a))
+
+    r = await api.client.post("/feedback", json={"overall": "Stored, not emailed"})
+    assert r.status_code == 200, r.text
+    assert sent == []  # no inbox configured -> stored only, no email
