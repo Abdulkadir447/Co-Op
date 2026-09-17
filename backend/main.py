@@ -87,6 +87,8 @@ from .schemas import (
     CustomerOut,
     CustomerUpdate,
     DashboardSummary,
+    FeedbackStatusOut,
+    FeedbackSubmitIn,
     GrowthResponse,
     InventorySummary,
     MovementListResponse,
@@ -2554,6 +2556,71 @@ async def paystack_webhook_route(
             actor="paystack-webhook",
         )
     return {"received": True, **result}
+
+
+# ---------------------------------------------------------------------------
+# Feedback — periodic in-app "how are we doing?" prompt.
+#
+# The first prompt lands three weeks after the paid relationship begins and is
+# compulsory; later prompts repeat every three weeks and can be skipped. The
+# cadence + anchor logic lives in backend/feedback.py; these are thin routes.
+# ---------------------------------------------------------------------------
+@app.get("/feedback/status", response_model=FeedbackStatusOut, tags=["Feedback"])
+async def feedback_status_route(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Whether a feedback prompt is due, and if it is the compulsory first one."""
+    from . import feedback as feedback_mod
+
+    return await feedback_mod.feedback_status(db, business)
+
+
+@app.post("/feedback", response_model=FeedbackStatusOut, tags=["Feedback"])
+async def feedback_submit_route(
+    req: FeedbackSubmitIn,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Record a feedback response.
+
+    The compulsory first prompt requires the ``overall`` answer; later prompts
+    accept anything (including all-blank), since they are skippable anyway.
+    """
+    from . import feedback as feedback_mod
+
+    status_now = await feedback_mod.feedback_status(db, business)
+    if status_now["required"] and not (req.overall or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Please tell us how you're finding Co-op before continuing.",
+        )
+    await feedback_mod.record_feedback(
+        db, business, user.user_id,
+        kind="submitted", rating=req.rating, overall=req.overall,
+        likes=req.likes, issues=req.issues, improvements=req.improvements,
+    )
+    return await feedback_mod.feedback_status(db, business)
+
+
+@app.post("/feedback/dismiss", response_model=FeedbackStatusOut, tags=["Feedback"])
+async def feedback_dismiss_route(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Skip a non-compulsory prompt until the next three-week window."""
+    from . import feedback as feedback_mod
+
+    status_now = await feedback_mod.feedback_status(db, business)
+    if status_now["required"]:
+        raise HTTPException(
+            status_code=409,
+            detail="The first feedback prompt is required and cannot be skipped.",
+        )
+    await feedback_mod.record_feedback(db, business, user.user_id, kind="dismissed")
+    return await feedback_mod.feedback_status(db, business)
 
 
 # ---------------------------------------------------------------------------

@@ -45,17 +45,6 @@ const DashboardHeader: React.FC<{
       }}
     >
       <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            ...type.labelCaps,
-            color: colors.outline,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            marginBottom: 6,
-          }}
-        >
-          Current business display
-        </div>
         <h1
           style={{
             margin: 0,

@@ -686,3 +686,34 @@ class Payment(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Payment {self.reference} {self.plan} {self.status}>"
+
+
+class Feedback(Base):
+    """One product-feedback prompt response (migration 0015).
+
+    Co-op asks the owner how the app is doing on a fixed cadence: the first
+    prompt lands three weeks after the paid relationship begins (trial start,
+    or the first successful charge if there was no trial) and is compulsory;
+    later prompts repeat every three weeks and may be skipped.
+
+    A row is written both when the owner *submits* answers and when they
+    *dismiss* a prompt (``kind``), so the nagging cadence is driven entirely
+    off this table: a prompt is "due" only when the current three-week window
+    has no row yet. ``submitted_by`` is the Clerk user id who answered.
+    """
+
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), index=True, nullable=False)
+    submitted_by = Column(String(255), nullable=True)   # Clerk user id
+    kind = Column(String(12), nullable=False, default="submitted")  # submitted|dismissed
+    rating = Column(Integer, nullable=True)             # 1-5 overall, optional
+    overall = Column(Text, nullable=True)               # what they think of the app
+    likes = Column(Text, nullable=True)                 # what they like
+    issues = Column(Text, nullable=True)                # problems / bugs
+    improvements = Column(Text, nullable=True)          # what they'd love added
+    created_at = Column(DateTime, server_default=func.now())
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<Feedback business={self.business_id} kind={self.kind!r}>"

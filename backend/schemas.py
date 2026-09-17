@@ -436,3 +436,23 @@ class TeamRoleUpdate(BaseModel):
 class TeamResponse(BaseModel):
     members: List[TeamMemberOut]
     invitations: List[TeamInviteOut]
+
+
+# --- Feedback (periodic in-app product prompt) -----------------------------
+class FeedbackStatusOut(BaseModel):
+    """Whether a feedback prompt is due for the caller's business."""
+    due: bool
+    required: bool                       # first prompt = compulsory
+    due_at: Optional[str] = None         # ISO timestamp of the current window
+    interval_days: int = 21
+    submitted_before: bool = False
+
+
+class FeedbackSubmitIn(BaseModel):
+    """A feedback response. ``overall`` is required for the compulsory first
+    prompt (enforced in the route); the rest are optional."""
+    rating: Optional[int] = Field(None, ge=1, le=5)
+    overall: Optional[str] = Field(None, max_length=4000)
+    likes: Optional[str] = Field(None, max_length=4000)
+    issues: Optional[str] = Field(None, max_length=4000)
+    improvements: Optional[str] = Field(None, max_length=4000)

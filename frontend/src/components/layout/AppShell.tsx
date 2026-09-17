@@ -27,6 +27,8 @@ import Sidebar, { SIDEBAR_WIDTH } from './Sidebar';
 import TopBar from './TopBar';
 import CommandPalette from './CommandPalette';
 import { CoopMark } from '../brand/CoopLogo';
+import { useApiClient } from '../../services/api/client';
+import FeedbackModal, { type FeedbackValues } from '../feedback/FeedbackModal';
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -48,6 +50,53 @@ const AppShell: React.FC<AppShellProps> = ({ children, user, onSignOut }) => {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Periodic product-feedback prompt. Checked once on mount; the backend
+  // decides if it's due (3 weeks after the paid relationship began) and
+  // whether it's the compulsory first one. Failures are silent — a missing
+  // prompt must never block the app.
+  const api = useApiClient();
+  const [feedbackState, setFeedbackState] = useState<{ open: boolean; required: boolean }>({
+    open: false,
+    required: false,
+  });
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ due: boolean; required: boolean }>('/feedback/status')
+      .then((r) => {
+        if (!cancelled && r.data.due) {
+          setFeedbackState({ open: true, required: r.data.required });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
+
+  const submitFeedback = async (values: FeedbackValues) => {
+    setFeedbackSubmitting(true);
+    try {
+      await api.post('/feedback', values);
+      setFeedbackState({ open: false, required: false });
+    } catch {
+      // Keep the modal open so a required prompt isn't lost on a network blip.
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
+  const skipFeedback = async () => {
+    setFeedbackState({ open: false, required: false });
+    try {
+      await api.post('/feedback/dismiss');
+    } catch {
+      /* skipping is best-effort */
+    }
+  };
 
   // Global ⌘K / Ctrl+K — open or close the command palette from anywhere.
   useEffect(() => {
@@ -107,6 +156,14 @@ const AppShell: React.FC<AppShellProps> = ({ children, user, onSignOut }) => {
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
+      <FeedbackModal
+        open={feedbackState.open}
+        required={feedbackState.required}
+        submitting={feedbackSubmitting}
+        onSubmit={submitFeedback}
+        onSkip={skipFeedback}
+      />
+
       {/* Floating Zeno entry (bottom-right; hidden on the assistant page).
           Kept off the left edge so it never covers the sidebar rail. */}
       {location.pathname !== '/coop-ai' && (
@@ -119,7 +176,7 @@ const AppShell: React.FC<AppShellProps> = ({ children, user, onSignOut }) => {
           style={{
             position: 'fixed',
             right: 20,
-            bottom: 24,
+            bottom: 88,
             width: 48,
             height: 48,
             borderRadius: radius.lg,
