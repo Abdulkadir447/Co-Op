@@ -141,3 +141,24 @@ async def test_feedback_email_skipped_when_no_inbox(api, session_factory, monkey
     r = await api.client.post("/feedback", json={"overall": "Stored, not emailed"})
     assert r.status_code == 200, r.text
     assert sent == []  # no inbox configured -> stored only, no email
+
+
+async def test_feedback_list_returns_submissions_only(api, session_factory):
+    await api.client.get("/billing/summary")  # auto-provisions the tenant
+    await _set_trial_start(session_factory, days_ago=22)
+
+    # One real submission through the API…
+    r = await api.client.post(
+        "/feedback", json={"rating": 4, "overall": "Going well", "issues": "none"}
+    )
+    assert r.status_code == 200, r.text
+    # …and a skipped window, which is cadence bookkeeping, not a response.
+    await _add_feedback(session_factory, days_ago=1, kind="dismissed")
+
+    r = await api.client.get("/feedback")
+    assert r.status_code == 200, r.text
+    items = r.json()
+    assert len(items) == 1, items  # the dismissal is not listed
+    assert items[0]["overall"] == "Going well"
+    assert items[0]["rating"] == 4
+    assert items[0]["created_at"] is not None

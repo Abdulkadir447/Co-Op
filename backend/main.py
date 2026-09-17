@@ -87,6 +87,7 @@ from .schemas import (
     CustomerOut,
     CustomerUpdate,
     DashboardSummary,
+    FeedbackOut,
     FeedbackStatusOut,
     FeedbackSubmitIn,
     GrowthResponse,
@@ -2632,6 +2633,23 @@ async def feedback_dismiss_route(
         )
     await feedback_mod.record_feedback(db, business, user.user_id, kind="dismissed")
     return await feedback_mod.feedback_status(db, business)
+
+
+@app.get("/feedback", response_model=List[FeedbackOut], tags=["Feedback"])
+async def feedback_list_route(
+    limit: int = Query(100, ge=1, le=500),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
+) -> list[dict]:
+    """This business's stored feedback responses, newest first (owner only).
+
+    The product team reads feedback by email; this exposes the same stored
+    history over the API so it is retrievable rather than a write-only table.
+    """
+    from . import feedback as feedback_mod
+
+    return await feedback_mod.list_feedback(db, business, limit=limit)
 
 
 # ---------------------------------------------------------------------------

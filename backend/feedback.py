@@ -135,3 +135,34 @@ async def record_feedback(
     await db.commit()
     await db.refresh(row)
     return row
+
+
+async def list_feedback(db, business: Business, limit: int = 100) -> list[dict[str, Any]]:
+    """The business's feedback history (newest first), owner-only at the route.
+
+    Submissions only — dismissals are cadence bookkeeping, not responses.
+    """
+    rows = (
+        await db.execute(
+            select(Feedback)
+            .where(
+                Feedback.business_id == business.id,
+                Feedback.kind == "submitted",
+            )
+            .order_by(Feedback.created_at.desc(), Feedback.id.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return [
+        {
+            "id": r.id,
+            "rating": r.rating,
+            "overall": r.overall,
+            "likes": r.likes,
+            "issues": r.issues,
+            "improvements": r.improvements,
+            "submitted_by": r.submitted_by,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]

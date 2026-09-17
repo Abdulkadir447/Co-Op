@@ -456,3 +456,15 @@ class FeedbackSubmitIn(BaseModel):
     likes: Optional[str] = Field(None, max_length=4000)
     issues: Optional[str] = Field(None, max_length=4000)
     improvements: Optional[str] = Field(None, max_length=4000)
+
+
+class FeedbackOut(BaseModel):
+    """One stored feedback response (GET /feedback, owner-only)."""
+    id: int
+    rating: Optional[int] = None
+    overall: Optional[str] = None
+    likes: Optional[str] = None
+    issues: Optional[str] = None
+    improvements: Optional[str] = None
+    submitted_by: Optional[str] = None
+    created_at: Optional[str] = None

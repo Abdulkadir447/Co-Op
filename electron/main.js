@@ -6,6 +6,7 @@ const { createDataLayerApp } = require('./dataLayerApp');
 const { isSqliteFile, snapshot, replaceDbFile, assertRestoreSafe } = require('./db/backup');
 const { APP_USER_MODEL_ID, backupFileName } = require('./platform');
 const { containNavigation, isExternalSafeUrl, isTrustedSender, rendererPreferences } = require('./security');
+const { initAutoUpdate } = require('./updater');
 
 // ---------------------------------------------------------------------------
 // Content Security Policy for the Co-op desktop app.
@@ -276,6 +277,15 @@ app.whenReady().then(() => {
     const win = createWindow();
     mainWindow = win;
     watchConnectivity(win);
+    // Desktop auto-update: downloads in the background, the owner chooses when
+    // to restart, and a deferred update force-installs after a week
+    // (see electron/updater.js). No-ops in dev / unpackaged runs.
+    initAutoUpdate({
+      app,
+      dialog,
+      getWindow: () => mainWindow,
+      log: (...a) => console.log('[updater]', ...a),
+    });
     app.on('activate', function () {
       if (BrowserWindow.getAllWindows().length === 0) {
         const w = createWindow();

@@ -9,17 +9,26 @@
     "test": "node --test \"test/*.test.js\"",
     "build:renderer": "npm --prefix ../frontend run build && node scripts/copy-renderer.js",
     "pack": "npm run build:renderer && electron-builder --dir",
-    "dist": "npm run build:renderer && electron-builder"
+    "dist": "npm run build:renderer && electron-builder",
+    "release": "npm run build:renderer && electron-builder --publish always"
   },
   "devDependencies": {
     "electron": "33.4.11",
     "electron-builder": "24.13.3"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^11.10.0",
+    "electron-updater": "^6.3.9"
   },
   "build": {
     "appId": "app.coop.desktop",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Abdulkadir447",
+        "repo": "Co-Op"
+      }
+    ],
     "productName": "Co-op",
     "directories": {
       "output": "dist"
@@ -27,6 +36,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "updater.js",
       "dataLayerApp.js",
       "sync.js",
       "platform.js",
