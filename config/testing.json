@@ -72,6 +72,10 @@
       "days": 10
     }
   },
+  "platform": {
+    "_comment": "In-app product-owner console (/platform/*). Tests opt in via COOP_PLATFORM_ADMINS; empty by default so the console is closed.",
+    "admin_emails": []
+  },
   "licensing": {
     "_comment": "Signed activation keys (PRD Ch7 \u00a77.19). The signing key lives ONLY in LICENSE_SIGNING_KEY and admin tokens in LICENSE_ADMIN_TOKENS \u2014 neither belongs in this file.",
     "enabled": true,

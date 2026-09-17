@@ -59,6 +59,7 @@ from .sync import ALLOWED_ORDER_TRANSITIONS, apply_push
 from .pull import build_pull_payload
 from .clerk_auth import ClerkUser, get_frontend_api, verify_clerk_token
 from .config import get_env, load_config
+from . import platform_admin
 from . import team as team_mod
 from .database import dispose_db, get_db, init_db
 from .models import (
@@ -2650,6 +2651,170 @@ async def feedback_list_route(
     from . import feedback as feedback_mod
 
     return await feedback_mod.list_feedback(db, business, limit=limit)
+
+
+# ---------------------------------------------------------------------------
+# Platform console (product owner) — a cross-tenant overview for the Co-op team.
+#
+# Clerk-authenticated and limited to the platform-admin allow-list (see
+# backend/platform_admin.py). Unlike every other route these are deliberately
+# NOT tenant-scoped: the whole point is a product-wide view. Closed by default
+# — with no allow-list configured, every caller is a 403.
+# ---------------------------------------------------------------------------
+
+async def require_platform_admin(
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> ClerkUser:
+    """Gate for the in-app product-owner console (allow-list of admin emails)."""
+    if not platform_admin.is_platform_admin(user.email):
+        from .security_events import security_event
+
+        security_event("platform_admin_rejected", path="/platform")
+        raise HTTPException(status_code=403, detail="Platform admin access required")
+    return user
+
+
+@app.get("/platform/me", tags=["Platform"])
+async def platform_me(user: ClerkUser = Depends(verify_clerk_token)) -> dict:
+    """Whether the signed-in user is a platform admin (drives the admin UI)."""
+    return {"is_admin": platform_admin.is_platform_admin(user.email), "email": user.email}
+
+
+@app.get("/platform/overview", tags=["Platform"])
+async def platform_overview(
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """Product-wide counts for the console header."""
+    from .models import Feedback, Payment
+
+    now = datetime.utcnow()
+    businesses = (await db.execute(
+        select(func.count(Business.id)).where(Business.deleted_at.is_(None))
+    )).scalar() or 0
+    members = (await db.execute(select(func.count(BusinessMember.id)))).scalar() or 0
+    feedback = (await db.execute(
+        select(func.count(Feedback.id)).where(Feedback.kind == "submitted")
+    )).scalar() or 0
+    licenses_total = (await db.execute(select(func.count(License.id)))).scalar() or 0
+    licenses_active = (await db.execute(
+        select(func.count(License.id)).where(
+            License.revoked_at.is_(None),
+            or_(License.expires_at.is_(None), License.expires_at > now),
+        )
+    )).scalar() or 0
+    payments_success = (await db.execute(
+        select(func.count(Payment.id)).where(Payment.status == "success")
+    )).scalar() or 0
+    payments_pending = (await db.execute(
+        select(func.count(Payment.id)).where(Payment.status == "pending")
+    )).scalar() or 0
+    return {
+        "businesses": businesses,
+        "members": members,
+        "feedback_responses": feedback,
+        "licenses_total": licenses_total,
+        "licenses_active": licenses_active,
+        "payments_success": payments_success,
+        "payments_pending": payments_pending,
+    }
+
+
+@app.get("/platform/feedback", tags=["Platform"])
+async def platform_feedback(
+    limit: int = Query(50, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """Every business's feedback responses, newest first (with business name)."""
+    from .models import Feedback
+
+    rows = (await db.execute(
+        select(Feedback, Business.name)
+        .join(Business, Business.id == Feedback.business_id, isouter=True)
+        .where(Feedback.kind == "submitted")
+        .order_by(Feedback.created_at.desc(), Feedback.id.desc())
+        .limit(limit)
+    )).all()
+    return {
+        "items": [
+            {
+                "id": f.id,
+                "business_id": f.business_id,
+                "business_name": name,
+                "rating": f.rating,
+                "overall": f.overall,
+                "likes": f.likes,
+                "issues": f.issues,
+                "improvements": f.improvements,
+                "submitted_by": f.submitted_by,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+            }
+            for f, name in rows
+        ]
+    }
+
+
+@app.get("/platform/businesses", tags=["Platform"])
+async def platform_businesses(
+    limit: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """Every live business with its base plan (newest first)."""
+    from .models import Subscription
+
+    rows = (await db.execute(
+        select(Business, Subscription.plan)
+        .join(Subscription, Subscription.business_id == Business.id, isouter=True)
+        .where(Business.deleted_at.is_(None))
+        .order_by(Business.created_at.desc(), Business.id.desc())
+        .limit(limit)
+    )).all()
+    return {
+        "items": [
+            {
+                "id": b.id,
+                "name": b.name,
+                "owner_email": b.owner_email,
+                "currency": b.currency,
+                "plan": plan or "free",
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            }
+            for b, plan in rows
+        ]
+    }
+
+
+@app.get("/platform/licenses", tags=["Platform"])
+async def platform_licenses(
+    limit: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """Every licence the team has minted (newest first)."""
+    rows = (await db.execute(
+        select(License, Business.name)
+        .join(Business, Business.id == License.business_id, isouter=True)
+        .order_by(License.id.desc())
+        .limit(limit)
+    )).all()
+    return {
+        "items": [
+            {
+                "id": r.id,
+                "business_id": r.business_id,
+                "business_name": name,
+                "fingerprint": r.fingerprint,
+                "plan": r.plan,
+                "seats": r.seats,
+                "issued_at": r.issued_at.isoformat() if r.issued_at else None,
+                "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+                "revoked_at": r.revoked_at.isoformat() if r.revoked_at else None,
+            }
+            for r, name in rows
+        ]
+    }
 
 
 # ---------------------------------------------------------------------------

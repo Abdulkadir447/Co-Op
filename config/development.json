@@ -74,6 +74,12 @@
       "days": 10
     }
   },
+  "platform": {
+    "_comment": "In-app product-owner console (/platform/*). Overridden by COOP_PLATFORM_ADMINS; email match is case-insensitive. Empty list = console closed.",
+    "admin_emails": [
+      "abdul.24434.kadir0@gmail.com"
+    ]
+  },
   "licensing": {
     "_comment": "Signed activation keys (PRD Ch7 \u00a77.19). The signing key lives ONLY in LICENSE_SIGNING_KEY and admin tokens in LICENSE_ADMIN_TOKENS \u2014 neither belongs in this file.",
     "enabled": true,

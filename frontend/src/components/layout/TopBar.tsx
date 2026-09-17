@@ -13,8 +13,17 @@
  */
 import React, { useState } from 'react';
 import { Avatar, Dropdown } from 'antd';
-import { LogoutOutlined, MenuOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
+import type { MenuProps } from 'antd';
+import {
+  LogoutOutlined,
+  MenuOutlined,
+  MoonOutlined,
+  SafetyCertificateOutlined,
+  SunOutlined,
+  SwapOutlined,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { setAdminMode, useAdminMode, useIsPlatformAdmin } from '../../hooks/usePlatformAdmin';
 import { radius, spacing } from '../../theme';
 import { useCoopTheme } from '../../theme-provider';
 import { SparkleIcon } from '../ui/icons';
@@ -42,6 +51,57 @@ const TopBar: React.FC<TopBarProps> = ({ user, onSignOut, onMenuClick, onOpenPal
   const [searchHover, setSearchHover] = useState(false);
   const navigate = useNavigate();
   const name = user?.fullName || user?.firstName || 'Account';
+  const isAdmin = useIsPlatformAdmin();
+  const adminMode = useAdminMode();
+
+  // Product-owner-only entries: open the console, and flip admin/normal. The
+  // backend is the hard gate; these just surface it for allow-listed emails.
+  const adminItems: MenuProps['items'] = isAdmin
+    ? [
+        { type: 'divider' },
+        {
+          key: 'admin-console',
+          icon: <SafetyCertificateOutlined />,
+          label: 'Admin console',
+          onClick: () => {
+            setAdminMode('admin');
+            navigate('/admin');
+          },
+        },
+        {
+          key: 'admin-toggle',
+          icon: <SwapOutlined />,
+          label: adminMode === 'admin' ? 'Switch to Normal view' : 'Switch to Admin view',
+          onClick: () => {
+            if (adminMode === 'admin') {
+              setAdminMode('normal');
+              navigate('/');
+            } else {
+              setAdminMode('admin');
+              navigate('/admin');
+            }
+          },
+        },
+      ]
+    : [];
+
+  const accountItems: MenuProps['items'] = [
+    {
+      key: 'profile',
+      type: 'group',
+      label: (
+        <div style={{ padding: '4px 4px' }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{name}</div>
+          {user?.email && (
+            <div style={{ fontSize: 12, opacity: 0.75, wordBreak: 'break-all' }}>{user.email}</div>
+          )}
+        </div>
+      ),
+    },
+    ...adminItems,
+    { type: 'divider' },
+    { key: 'signout', icon: <LogoutOutlined />, label: 'Sign out', danger: true, onClick: onSignOut },
+  ];
 
   return (
     <header
@@ -211,24 +271,7 @@ const TopBar: React.FC<TopBarProps> = ({ user, onSignOut, onMenuClick, onOpenPal
       {/* Account menu — profile area */}
       <Dropdown
         trigger={['click']}
-        menu={{
-          items: [
-            {
-              key: 'profile',
-              type: 'group',
-              label: (
-                <div style={{ padding: '4px 4px' }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{name}</div>
-                  {user?.email && (
-                    <div style={{ fontSize: 12, opacity: 0.75, wordBreak: 'break-all' }}>{user.email}</div>
-                  )}
-                </div>
-              ),
-            },
-            { type: 'divider' },
-            { key: 'signout', icon: <LogoutOutlined />, label: 'Sign out', danger: true, onClick: onSignOut },
-          ],
-        }}
+        menu={{ items: accountItems }}
       >
         <button type="button" aria-label="Account menu" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, borderRadius: radius.full }}>
           <Avatar

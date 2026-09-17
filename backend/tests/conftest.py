@@ -28,6 +28,14 @@ async def engine(tmp_path):
     """Per-test isolated database. Postgres when TEST_DATABASE_URL is set,
     otherwise a temp SQLite file (aiosqlite)."""
     url = os.getenv("TEST_DATABASE_URL") or f"sqlite+aiosqlite:///{tmp_path / 'coop_test.db'}"
+    # A plain postgres(ql):// URL makes SQLAlchemy pick the sync psycopg2
+    # driver; the suite is async, so canonicalise to asyncpg (same rule as
+    # backend.config.database_url) — otherwise create_async_engine imports
+    # psycopg2 and dies with ModuleNotFoundError.
+    if url.startswith("postgres://"):
+        url = "postgresql+asyncpg://" + url[len("postgres://"):]
+    elif url.startswith("postgresql://"):
+        url = "postgresql+asyncpg://" + url[len("postgresql://"):]
     eng = create_async_engine(url)
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
