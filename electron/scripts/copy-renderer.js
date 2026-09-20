@@ -8,7 +8,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const SRC = path.join(__dirname, '..', 'frontend', 'dist');
+// __dirname is electron/scripts, so the repo-root frontend build is two levels
+// up (electron/scripts -> electron -> repo root -> frontend/dist). The dest
+// renderer-dist lives inside electron/ (one level up).
+const SRC = path.join(__dirname, '..', '..', 'frontend', 'dist');
 const DEST = path.join(__dirname, '..', 'renderer-dist');
 
 if (!fs.existsSync(path.join(SRC, 'index.html'))) {
