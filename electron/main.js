@@ -41,10 +41,23 @@ const CLERK_FAPI_DEV = 'https://bursting-swan-43.clerk.accounts.dev';
 const CLERK_FAPI = process.env.CLERK_FRONTEND_API
   ? `https://${process.env.CLERK_FRONTEND_API}`
   : CLERK_FAPI_DEV;
+// The Co-op backend the renderer calls. A packaged build has no dev-server
+// proxy, so the renderer talks to an absolute URL (VITE_API_URL, baked into the
+// renderer at build time) — the CSP must allow that origin or EVERY API request
+// is blocked. localhost:8000 covers local dev/testing (uvicorn's default port);
+// a deployed backend is allowed by setting COOP_API_URL to its base URL.
+const COOP_API_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000'];
+if (process.env.COOP_API_URL) {
+  try {
+    COOP_API_ORIGINS.push(new URL(process.env.COOP_API_URL).origin);
+  } catch {
+    /* ignore a malformed COOP_API_URL */
+  }
+}
 const CSP = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLERK_FAPI} https://challenges.cloudflare.com https://*.protect.clerk.com`,
-  `connect-src 'self' ${CLERK_FAPI} https://*.accounts.dev https://*.protect.clerk.com`,
+  `connect-src 'self' ${CLERK_FAPI} https://*.accounts.dev https://*.protect.clerk.com ${COOP_API_ORIGINS.join(' ')}`,
   "img-src 'self' data: https://img.clerk.com",
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
