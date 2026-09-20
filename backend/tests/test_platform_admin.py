@@ -10,19 +10,29 @@ from __future__ import annotations
 from backend import platform_admin
 
 
-def test_admin_emails_parse_and_match_case_insensitively(monkeypatch):
+def test_admin_identifiers_parse_and_match_case_insensitively(monkeypatch):
     monkeypatch.setenv("COOP_PLATFORM_ADMINS", " Admin@Coop.Test , other@coop.test ")
-    assert platform_admin.admin_emails() == {"admin@coop.test", "other@coop.test"}
+    assert platform_admin.admin_identifiers() == {"Admin@Coop.Test", "other@coop.test"}
     assert platform_admin.is_platform_admin("ADMIN@coop.test")
     assert platform_admin.is_platform_admin("other@coop.test")
     assert not platform_admin.is_platform_admin("rando@coop.test")
     assert not platform_admin.is_platform_admin(None)
 
 
+def test_admin_match_by_clerk_user_id(monkeypatch):
+    # Clerk's default token has no email claim, so the user id is the robust
+    # identifier — it must match exactly and independently of any email.
+    monkeypatch.setenv("COOP_PLATFORM_ADMINS", "user_abc123")
+    assert platform_admin.is_platform_admin(None, "user_abc123")
+    assert platform_admin.is_platform_admin("whoever@coop.test", "user_abc123")
+    assert not platform_admin.is_platform_admin(None, "user_other")
+    assert not platform_admin.is_platform_admin("user_abc123@coop.test", None)
+
+
 def test_empty_allow_list_closes_the_console(monkeypatch):
     monkeypatch.setenv("COOP_PLATFORM_ADMINS", "")
-    assert platform_admin.admin_emails() == set()
-    assert not platform_admin.is_platform_admin("admin@coop.test")
+    assert platform_admin.admin_identifiers() == set()
+    assert not platform_admin.is_platform_admin("admin@coop.test", "user-a")
 
 
 async def test_platform_data_routes_closed_to_non_admins(api):
@@ -97,3 +107,20 @@ async def test_platform_feedback_lists_responses_across_tenants(api, monkeypatch
     assert items[0]["overall"] == "Great product"
     assert items[0]["rating"] == 5
     assert items[0]["business_name"]
+
+
+async def test_platform_console_opens_via_user_id_without_email(api, monkeypatch):
+    # The realistic Clerk-default case: the token has a user id but NO email
+    # claim. The user id alone must open the console.
+    monkeypatch.setenv("COOP_PLATFORM_ADMINS", "user-a")
+    api.set_user("user-a")  # no email
+
+    me = await api.client.get("/platform/me")
+    assert me.status_code == 200
+    body = me.json()
+    assert body["is_admin"] is True
+    assert body["user_id"] == "user-a"
+    assert body["email"] is None
+
+    ov = await api.client.get("/platform/overview")
+    assert ov.status_code == 200

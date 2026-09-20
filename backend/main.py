@@ -2665,8 +2665,8 @@ async def feedback_list_route(
 async def require_platform_admin(
     user: ClerkUser = Depends(verify_clerk_token),
 ) -> ClerkUser:
-    """Gate for the in-app product-owner console (allow-list of admin emails)."""
-    if not platform_admin.is_platform_admin(user.email):
+    """Gate for the in-app product-owner console (allow-list of admins)."""
+    if not platform_admin.is_platform_admin(user.email, user.user_id):
         from .security_events import security_event
 
         security_event("platform_admin_rejected", path="/platform")
@@ -2676,8 +2676,16 @@ async def require_platform_admin(
 
 @app.get("/platform/me", tags=["Platform"])
 async def platform_me(user: ClerkUser = Depends(verify_clerk_token)) -> dict:
-    """Whether the signed-in user is a platform admin (drives the admin UI)."""
-    return {"is_admin": platform_admin.is_platform_admin(user.email), "email": user.email}
+    """Whether the signed-in user is a platform admin (drives the admin UI).
+
+    Echoes the email/user_id the backend actually saw, so a missing email
+    claim (Clerk's default token has none) is easy to diagnose.
+    """
+    return {
+        "is_admin": platform_admin.is_platform_admin(user.email, user.user_id),
+        "email": user.email,
+        "user_id": user.user_id,
+    }
 
 
 @app.get("/platform/overview", tags=["Platform"])

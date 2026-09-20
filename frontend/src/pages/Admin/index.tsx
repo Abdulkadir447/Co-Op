@@ -75,9 +75,9 @@ const AdminConsole: React.FC = () => {
     try {
       const [ov, fb, biz, lic] = await Promise.all([
         api.get<Overview>('/platform/overview'),
-        api.get<{ items: FeedbackItem[] }>('/platform/feedback?limit=100'),
-        api.get<{ items: BusinessItem[] }>('/platform/businesses?limit=200'),
-        api.get<{ items: LicenseItem[] }>('/platform/licenses?limit=200'),
+        api.get<{ items: FeedbackItem[] }>('/platform/feedback', { params: { limit: 100 } }),
+        api.get<{ items: BusinessItem[] }>('/platform/businesses', { params: { limit: 200 } }),
+        api.get<{ items: LicenseItem[] }>('/platform/licenses', { params: { limit: 200 } }),
       ]);
       setOverview(ov.data);
       setFeedback(fb.data.items);

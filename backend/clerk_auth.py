@@ -186,7 +186,11 @@ async def verify_clerk_token(
         user_id=user_id,
         session_id=payload.get("session_id") or payload.get("sid"),
         azp=azp,
-        email=payload.get("email"),
+        # Clerk's DEFAULT session token has no email claim; it appears only if
+        # the instance adds it (Dashboard -> Sessions -> Customize session
+        # token). Accept both shapes so email-gated features work when it is
+        # present, and fall back to user_id gating when it is not.
+        email=payload.get("email") or payload.get("primary_email_address"),
     )
 
 
