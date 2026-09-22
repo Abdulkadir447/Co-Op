@@ -120,13 +120,21 @@ $env:TEST_DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-[region].po
 python -m pytest backend/tests -q
 ```
 
-Verified on PostgreSQL 16.2: **330 passed, 1 skipped** (the skip is the
+Verified on PostgreSQL 16.2: **331 passed, 1 skipped** (the skip is the
 live-Paystack test, which needs network egress). The cross-tenant isolation
 tests (`test_*_is_tenant_scoped`, `test_one_tenant_cannot_verify_anothers_reference`,
 `test_tenant_isolation.py`, and the Postgres-only
 `test_rls_isolates_a_non_owner_role_on_postgres`) all pass — the last one proves
 a non-owner role sees only the tenant in `app.business_id` while the owner sees
 everything.
+
+This run also includes **`test_migrations.py`**, which closes the structural gap
+that hid the two bugs below: the rest of the suite builds its schema with
+`create_all` and never executes the migrations' SQL, so `test_migrations.py`
+runs the real `alembic upgrade head` against a throwaway database and asserts it
+lands on `0016_merge_heads` with all 17 RLS policies (it skips if the role lacks
+`CREATEDB`). Running the suite against a Supabase staging project therefore
+verifies the migrations on Supabase itself, not just on a local Postgres.
 
 To run only the isolation subset:
 
