@@ -136,3 +136,44 @@ stands between you and launch is **operator work**, in this order:
 
 The DeepSeek "2,100 items" reduce to the six operator steps above plus the
 business tasks in §7. The code is not the bottleneck.
+
+---
+
+## Appendix — the three "silent blockers", verified against this codebase
+
+A launch review flagged three production risks that "eat weekends". Two are
+code-level and were verified directly against the source; the third is
+operator-only.
+
+1. **Webhook signature vs. JSON parsing — SAFE (no bug).**
+   `backend/main.py` `paystack_webhook_route` reads `raw = await request.body()`
+   and calls `verify_webhook_signature(raw, …)` — HMAC-SHA512 over the **raw
+   bytes** with `hmac.compare_digest` — *before* `json.loads(raw)`. The route
+   takes `request: Request`, not a Pydantic body model, so FastAPI never parses
+   the body before the HMAC runs. The classic "signature verifies locally then
+   fails in prod because a JSON middleware consumed the body first" bug **does
+   not apply here.**
+
+2. **RLS vs. backend role — by design, not a bug.** `backend/rls.py` ENABLES RLS
+   on every tenant table but deliberately does **not** `FORCE` it. The backend
+   connects as the table *owner*, and in Postgres the owner bypasses RLS — so
+   RLS does **not** constrain the backend's own queries. Tenant isolation is
+   enforced in **application code** (every query filters `business_id`), covered
+   by 23 cross-tenant tests (`test_*_is_tenant_scoped`,
+   `test_one_tenant_cannot_verify_anothers_reference`, …) — all passing. The
+   `app.business_id` GUC *is* set per request (`main.py:335`
+   `set_tenant_context`), so RLS becomes a real database backstop the day a
+   non-owner role (e.g. Supabase PostgREST `anon`/`auth`) touches the DB.
+   **Do not** try to "test RLS with a real user token per table" — this
+   backend-only architecture has no per-user DB role; that test model does not
+   fit. The real deploy task is simply: run migration `0014` on Postgres so the
+   backstop exists.
+
+3. **Clerk dev → prod instance — operator, and the genuine #1 silent blocker.**
+   Not verifiable in code. Dev (`pk_test_`/`sk_test_`) and production are
+   separate Clerk instances with **separate user pools**; users do not migrate.
+   Create the prod instance, swap the keys, and re-test login before launch —
+   otherwise prod looks "empty".
+
+Verified this turn: `pytest backend/tests` → **328 passed, 3 skipped** (the 3
+skips are the live-Paystack and Postgres-RLS tests that need egress/Postgres).
