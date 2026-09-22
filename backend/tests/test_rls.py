@@ -85,14 +85,20 @@ async def test_rls_isolates_a_non_owner_role_on_postgres():
             # The OWNER bypasses RLS: sees both rows regardless of the GUC.
             rows = (await conn.execute(text("SELECT count(*) FROM rls_probe"))).scalar()
             assert rows == 2
+            # The SELECT above autobegan a transaction; close it before opening
+            # the explicit one below (SQLAlchemy 2.0 forbids begin() while one
+            # is already active).
+            await conn.commit()
 
-            # A non-owner role is locked to the GUC's tenant.
-            async with conn.begin() as tx:
-                await tx.execute(text("SET ROLE rls_probe_role"))
-                await tx.execute(text(f"SELECT set_config('{GUC}', '1', true)"))
-                names = (await tx.execute(text("SELECT name FROM rls_probe"))).scalars().all()
+            # A non-owner role is locked to the GUC's tenant. Statements run on
+            # the connection (an AsyncTransaction has no .execute()); SET ROLE
+            # and the transaction-local GUC both reset when the block commits.
+            async with conn.begin():
+                await conn.execute(text("SET ROLE rls_probe_role"))
+                await conn.execute(text(f"SELECT set_config('{GUC}', '1', true)"))
+                names = (await conn.execute(text("SELECT name FROM rls_probe"))).scalars().all()
                 assert names == ["a"]
-                await tx.execute(text("SET ROLE NONE"))
+                await conn.execute(text("SET ROLE NONE"))
     finally:
         async with eng.begin() as conn:
             await conn.execute(text(

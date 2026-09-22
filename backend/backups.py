@@ -268,7 +268,11 @@ async def restore_backup(
                 description=row.get("description"),
                 category=row.get("category"),
                 unit_price=float(row.get("unit_price") or 0.0),
-                cost_price=row.get("cost_price"),
+                # cost_price is nullable, so cast only when present. The export
+                # stringifies every value (_iso), and SQLite coerces "4.0" back
+                # to a number silently — Postgres/asyncpg does not, so an
+                # uncast string here fails the insert on the real database.
+                cost_price=float(row["cost_price"]) if row.get("cost_price") is not None else None,
                 current_stock=int(row.get("current_stock") or 0),
                 reorder_level=int(row.get("reorder_level") or 0),
                 deleted_at=_parse_dt(row.get("deleted_at")),

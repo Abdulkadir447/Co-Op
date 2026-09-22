@@ -38,6 +38,12 @@ async def engine(tmp_path):
         url = "postgresql+asyncpg://" + url[len("postgresql://"):]
     eng = create_async_engine(url)
     async with eng.begin() as conn:
+        # Drop-then-create gives every test a clean slate. On the per-test
+        # SQLite temp file this is a no-op (the file is already empty); on a
+        # *shared* Postgres (TEST_DATABASE_URL) it is what stops one test's
+        # rows colliding with the next test's unique constraints (e.g. a
+        # reused SKU/email), since Postgres has no per-test temp file.
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield eng
     await eng.dispose()

@@ -69,16 +69,27 @@ async def set_tenant_context(db, business_id: int) -> None:
 
 
 def enable_rls_ddl() -> list[str]:
-    """The DDL migration 0014 runs on Postgres (guarded, idempotent)."""
+    """The DDL migration 0014 runs on Postgres (guarded, idempotent).
+
+    Each policy is wrapped in a ``to_regclass`` existence check. The tenant
+    tables are created across several migrations — and ``payments`` lives on a
+    *parallel* branch (``0011_payments``) that ``0014_rls`` may run before — so
+    the policy step must tolerate a table that does not exist yet rather than
+    raising ``relation does not exist``. ``0016_merge_heads`` re-runs this once
+    every branch is merged, so such tables still get their policy. The
+    ``ALTER TABLE IF EXISTS`` is already a no-op for a missing table.
+    """
     stmts: list[str] = []
     for table in TENANT_TABLES:
         stmts.append(f'ALTER TABLE IF EXISTS {table} ENABLE ROW LEVEL SECURITY')
         stmts.append(
             "DO $$ BEGIN "
+            f"IF to_regclass('public.{table}') IS NOT NULL THEN "
             f"DROP POLICY IF EXISTS tenant_isolation_{table} ON {table}; "
             f"CREATE POLICY tenant_isolation_{table} ON {table} "
             f"USING (business_id = current_setting('{GUC}', true)::int) "
             f"WITH CHECK (business_id = current_setting('{GUC}', true)::int); "
+            "END IF; "
             "END $$"
         )
     return stmts
