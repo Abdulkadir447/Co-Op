@@ -118,3 +118,71 @@ async def test_alembic_upgrade_head_runs_clean_and_enables_rls():
                 await conn.execute(text(f'DROP DATABASE IF EXISTS "{temp_name}"'))
         finally:
             await cleanup.dispose()
+
+
+@pytest.mark.skipif(NEEDS_PG, reason="requires Postgres (set TEST_DATABASE_URL)")
+@pytest.mark.asyncio
+async def test_alembic_rerun_and_rollback_are_safe():
+    """A deploy you can re-run and roll back — the 11pm scenarios.
+
+    * Idempotent re-run: ``upgrade head`` twice is a clean no-op, not an error
+      (what happens when a deploy half-succeeds and you re-run it).
+    * Rollback: ``downgrade`` to a *named* revision then ``upgrade head``
+      returns to the single head.
+
+    Note: ``downgrade -1`` does NOT work from the merge head — alembic raises
+    "Ambiguous walk" because the merge has two parents. You must target a named
+    revision (or ``base``). See docs/DEPLOY_POSTGRES.md.
+    """
+    base = make_url(_asyncpg_url(PG_URL))
+    temp_name = f"coop_mig_{uuid.uuid4().hex[:12]}"
+    maint = create_async_engine(base.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        async with maint.connect() as conn:
+            try:
+                await conn.execute(text(f'CREATE DATABASE "{temp_name}"'))
+            except Exception as exc:  # noqa: BLE001 — skip, don't fail, without CREATEDB
+                pytest.skip(f"role cannot CREATE DATABASE on this server: {exc}")
+    finally:
+        await maint.dispose()
+
+    temp_url = base.set(database=temp_name)
+    db_url = str(temp_url).replace("postgresql+asyncpg://", "postgresql://", 1)
+    env = {**os.environ, "DATABASE_URL": db_url}
+
+    def alembic(*args: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, "-m", "alembic", *args],
+            cwd=REPO_ROOT, env=env, capture_output=True, text=True,
+        )
+
+    try:
+        first = alembic("upgrade", "head")
+        assert first.returncode == 0, first.stderr
+
+        # #2 — re-running upgrade head is a no-op, not an error.
+        again = alembic("upgrade", "head")
+        assert again.returncode == 0, again.stderr
+
+        # #1 — roll back to a named revision (NOT -1), then re-apply to head.
+        down = alembic("downgrade", "0015_feedback")
+        assert down.returncode == 0, down.stderr
+        back = alembic("upgrade", "head")
+        assert back.returncode == 0, back.stderr
+
+        eng = create_async_engine(temp_url)
+        try:
+            async with eng.connect() as conn:
+                version = (
+                    await conn.execute(text("SELECT version_num FROM alembic_version"))
+                ).scalar()
+                assert version == HEAD, version
+        finally:
+            await eng.dispose()
+    finally:
+        cleanup = create_async_engine(base.set(database="postgres"), isolation_level="AUTOCOMMIT")
+        try:
+            async with cleanup.connect() as conn:
+                await conn.execute(text(f'DROP DATABASE IF EXISTS "{temp_name}"'))
+        finally:
+            await cleanup.dispose()

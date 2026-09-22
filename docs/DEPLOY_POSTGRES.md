@@ -150,8 +150,21 @@ Then deploy the backend with the production `DATABASE_URL`.
 
 ## Rollback
 
-`alembic downgrade -1` steps back one revision (the RLS migration's downgrade
-drops the policies). For anything worse, restore the §1 snapshot.
+**`alembic downgrade -1` does NOT work from the merge head** — alembic raises
+`Ambiguous walk` because `0016_merge_heads` has two parents and a relative step
+cannot pick a direction. Target a **named** revision instead:
+
+```bash
+alembic downgrade 0015_feedback   # step back past the merge (un-merges)
+alembic upgrade head              # re-apply forward to the single head
+# or, full teardown:
+alembic downgrade base
+```
+
+`0014_rls`'s downgrade drops the policies; `0016`'s RLS re-assert is idempotent,
+so re-upgrading is safe. For anything worse than a clean downgrade, restore the
+§1 snapshot. Both round-trips (idempotent re-run and downgrade→upgrade) are
+covered by `test_migrations.py::test_alembic_rerun_and_rollback_are_safe`.
 
 ---
 
