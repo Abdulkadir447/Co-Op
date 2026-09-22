@@ -281,6 +281,15 @@ app.whenReady().then(() => {
     // electron-builder appId (asserted in electron/test/windows.test.js).
     if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
 
+    // Deny every permission request by default (camera, microphone,
+    // geolocation, MIDI, USB, notifications, etc.). Co-op is a business app
+    // that uses none of them, so a denied prompt is never a missing feature —
+    // it just means a compromised renderer cannot ask the OS for device access.
+    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => {
+      callback(false);
+    });
+    session.defaultSession.setPermissionCheckHandler(() => false);
+
     dataLayerPath = defaultDbPath(app.getPath('userData'));
     dataLayer = createDataLayer(dataLayerPath);
     dataLayerApp = createDataLayerApp(dataLayer); // cold start: trust an existing mirror
