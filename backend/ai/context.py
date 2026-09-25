@@ -17,12 +17,13 @@ from typing import Any, Optional
 from sqlalchemy import func, select
 
 from .. import briefing as briefing_mod
-from ..models import Customer, Order, OrderItem, Product
+from .. import timezones as tz_mod
+from ..models import Business, Customer, Order, OrderItem, Product
 
 
-def _as_date(x) -> Optional[_dt.date]:
+def _as_date(x, tz) -> Optional[_dt.date]:
     if isinstance(x, _dt.datetime):
-        return x.date()
+        return tz_mod.utc_to_local_date(x, tz)
     return x
 
 
@@ -30,7 +31,11 @@ async def build_context(
     db, business_id: int, business_name: str = "", currency: str = "USD"
 ) -> dict[str, Any]:
     """Assemble the verified context for one business. Read-only."""
-    today = _dt.date.today()
+    business = (await db.execute(
+        select(Business).where(Business.id == business_id)
+    )).scalar_one_or_none()
+    tz = tz_mod.business_tz(business.timezone if business else None)
+    today = tz_mod.local_today(tz)
     first_this = today.replace(day=1)
     first_next = (
         _dt.date(today.year + 1, 1, 1)
@@ -106,7 +111,9 @@ async def build_context(
     customers = (await db.execute(
         select(Customer).where(Customer.business_id == bid, Customer.deleted_at.is_(None))
     )).scalars().all()
-    cust_new = sum(1 for c in customers if c.created_at and _as_date(c.created_at) >= first_this)
+    cust_new = sum(
+        1 for c in customers if c.created_at and _as_date(c.created_at, tz) >= first_this
+    )
 
     # Inactive: ordered before, nothing in 30+ days, ranked by lifetime value.
     cust_last: dict[int, _dt.date] = {}
@@ -114,7 +121,7 @@ async def build_context(
     for o in (await db.execute(select(Order).where(*order_scope))).scalars():
         if o.customer_id is None or not o.order_date:
             continue
-        od = _as_date(o.order_date)
+        od = _as_date(o.order_date, tz)
         if od is None:
             continue
         prev = cust_last.get(o.customer_id)
@@ -160,7 +167,7 @@ async def build_context(
         .limit(10)
     )).all()
     recent_orders = [
-        {"date": _as_date(o.order_date).isoformat() if o.order_date else None,
+        {"date": _as_date(o.order_date, tz).isoformat() if o.order_date else None,
          "customer": name, "total": round(o.total_amount or 0, 2), "status": o.status}
         for o, name in recent_rows
     ]

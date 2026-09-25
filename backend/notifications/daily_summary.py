@@ -29,6 +29,7 @@ from typing import Optional
 from sqlalchemy import select
 
 from .. import briefing as briefing_mod
+from .. import timezones as tz_mod
 from ..models import Business, Customer, Product
 from ..reports.service import ReportFilters, _pct, _scoped_lines
 from .schemas import (
@@ -53,11 +54,11 @@ _SEVERITY_RANK = {"critical": 0, "warning": 1, "info": 2}
 
 
 async def _window_revenue_orders(
-    db, business_id: int, start: dt.date, end: dt.date
+    db, business_id: int, start: dt.date, end: dt.date, tz
 ) -> tuple[float, int]:
     """(revenue, distinct order count) over [start, end] — reporting engine."""
     f = ReportFilters.from_query(from_str=start.isoformat(), to_str=end.isoformat())
-    orders, rows = await _scoped_lines(db, business_id, f, start, end)
+    orders, rows = await _scoped_lines(db, business_id, f, start, end, tz)
     revenue = sum(r[7] or 0 for r in rows)
     return revenue, len(orders)
 
@@ -77,15 +78,16 @@ def _month_to_date_points(
 
 
 async def build_daily_summary(db, business: Business) -> DailySummary:
-    today = dt.date.today()
+    tz = tz_mod.business_tz(business.timezone)
+    today = tz_mod.local_today(tz)
     currency = business.currency or "USD"
 
     # --- Today -------------------------------------------------------------
-    today_rev, today_orders = await _window_revenue_orders(db, business.id, today, today)
+    today_rev, today_orders = await _window_revenue_orders(db, business.id, today, today, tz)
 
     # --- Yesterday ---------------------------------------------------------
     yesterday = today - dt.timedelta(days=1)
-    yest_rev, yest_orders = await _window_revenue_orders(db, business.id, yesterday, yesterday)
+    yest_rev, yest_orders = await _window_revenue_orders(db, business.id, yesterday, yesterday, tz)
     vs_yesterday = DailySummaryVsYesterday(
         revenue=round(yest_rev, 2),
         orders=yest_orders,
@@ -94,12 +96,12 @@ async def build_daily_summary(db, business: Business) -> DailySummary:
 
     # --- Month-to-date vs same point last month ----------------------------
     (cur_start, cur_end), prev_window = _month_to_date_points(today)
-    mtd_rev, mtd_orders = await _window_revenue_orders(db, business.id, cur_start, cur_end)
+    mtd_rev, mtd_orders = await _window_revenue_orders(db, business.id, cur_start, cur_end, tz)
     prev_mtd_rev: Optional[float] = None
     mtd_change: Optional[float] = None
     if prev_window:
         prev_mtd_rev, _ = await _window_revenue_orders(
-            db, business.id, prev_window[0], prev_window[1]
+            db, business.id, prev_window[0], prev_window[1], tz
         )
         mtd_change = _pct(mtd_rev, prev_mtd_rev) if prev_mtd_rev else None
     month_to_date = DailySummaryMonthToDate(
@@ -153,8 +155,8 @@ async def build_daily_summary(db, business: Business) -> DailySummary:
     out_items = [DailySummaryOutItem(name=p.name, sku=p.sku or "") for p in out[:5]]
 
     # --- Customer activity (new today) -------------------------------------
-    start_today = dt.datetime.combine(today, dt.time.min)
-    end_today = dt.datetime.combine(today + dt.timedelta(days=1), dt.time.min)
+    start_today = tz_mod.local_midnight_utc(today, tz)
+    end_today = tz_mod.local_midnight_utc(today + dt.timedelta(days=1), tz)
     new_customers = (await db.execute(
         select(Customer).where(
             Customer.business_id == business.id,

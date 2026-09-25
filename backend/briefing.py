@@ -21,7 +21,8 @@ from typing import Any, Optional
 
 from sqlalchemy import select
 
-from .models import Customer, Order, OrderItem, Product
+from . import timezones as tz_mod
+from .models import Business, Customer, Order, OrderItem, Product
 
 
 @dataclass
@@ -36,10 +37,10 @@ class BriefingInsight:
     action: Optional[dict[str, Any]] = field(default=None)  # e.g. draft follow-up
 
 
-def _as_date(x):
-    """SQLite may return datetime where the model says DateTime -> normalize to date."""
+def _as_date(x, tz):
+    """Local calendar date of a naive-UTC timestamp (a date passes through)."""
     if isinstance(x, _dt.datetime):
-        return x.date()
+        return tz_mod.utc_to_local_date(x, tz)
     return x
 
 
@@ -52,7 +53,11 @@ def _pct(v: float) -> str:
 
 
 async def build_briefing(db, business_id: int) -> dict[str, Any]:
-    today = _dt.date.today()
+    business = (await db.execute(
+        select(Business).where(Business.id == business_id)
+    )).scalar_one_or_none()
+    tz = tz_mod.business_tz(business.timezone if business else None)
+    today = tz_mod.local_today(tz)
 
     orders = (await db.execute(
         select(Order).where(Order.business_id == business_id, Order.deleted_at.is_(None))
@@ -90,7 +95,7 @@ async def build_briefing(db, business_id: int) -> dict[str, Any]:
     # ------------------------------------------------------------------
     # History window
     # ------------------------------------------------------------------
-    dates = [_as_date(o.order_date) for o in orders if o.order_date]
+    dates = [_as_date(o.order_date, tz) for o in orders if o.order_date]
     first_day = min(dates) if dates else None
     last_day = max(dates) if dates else None
     span_days = (last_day - first_day).days + 1 if (first_day and last_day) else 0
@@ -124,7 +129,7 @@ async def build_briefing(db, business_id: int) -> dict[str, Any]:
     monthly: dict[_dt.date, float] = {}
     month_orders: dict[_dt.date, int] = {}
     for o in orders:
-        od = _as_date(o.order_date)
+        od = _as_date(o.order_date, tz)
         if not od:
             continue
         m = _dt.date(od.year, od.month, 1)
@@ -184,7 +189,7 @@ async def build_briefing(db, business_id: int) -> dict[str, Any]:
         if o.customer_id is None:
             continue
         cust_revenue[o.customer_id] = cust_revenue.get(o.customer_id, 0.0) + o.total_amount
-        od = _as_date(o.order_date)
+        od = _as_date(o.order_date, tz)
         if od:
             prev = cust_last.get(o.customer_id)
             if prev is None or od > prev:

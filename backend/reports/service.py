@@ -17,7 +17,8 @@ from typing import Any, Optional
 
 from sqlalchemy import select
 
-from ..models import Customer, Order, OrderItem, Product
+from .. import timezones as tz_mod
+from ..models import Business, Customer, Order, OrderItem, Product
 from .filters import ReportFilters, fmt_full_date, fmt_short_date
 
 
@@ -109,15 +110,22 @@ def _pct(cur: Optional[float], prev: Optional[float]) -> Optional[float]:
     return round((cur - prev) / abs(prev) * 100, 1)
 
 
-def _as_date(x) -> Optional[dt.date]:
-    return x.date() if isinstance(x, dt.datetime) else x
+def _as_date(x, tz) -> Optional[dt.date]:
+    """Local calendar date of a naive-UTC timestamp (a date passes through).
+
+    Bucketing by the business's local day keeps a near-midnight sale on the
+    right day for non-UTC tenants; tz=UTC reproduces the old behaviour.
+    """
+    if isinstance(x, dt.datetime):
+        return tz_mod.utc_to_local_date(x, tz)
+    return x
 
 
 # ---------------------------------------------------------------------------
 # Shared line-level scope (the single place order/item rows are filtered)
 # ---------------------------------------------------------------------------
 
-async def _scoped_lines(db, business_id: int, f: ReportFilters, start: dt.date, end: dt.date):
+async def _scoped_lines(db, business_id: int, f: ReportFilters, start: dt.date, end: dt.date, tz):
     """Return (orders, line_rows) for the window [start, end].
 
     line_rows: (order_id, customer_id, product_id, product_name, category,
@@ -138,8 +146,8 @@ async def _scoped_lines(db, business_id: int, f: ReportFilters, start: dt.date, 
             Order.business_id == business_id,
             Order.deleted_at.is_(None),
             Order.status != "cancelled",
-            Order.order_date >= dt.datetime.combine(start, dt.time.min),
-            Order.order_date < dt.datetime.combine(end + dt.timedelta(days=1), dt.time.min),
+            Order.order_date >= tz_mod.local_midnight_utc(start, tz),
+            Order.order_date < tz_mod.local_midnight_utc(end + dt.timedelta(days=1), tz),
         )
     )
     if f.product_id:
@@ -184,8 +192,8 @@ def _fmt_bucket(d: dt.date, mode: str) -> str:
 # Sales report
 # ---------------------------------------------------------------------------
 
-async def sales_report(db, business_id: int, f: ReportFilters) -> ReportData:
-    orders, rows = await _scoped_lines(db, business_id, f, f.from_date, f.to_date)
+async def sales_report(db, business_id: int, f: ReportFilters, tz) -> ReportData:
+    orders, rows = await _scoped_lines(db, business_id, f, f.from_date, f.to_date, tz)
     revenue = sum(r[7] or 0 for r in rows)
     units = sum(r[5] or 0 for r in rows)
     n_orders = len(orders)
@@ -204,7 +212,7 @@ async def sales_report(db, business_id: int, f: ReportFilters) -> ReportData:
     if f.compare != "none":
         prev = f.previous_range()
         if prev:
-            p_orders, p_rows = await _scoped_lines(db, business_id, f, prev[0], prev[1])
+            p_orders, p_rows = await _scoped_lines(db, business_id, f, prev[0], prev[1], tz)
             p_revenue = sum(r[7] or 0 for r in p_rows)
             p_units = sum(r[5] or 0 for r in p_rows)
             p_n = len(p_orders)
@@ -214,9 +222,9 @@ async def sales_report(db, business_id: int, f: ReportFilters) -> ReportData:
                 "units": p_units,
                 "aov": _round(p_revenue / p_n) if p_n else None,
             }
-            mode, _ = _bucketize([_as_date(o.order_date) for o in p_orders if o.order_date])
+            mode, _ = _bucketize([_as_date(o.order_date, tz) for o in p_orders if o.order_date])
             for o in p_orders:
-                od = _as_date(o.order_date)
+                od = _as_date(o.order_date, tz)
                 if od:
                     prev_series[_bucket_key(od, mode)] = prev_series.get(
                         _bucket_key(od, mode), 0
@@ -232,11 +240,11 @@ async def sales_report(db, business_id: int, f: ReportFilters) -> ReportData:
     )
 
     # Chart: revenue over time (+ comparison overlay).
-    order_dates = [_as_date(o.order_date) for o in orders if o.order_date]
+    order_dates = [_as_date(o.order_date, tz) for o in orders if o.order_date]
     mode, _ = _bucketize(order_dates)
     cur_series: dict[dt.date, float] = {}
     for o in orders:
-        od = _as_date(o.order_date)
+        od = _as_date(o.order_date, tz)
         if od:
                     cur_series[_bucket_key(od, mode)] = cur_series.get(
                         _bucket_key(od, mode), 0
@@ -368,8 +376,8 @@ def _compare_label(f: ReportFilters, prev: tuple[dt.date, dt.date]) -> str:
 # Profit & Loss (gross) report
 # ---------------------------------------------------------------------------
 
-async def profit_loss_report(db, business_id: int, f: ReportFilters) -> ReportData:
-    orders, rows = await _scoped_lines(db, business_id, f, f.from_date, f.to_date)
+async def profit_loss_report(db, business_id: int, f: ReportFilters, tz) -> ReportData:
+    orders, rows = await _scoped_lines(db, business_id, f, f.from_date, f.to_date, tz)
     revenue = sum(r[7] or 0 for r in rows)
     cogs = sum((r[8] or 0) * (r[5] or 0) for r in rows if r[8] is not None)
     cost_covered_value = sum((r[6] or 0) * (r[5] or 0) for r in rows if r[8] is not None)
@@ -401,7 +409,7 @@ async def profit_loss_report(db, business_id: int, f: ReportFilters) -> ReportDa
     if f.compare != "none":
         prev = f.previous_range()
         if prev:
-            p_orders, p_rows = await _scoped_lines(db, business_id, f, prev[0], prev[1])
+            p_orders, p_rows = await _scoped_lines(db, business_id, f, prev[0], prev[1], tz)
             p_revenue = sum(r[7] or 0 for r in p_rows)
             p_cogs = sum((r[8] or 0) * (r[5] or 0) for r in p_rows if r[8] is not None)
             p_gross = p_revenue - p_cogs
@@ -418,7 +426,7 @@ async def profit_loss_report(db, business_id: int, f: ReportFilters) -> ReportDa
                 kpis[3].change_percent = round(margin - p_margin, 1)
 
     # Chart: revenue vs gross profit over time.
-    order_dates = [_as_date(o.order_date) for o in orders if o.order_date]
+    order_dates = [_as_date(o.order_date, tz) for o in orders if o.order_date]
     mode, _ = _bucketize(order_dates)
     rev_series: dict[dt.date, float] = {}
     gp_series: dict[dt.date, float] = {}
@@ -426,7 +434,7 @@ async def profit_loss_report(db, business_id: int, f: ReportFilters) -> ReportDa
     for r in rows:
         order_items[r[0]].append(r)
     for o in orders:
-        od = _as_date(o.order_date)
+        od = _as_date(o.order_date, tz)
         if not od:
             continue
         k = _bucket_key(od, mode)
@@ -504,7 +512,7 @@ async def profit_loss_report(db, business_id: int, f: ReportFilters) -> ReportDa
 # Inventory report (point-in-time + movement within the period)
 # ---------------------------------------------------------------------------
 
-async def inventory_report(db, business_id: int, f: ReportFilters) -> ReportData:
+async def inventory_report(db, business_id: int, f: ReportFilters, tz) -> ReportData:
     products = (await db.execute(
         select(Product).where(Product.business_id == business_id, Product.deleted_at.is_(None))
     )).scalars().all()
@@ -558,9 +566,9 @@ async def inventory_report(db, business_id: int, f: ReportFilters) -> ReportData
         select(StockMovement).where(
             StockMovement.business_id == business_id,
             StockMovement.product_id.in_([p.id for p in products]) if products else False,
-            StockMovement.created_at >= dt.datetime.combine(f.from_date, dt.time.min),
+            StockMovement.created_at >= tz_mod.local_midnight_utc(f.from_date, tz),
             StockMovement.created_at
-            < dt.datetime.combine(f.to_date + dt.timedelta(days=1), dt.time.min),
+            < tz_mod.local_midnight_utc(f.to_date + dt.timedelta(days=1), tz),
         )
     )).scalars().all() if products else []
     prod_names = {p.id: p.name for p in products}
@@ -572,7 +580,7 @@ async def inventory_report(db, business_id: int, f: ReportFilters) -> ReportData
     mv_rows = sorted(mv.items(), key=lambda kv: -(kv[1]["in"] + kv[1]["out"]))[:10]
 
     # Slow/fast movers: units sold in the period vs stock on hand.
-    orders, rows = await _scoped_lines(db, business_id, f, f.from_date, f.to_date)
+    orders, rows = await _scoped_lines(db, business_id, f, f.from_date, f.to_date, tz)
     sold: dict[str, int] = {}
     for r in rows:
         sold[r[3]] = sold.get(r[3], 0) + (r[5] or 0)
@@ -640,14 +648,14 @@ async def inventory_report(db, business_id: int, f: ReportFilters) -> ReportData
 # Customers report
 # ---------------------------------------------------------------------------
 
-async def customers_report(db, business_id: int, f: ReportFilters) -> ReportData:
+async def customers_report(db, business_id: int, f: ReportFilters, tz) -> ReportData:
     customers = (await db.execute(
         select(Customer).where(Customer.business_id == business_id, Customer.deleted_at.is_(None))
     )).scalars().all()
     cust_by_id = {c.id: c for c in customers}
 
-    start = dt.datetime.combine(f.from_date, dt.time.min)
-    end = dt.datetime.combine(f.to_date + dt.timedelta(days=1), dt.time.min)
+    start = tz_mod.local_midnight_utc(f.from_date, tz)
+    end = tz_mod.local_midnight_utc(f.to_date + dt.timedelta(days=1), tz)
     period_orders = (await db.execute(
         select(Order).where(
             Order.business_id == business_id, Order.deleted_at.is_(None),
@@ -657,7 +665,7 @@ async def customers_report(db, business_id: int, f: ReportFilters) -> ReportData
 
     total_customers = len(customers)
     new_in_period = [c for c in customers
-                     if c.created_at and f.from_date <= _as_date(c.created_at) <= f.to_date]
+                     if c.created_at and f.from_date <= _as_date(c.created_at, tz) <= f.to_date]
 
     orders_by_cust: dict[int, list] = {}
     for o in period_orders:
@@ -685,13 +693,13 @@ async def customers_report(db, business_id: int, f: ReportFilters) -> ReportData
         if not o.customer_id:
             continue
         lifetime[o.customer_id] = lifetime.get(o.customer_id, 0) + (o.total_amount or 0)
-        od = _as_date(o.order_date)
+        od = _as_date(o.order_date, tz)
         if od:
             prev = last_order.get(o.customer_id)
             if prev is None or od > prev:
                 last_order[o.customer_id] = od
 
-    today = dt.date.today()
+    today = tz_mod.local_today(tz)
     inactive = [
         (cid, (today - last_order[cid]).days, lifetime.get(cid, 0.0))
         for cid in last_order
@@ -714,7 +722,7 @@ async def customers_report(db, business_id: int, f: ReportFilters) -> ReportData
         )
 
     # Chart: new customers over time (creation dates within the period).
-    new_dates = [_as_date(c.created_at) for c in new_in_period if c.created_at]
+    new_dates = [_as_date(c.created_at, tz) for c in new_in_period if c.created_at]
     mode, _ = _bucketize(new_dates)
     new_series: dict[dt.date, int] = {}
     for d in new_dates:
@@ -738,9 +746,9 @@ async def customers_report(db, business_id: int, f: ReportFilters) -> ReportData
     ]
     new_rows = sorted(
         (c for c in new_in_period),
-        key=lambda c: _as_date(c.created_at) or today,
+        key=lambda c: _as_date(c.created_at, tz) or today,
     )[:10]
-    new_rows = [[c.full_name, fmt_full_date(_as_date(c.created_at) or today),
+    new_rows = [[c.full_name, fmt_full_date(_as_date(c.created_at, tz) or today),
                  _round(period_revenue_by_cust.get(c.id, 0))] for c in new_rows]
 
     return ReportData(
@@ -796,4 +804,10 @@ async def build_report(db, business_id: int, key: str, f: ReportFilters) -> Repo
     builder = REPORT_BUILDERS.get(key)
     if builder is None:
         raise KeyError(key)
-    return await builder(db, business_id, f)
+    # Bucket by the business's local day (UTC when unset) so near-midnight
+    # sales land on the right day for non-UTC tenants.
+    business = (await db.execute(
+        select(Business).where(Business.id == business_id)
+    )).scalar_one_or_none()
+    tz = tz_mod.business_tz(business.timezone if business else None)
+    return await builder(db, business_id, f, tz)
