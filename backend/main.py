@@ -74,6 +74,7 @@ from .models import (
     StockMovement,
     StockMovementReason,
 )
+from . import timezones as tz_mod
 from .schemas import (
     ALLOWED_CURRENCIES,
     ALLOWED_TIMEZONES,
@@ -1749,20 +1750,28 @@ async def revenue_timeseries(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> List[TimeseriesPoint]:
-    """Daily revenue/orders for the Revenue chart (missing days are omitted;
-    the frontend fills gaps with zeros rather than inventing data)."""
-    since = datetime.combine(date.today() - timedelta(days=days - 1), time.min)
-    day = func.date(Order.order_date).label("day")
+    """Daily revenue/orders for the Revenue chart, bucketed by the business's
+    LOCAL day (missing days are omitted; the frontend fills gaps with zeros
+    rather than inventing data). Bucketing in Python keeps it identical on
+    SQLite and Postgres; the day boundary follows Business.timezone (UTC default)."""
+    tz = tz_mod.business_tz(business.timezone)
+    first_local_day = tz_mod.local_today(tz) - timedelta(days=days - 1)
+    since = tz_mod.local_midnight_utc(first_local_day, tz)
     rows = (await db.execute(
-        select(day, func.coalesce(func.sum(Order.total_amount), 0.0), func.count(Order.id))
+        select(Order.order_date, Order.total_amount)
         .where(Order.business_id == business.id, Order.deleted_at.is_(None),
                Order.status.in_(_ACTIVE_STATUSES), Order.order_date >= since)
-        .group_by(day)
-        .order_by(day)
     )).all()
+    buckets: dict[date, list] = {}
+    for order_date, amount in rows:
+        if order_date is None:
+            continue
+        bucket = buckets.setdefault(tz_mod.utc_to_local_date(order_date, tz), [0.0, 0])
+        bucket[0] += float(amount or 0.0)
+        bucket[1] += 1
     return [
-        TimeseriesPoint(date=str(row[0]), revenue=row[1], orders=row[2])
-        for row in rows
+        TimeseriesPoint(date=str(day), revenue=bucket[0], orders=bucket[1])
+        for day, bucket in sorted(buckets.items())
     ]
 
 
@@ -1792,11 +1801,13 @@ async def revenue_today(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> RevenueTodayResponse:
+    tz = tz_mod.business_tz(business.timezone)
+    today_start = tz_mod.local_midnight_utc(tz_mod.local_today(tz), tz)
     row = (await db.execute(
         select(func.coalesce(func.sum(Order.total_amount), 0.0), func.count(Order.id))
         .where(Order.business_id == business.id, Order.deleted_at.is_(None),
                Order.status == "delivered",
-               Order.order_date >= datetime.combine(date.today(), time.min))
+               Order.order_date >= today_start)
     )).one()
     return RevenueTodayResponse(total_revenue=row[0], delivered_orders=row[1])
 
@@ -1806,13 +1817,16 @@ async def revenue_current_month(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> RevenueMonthResponse:
-    today = date.today()
+    tz = tz_mod.business_tz(business.timezone)
+    today = tz_mod.local_today(tz)
+    month_start = tz_mod.local_midnight_utc(_first_day_of_month(today), tz)
+    month_end = tz_mod.local_midnight_utc(_next_month_start(today), tz)
     row = (await db.execute(
         select(func.coalesce(func.sum(Order.total_amount), 0.0), func.count(Order.id))
         .where(Order.business_id == business.id, Order.deleted_at.is_(None),
                Order.status.in_(_ACTIVE_STATUSES),
-               Order.order_date >= datetime.combine(_first_day_of_month(today), time.min),
-               Order.order_date < datetime.combine(_next_month_start(today), time.min))
+               Order.order_date >= month_start,
+               Order.order_date < month_end)
     )).one()
     return RevenueMonthResponse(total_revenue=row[0], total_orders=row[1])
 
