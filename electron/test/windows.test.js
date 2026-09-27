@@ -43,6 +43,10 @@ const { ASIDE_SUFFIX, isSqliteFile, replaceDbFile, snapshot } = require('../db/b
 
 const WIN = 'win32';
 const APPDATA = 'C:\\Users\\Amina\\AppData\\Roaming';
+// The platform this suite is actually running on. Tests that temporarily stand
+// in for Windows must restore THIS, not a hardcoded 'linux' — the suite runs on
+// a Windows runner too, where the host really is win32.
+const HOST = process.platform;
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'coop-win-'));
@@ -468,7 +472,7 @@ test('with no platform argument, a Windows machine gets Windows behaviour', () =
     assert.strictEqual(sqliteUrl('C:\\data\\coop.db'), 'sqlite+aiosqlite:///C:/data/coop.db');
   });
   // the host platform must be restored for the tests that follow
-  assert.strictEqual(process.platform, 'linux');
+  assert.strictEqual(process.platform, HOST);
 });
 
 test('with no platform argument, this machine keeps its own behaviour', () => {
@@ -480,24 +484,29 @@ test('with no platform argument, this machine keeps its own behaviour', () => {
 // J. Needs a real Windows filesystem — skipped everywhere else
 // ---------------------------------------------------------------------------
 
-test('win32 (real): an open handle really does block deletion', { skip: process.platform !== WIN && 'requires Windows' }, () => {
+// The production retry path exists because *external* handles — antivirus, the
+// Search indexer, Explorer previews — open files WITHOUT FILE_SHARE_DELETE and
+// so really do block deletion. Node's own fs.open cannot reproduce that: libuv
+// requests FILE_SHARE_READ | WRITE | DELETE, so a Node-held handle lets the
+// delete straight through. This test used to assert the opposite and only ever
+// "passed" because it was skipped off Windows; it failed the first time a
+// Windows runner ran it. The classification and retry loop that cover the real
+// external-handle case are the two tests either side of this one.
+test('win32 (real): a Node-held handle does NOT block deletion (libuv shares delete)', { skip: process.platform !== WIN && 'requires Windows' }, () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'coop-winlock-'));
   const file = path.join(dir, 'coop.db');
   fs.writeFileSync(file, 'SQLite format 3\u0000......');
   const fd = fs.openSync(file, 'r+');
   try {
-    assert.throws(
-      () => fs.rmSync(file),
-      (err) => {
-        assert.ok(isTransientWindowsError(err, WIN), `unexpected code: ${err.code}`);
-        return true;
-      },
-    );
+    // The delete must go through even though we are holding a handle.
+    fs.rmSync(file);
   } finally {
     fs.closeSync(fd);
-    fs.rmSync(file, { force: true });
-    fs.rmSync(dir, { recursive: true, force: true });
   }
+  // Windows can leave a delete-pending name visible until the last handle
+  // closes, so assert it is gone only after closing ours.
+  assert.strictEqual(fs.existsSync(file), false, 'the file must be gone once the handle closes');
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('win32 (real): the retry helper recovers from a held handle', { skip: process.platform !== WIN && 'requires Windows' }, () => {
