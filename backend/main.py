@@ -94,6 +94,8 @@ from .schemas import (
     FeedbackSubmitIn,
     GrowthResponse,
     InventorySummary,
+    IssueReportIn,
+    IssueReportOut,
     MovementListResponse,
     OrderCreate,
     OrderListResponse,
@@ -2665,6 +2667,76 @@ async def feedback_list_route(
     from . import feedback as feedback_mod
 
     return await feedback_mod.list_feedback(db, business, limit=limit)
+
+
+# ---------------------------------------------------------------------------
+# Support — owner-raised issue reports (the "Report an issue" page).
+#
+# The mirror image of the feedback prompt above: feedback is something Co-op
+# asks for on a cadence, an issue report is raised whenever something is wrong.
+# Storage lives in backend/support.py; these are thin routes.
+# ---------------------------------------------------------------------------
+@app.post("/support/issues", response_model=IssueReportOut, tags=["Support"])
+async def support_submit_issue(
+    req: IssueReportIn,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Record a problem report and email it to the support inbox.
+
+    Always allowed: there is no cadence, no prompt to dismiss and no limit on
+    how often a business can ask for help.
+    """
+    from . import support as support_mod
+
+    try:
+        row = await support_mod.record_issue_report(db, business, user.user_id, req)
+    except support_mod.InvalidIssueReport as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # Best-effort email to the support inbox. The report is already stored, so
+    # a delivery failure (or no inbox configured yet) must never block it.
+    try:
+        await run_in_threadpool(
+            delivery_mod.send_issue_report_email, business.name,
+            category=row.category, severity=row.severity, subject=row.subject,
+            description=row.description, contact_email=row.contact_email,
+            app_version=row.app_version, platform=row.platform,
+            submitted_by=user.user_id,
+        )
+    except Exception:  # noqa: BLE001 — email is best-effort, never fatal here
+        pass
+
+    return {
+        "id": row.id,
+        "category": row.category,
+        "severity": row.severity,
+        "subject": row.subject,
+        "description": row.description,
+        "contact_email": row.contact_email,
+        "app_version": row.app_version,
+        "platform": row.platform,
+        "status": row.status,
+        "submitted_by": row.submitted_by,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+@app.get("/support/issues", response_model=List[IssueReportOut], tags=["Support"])
+async def support_list_issues(
+    limit: int = Query(100, ge=1, le=500),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """This business's own issue reports, newest first.
+
+    Not owner-only: whoever can raise a report should be able to see what has
+    already been sent, so the same problem is not reported twice.
+    """
+    from . import support as support_mod
+
+    return await support_mod.list_issue_reports(db, business, limit=limit)
 
 
 # ---------------------------------------------------------------------------

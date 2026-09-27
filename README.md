@@ -155,6 +155,10 @@ Copy `.env.example` to `.env` and fill in real values. The important ones:
 | `OPENAI_API_KEY` | optional | Enables the real AI assistant |
 | `OPENAI_MODEL` | optional | Model override (default from `config/*.json`) |
 | `TEST_DATABASE_URL` | tests | Postgres URL to enable true-concurrency tests |
+| `RESEND_API_KEY` | optional | Enables outbound email (Resend). Unset = email features no-op, nothing is hardcoded |
+| `RESEND_FROM` | optional | Verified sender address for Resend |
+| `FEEDBACK_INBOX` | optional | Where the periodic product-feedback prompt is emailed |
+| `SUPPORT_INBOX` | optional | Where "Report an issue" reports are emailed. Falls back to `FEEDBACK_INBOX` so both can share one inbox |
 
 > SQLite is used **only** when `COOP_ENV=testing` (or by the test suite).
 > There is no silent fallback in production/development.

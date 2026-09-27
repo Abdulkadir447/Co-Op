@@ -264,3 +264,61 @@ def send_feedback_email(
     body += ["—", f"Business: {business_name}", f"Submitted by: {submitted_by or 'owner'}"]
 
     send_email(inbox, f"[CO OP feedback] {business_name}", "\n".join(body).rstrip())
+
+
+def support_inbox() -> str | None:
+    """Where issue reports are emailed. Falls back to the feedback inbox.
+
+    ``SUPPORT_INBOX`` (or ``notifications.support.to``) can route issue reports
+    somewhere separate from product feedback; unset means they share an inbox.
+    """
+    cfg = load_config().get("notifications", {}).get("support", {})
+    return os.getenv("SUPPORT_INBOX") or cfg.get("to") or feedback_inbox()
+
+
+def send_issue_report_email(
+    business_name: str,
+    *,
+    category: str,
+    severity: str,
+    subject: str,
+    description: str,
+    contact_email: str | None = None,
+    app_version: str | None = None,
+    platform: str | None = None,
+    submitted_by: str | None = None,
+) -> None:
+    """Email one issue report to the support inbox (best-effort).
+
+    Silently no-ops when no inbox is configured yet, so wiring this in before
+    the destination exists is safe.
+    """
+    inbox = support_inbox()
+    if not inbox:
+        return
+
+    body: list[str] = [
+        f"New issue report from {business_name}.",
+        "",
+        f"Subject: {subject}",
+        f"Category: {category}",
+        f"Severity: {severity}",
+        "",
+        "Description:",
+        description.strip(),
+        "",
+    ]
+    for heading, value in (
+        ("Reply to", contact_email),
+        ("App version", app_version),
+        ("Platform", platform),
+    ):
+        if value and value.strip():
+            body.append(f"{heading}: {value.strip()}")
+    body += ["", "—", f"Business: {business_name}", f"Submitted by: {submitted_by or 'owner'}"]
+
+    send_email(
+        inbox,
+        f"[CO OP issue/{severity}] {subject[:80]}",
+        "\n".join(body).rstrip(),
+    )

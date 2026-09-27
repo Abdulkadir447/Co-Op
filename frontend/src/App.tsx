@@ -43,6 +43,7 @@ const CoopAiPage = lazy(() => import('./pages/CoopAi'));
 const BillingPage = lazy(() => import('./pages/Billing'));
 const SyncPage = lazy(() => import('./pages/Sync'));
 const AdminPage = lazy(() => import('./pages/Admin'));
+const SupportPage = lazy(() => import('./pages/Support'));
 
 const RouteFallback = () => (
   <div style={{ minHeight: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -448,6 +449,7 @@ const App: React.FC = () => {
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/briefing" element={<BriefingPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/support" element={<SupportPage />} />
                         <Route path="/admin" element={<AdminPage />} />
                         <Route path="*" element={<NotFoundPage />} />
                       </Routes>

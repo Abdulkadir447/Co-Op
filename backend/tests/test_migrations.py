@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 PG_URL = os.getenv("TEST_DATABASE_URL", "")
 NEEDS_PG = not PG_URL.startswith("postgres")
 REPO_ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0016_merge_heads"
+HEAD = "0017_issue_reports"
 
 
 def _asyncpg_url(url: str) -> str:
@@ -89,10 +89,12 @@ async def test_alembic_upgrade_head_runs_clean_and_enables_rls():
                         )
                     )
                 ).scalars().all()
-                # All 17 tenant tables, including payments (created on the
-                # parallel branch — the bug this test exists to catch).
-                assert len(policies) == 17, sorted(policies)
+                # All 18 tenant tables, including payments (created on the
+                # parallel branch — the bug this test exists to catch) and
+                # issue_reports (added by 0017, which re-runs the RLS DDL).
+                assert len(policies) == 18, sorted(policies)
                 assert "payments" in policies, sorted(policies)
+                assert "issue_reports" in policies, sorted(policies)
 
                 # Enabled but NOT forced: the owner-bypass backstop, not a
                 # constraint on the backend's own (owner) connection.

@@ -5,6 +5,7 @@
 import React from 'react';
 import {
   BarChartOutlined,
+  CustomerServiceOutlined,
   DashboardOutlined,
   FileTextOutlined,
   InboxOutlined,
@@ -37,4 +38,5 @@ export const NAV_ITEMS: NavItem[] = [
 /** Secondary section (account-level). */
 export const NAV_SECONDARY: NavItem[] = [
   { key: 'settings', label: 'Settings', path: '/settings', icon: <SettingOutlined /> },
+  { key: 'support', label: 'Report an issue', path: '/support', icon: <CustomerServiceOutlined /> },
 ];

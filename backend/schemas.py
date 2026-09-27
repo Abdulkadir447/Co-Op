@@ -468,3 +468,44 @@ class FeedbackOut(BaseModel):
     improvements: Optional[str] = None
     submitted_by: Optional[str] = None
     created_at: Optional[str] = None
+
+
+# --- Support: owner-raised issue reports ------------------------------------
+# The mirror image of feedback: Co-op asks for feedback on a cadence, an issue
+# report is raised by the owner whenever something is wrong.
+ISSUE_CATEGORIES = frozenset({
+    "bug", "data", "billing", "performance", "import", "feature", "other",
+})
+ISSUE_SEVERITIES = frozenset({"low", "normal", "high", "critical"})
+
+
+class IssueReportIn(BaseModel):
+    """A problem report from the in-app "Report an issue" page.
+
+    ``subject`` and ``description`` are required — a report we cannot
+    understand cannot be fixed. ``contact_email`` is deliberately a plain
+    string, not ``EmailStr``: it is an optional convenience, and a typo in it
+    must never block someone reporting a critical bug.
+    """
+    category: str = Field("other", max_length=32)
+    severity: str = Field("normal", max_length=16)
+    subject: str = Field(..., min_length=3, max_length=200)
+    description: str = Field(..., min_length=10, max_length=8000)
+    contact_email: Optional[str] = Field(None, max_length=255)
+    app_version: Optional[str] = Field(None, max_length=64)
+    platform: Optional[str] = Field(None, max_length=32)
+
+
+class IssueReportOut(BaseModel):
+    """One stored issue report (GET /support/issues, owner-only)."""
+    id: int
+    category: str = "other"
+    severity: str = "normal"
+    subject: str
+    description: str
+    contact_email: Optional[str] = None
+    app_version: Optional[str] = None
+    platform: Optional[str] = None
+    status: str = "new"
+    submitted_by: Optional[str] = None
+    created_at: Optional[str] = None

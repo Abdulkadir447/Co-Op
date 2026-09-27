@@ -717,3 +717,35 @@ class Feedback(Base):
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Feedback business={self.business_id} kind={self.kind!r}>"
+
+
+class IssueReport(Base):
+    """One owner-raised problem report (the in-app \"Report an issue\" page).
+
+    The mirror image of :class:`Feedback`: feedback is something Co-op *asks
+    for* on a cadence, an issue report is something the owner raises the moment
+    something is wrong — a bug, lost data, a billing question. Every report is
+    stored tenant-scoped *and* emailed to the support inbox, so a problem
+    reaches the team even if the owner never follows up in app.
+
+    ``status`` is team-side triage bookkeeping (``new`` -> ``triaged`` ->
+    ``resolved``); the owner only ever creates rows.
+    """
+
+    __tablename__ = "issue_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), index=True, nullable=False)
+    submitted_by = Column(String(255), nullable=True)        # Clerk user id
+    category = Column(String(32), nullable=False, default="other")
+    severity = Column(String(16), nullable=False, default="normal")
+    subject = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False)
+    contact_email = Column(String(255), nullable=True)       # where to reply
+    app_version = Column(String(64), nullable=True)
+    platform = Column(String(32), nullable=True)             # web|windows|macos|linux
+    status = Column(String(16), nullable=False, default="new")
+    created_at = Column(DateTime, server_default=func.now())
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<IssueReport business={self.business_id} id={self.id}>"
