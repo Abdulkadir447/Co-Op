@@ -77,8 +77,8 @@ ops/infra · ➖ not code (business/legal/marketing).
 | electron-builder config (NSIS x64, GitHub publish) | ✅ | `electron/package.json` `build` |
 | Renderer bundling into the app | ✅ | `electron/scripts/copy-renderer.js` (path fixed this round) |
 | Auto-update (check/download/apply, staged install) | ✅ | `electron/updater.js` + test |
-| `VITE_API_URL` baked at build time | ⚠️ | **Operator:** the packaged build has no dev proxy — set `$env:VITE_API_URL="https://<api>"` before `npm run dist`. |
-| Build the Windows `.exe` | 🚧 | Must be built on Windows (this sandbox is Linux, no Wine). |
+| `VITE_API_URL` baked at build time | ✅ | The desktop workflow **requires** it (input, or the `COOP_API_URL` repo variable) and refuses to build without it. `scripts/copy-renderer.js` also bakes the origin into `api-origin.json`, which `electron/apiOrigin.js` reads into the CSP `connect-src` — a packaged app has no env at runtime, so without this every API request is blocked. |
+| Build the Windows `.exe` | ✅ | `.github/workflows/desktop.yml` builds it on a GitHub Windows runner — no local Windows, toolchain or ~100MB Electron download needed. |
 | Code signing + SmartScreen reputation | 🚧➖ | Needs an EV/OV certificate; until then SmartScreen shows "More info → Run anyway". |
 
 ## 5. Website (React)
@@ -129,8 +129,11 @@ stands between you and launch is **operator work**, in this order:
    password policy, rate limits).
 3. **Deploy** the backend (Supabase/Postgres): run migrations `0012–0014`
    **including RLS** on the real database and smoke-test.
-4. **Build the `.exe` on Windows** with `VITE_API_URL` set; publish the GitHub
-   Release (`.exe` + `latest.yml` + `.blockmap`) so auto-update works.
+4. **Build the `.exe`:** Actions → *Desktop installer (Windows)* → Run workflow
+   and enter the backend URL; or push a `v*` tag to also publish the GitHub
+   Release (`.exe` + `latest.yml` + `.blockmap`) that auto-update reads. The
+   build runs on GitHub's runners, so a slow local connection to GitHub no
+   longer stalls it.
 5. **Website:** deploy + point the domain.
 6. **Optional but recommended:** Electron Fuses + code signing (§6).
 

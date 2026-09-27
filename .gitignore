@@ -51,6 +51,9 @@ electron/e2e/renderer/
 # Electron packaging
 /electron/renderer-dist/
 /electron/dist/
+# Generated at build time from VITE_API_URL (scripts/copy-renderer.js) so the
+# packaged app's CSP can allow the API origin it was built against.
+/electron/api-origin.json
 
 # pnpm is the package manager (see pnpm-workspace.yaml); npm lockfiles would drift.
 package-lock.json

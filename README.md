@@ -188,13 +188,32 @@ npm run dev
 Desktop wrapper (optional): `npm run start` from the repo root.
 
 Packaged desktop builds (electron-builder, produces AppImage / NSIS / DMG
-per platform):
+per platform).
+
+**Recommended — build on GitHub Actions** (`.github/workflows/desktop.yml`).
+electron-builder downloads ~100MB of Electron/NSIS/winCodeSign binaries on a
+first build, which on a slow connection looks like a hang. The workflow does it
+on a GitHub Windows runner and hands you the installer:
+
+1. Actions → **Desktop installer (Windows)** → *Run workflow*.
+2. Enter the backend base URL (baked into the app as `VITE_API_URL`).
+3. Download `coop-windows-installer` from the run's artifacts.
+
+Push a `v*` tag instead to also publish a GitHub Release (`.exe` + `latest.yml`
++ `.blockmap`), which is what the in-app auto-updater reads; the URL then comes
+from the `COOP_API_URL` repository variable.
+
+Locally, if you would rather build on your own machine:
 
 ```bash
 cd electron
 npm install
-npm run dist      # or `npm run pack` for an unpacked build
+VITE_API_URL=https://<your-api> npm run dist   # `npm run pack` for an unpacked build
 ```
+
+`VITE_API_URL` is required for a distributable build: a packaged app has no
+dev-server proxy, and the origin is also baked into `api-origin.json` so the
+main-process CSP allows it.
 
 ## Key API surface
 

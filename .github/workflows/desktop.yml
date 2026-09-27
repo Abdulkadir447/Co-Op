@@ -1,0 +1,151 @@
+name: Desktop installer (Windows)
+
+# Builds the Co-op Windows installer on GitHub's runners, so the ~100MB of
+# Electron / NSIS / winCodeSign binaries are fetched at datacenter speed instead
+# of over a local connection to GitHub. This is the answer to a local
+# `electron-builder` that appears to hang: it is not hung, it is downloading.
+#
+# Two ways to run it:
+#
+#   * Actions tab -> "Desktop installer (Windows)" -> Run workflow, and type the
+#     backend URL. Use this for a one-off build; download the .exe from the run.
+#   * Push a tag (v1.2.3). Same build, but it also publishes a GitHub Release
+#     with the .exe + latest.yml + .blockmap, which is what the in-app
+#     auto-updater (electron/updater.js) reads. The backend URL then comes from
+#     the repository variable COOP_API_URL (Settings -> Secrets and variables ->
+#     Actions -> Variables).
+#
+# VITE_API_URL is REQUIRED and not optional by accident: a packaged app has no
+# Vite dev-server proxy, so without it the renderer calls the relative /api and
+# cannot reach any backend. It is baked into the renderer here, and
+# scripts/copy-renderer.js bakes the same origin into api-origin.json so the
+# main process CSP allows it (see electron/apiOrigin.js).
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Backend base URL to bake in, e.g. https://api.yourdomain.com'
+        required: true
+        type: string
+      publish:
+        description: 'Also publish a GitHub Release (required for auto-update)'
+        required: false
+        default: 'artifact-only'
+        type: choice
+        options:
+          - artifact-only
+          - publish-release
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '9'
+
+jobs:
+  build-windows:
+    name: Windows installer
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Electron and the electron-builder helpers (nsis, winCodeSign) are cached
+      # per runner, so a second build does not re-download ~100MB.
+      - name: Cache Electron + electron-builder downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('electron/package-lock.json') }}
+          restore-keys: electron-${{ runner.os }}-
+
+      - name: Install frontend dependencies (pnpm workspace)
+        run: pnpm install --frozen-lockfile
+
+      # electron/ is deliberately NOT a pnpm workspace member (native
+      # better-sqlite3 needs a C++ toolchain), so it installs on its own.
+      - name: Install desktop dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Resolve the backend URL to bake in
+        id: api
+        run: |
+          $url = "${{ inputs.api_url }}"
+          if (-not $url) { $url = "${{ vars.COOP_API_URL }}" }
+          if (-not $url) {
+            throw "No backend URL: pass the api_url input, or set the COOP_API_URL repository variable."
+          }
+          # Fail here rather than shipping an app that cannot reach its backend.
+          $uri = $null
+          if (-not [System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uri)) {
+            throw "Not an absolute URL: $url (expected e.g. https://api.yourdomain.com)"
+          }
+          "url=$($uri.Scheme)://$($uri.Authority)$($uri.PathAndQuery.TrimEnd('/'))" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Baking backend URL: $url"
+
+      # A tag is the release version; electron-builder reads package.json, so the
+      # two must agree or the auto-updater compares the wrong versions.
+      - name: Align the app version with the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: electron
+        run: |
+          # Via Node, not a PowerShell JSON round-trip, so the rest of
+          # package.json (the electron-builder "build" block) is preserved
+          # exactly as written.
+          $env:RELEASE_VERSION = "${{ github.ref_name }}".TrimStart('v')
+          node -e "const fs=require('fs');const f='package.json';const p=JSON.parse(fs.readFileSync(f,'utf8'));console.log('version '+p.version+' -> '+process.env.RELEASE_VERSION);p.version=process.env.RELEASE_VERSION;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n');"
+
+      - name: Build the installer
+        working-directory: electron
+        env:
+          VITE_API_URL: ${{ steps.api.outputs.url }}
+        run: npm run build:renderer
+
+      # Publish (tag, or explicitly asked): electron-builder uploads the .exe,
+      # latest.yml and .blockmap to the GitHub Release — the three files the
+      # auto-updater needs. Otherwise just keep them as run artifacts.
+      - name: Package and publish the Release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish == 'publish-release'
+        working-directory: electron
+        env:
+          VITE_API_URL: ${{ steps.api.outputs.url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish always
+
+      - name: Package (artifact only)
+        if: ${{ !(startsWith(github.ref, 'refs/tags/v') || inputs.publish == 'publish-release') }}
+        working-directory: electron
+        run: npx electron-builder --win --publish never
+
+      - name: List what was built
+        working-directory: electron
+        run: Get-ChildItem dist -Recurse -File | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coop-windows-installer
+          path: |
+            electron/dist/*.exe
+            electron/dist/latest.yml
+            electron/dist/*.blockmap
+          if-no-files-found: error

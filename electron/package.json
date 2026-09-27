@@ -41,6 +41,8 @@
       "sync.js",
       "platform.js",
       "security.js",
+      "apiOrigin.js",
+      "api-origin.json",
       "db/**/*",
       "renderer-dist/**/*",
       "coop-icon.png",

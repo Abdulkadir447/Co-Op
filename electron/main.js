@@ -4,6 +4,7 @@ const path = require('path');
 const { createDataLayer, defaultDbPath } = require('./db');
 const { createDataLayerApp } = require('./dataLayerApp');
 const { isSqliteFile, snapshot, replaceDbFile, assertRestoreSafe } = require('./db/backup');
+const { bakedApiOrigin } = require('./apiOrigin');
 const { APP_USER_MODEL_ID, backupFileName } = require('./platform');
 const { containNavigation, isExternalSafeUrl, isTrustedSender, rendererPreferences } = require('./security');
 const { initAutoUpdate } = require('./updater');
@@ -45,8 +46,15 @@ const CLERK_FAPI = process.env.CLERK_FRONTEND_API
 // proxy, so the renderer talks to an absolute URL (VITE_API_URL, baked into the
 // renderer at build time) — the CSP must allow that origin or EVERY API request
 // is blocked. localhost:8000 covers local dev/testing (uvicorn's default port);
-// a deployed backend is allowed by setting COOP_API_URL to its base URL.
+// a distributed build carries its origin in api-origin.json (written by
+// scripts/copy-renderer.js from the same VITE_API_URL), because there is no
+// environment on the user's machine to read at runtime. COOP_API_URL remains as
+// an override for running the unpackaged app against a deployed backend.
 const COOP_API_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000'];
+const bakedOrigin = bakedApiOrigin();
+if (bakedOrigin) {
+  COOP_API_ORIGINS.push(bakedOrigin);
+}
 if (process.env.COOP_API_URL) {
   try {
     COOP_API_ORIGINS.push(new URL(process.env.COOP_API_URL).origin);
