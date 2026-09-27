@@ -1,9 +1,17 @@
-# Step 3 runbook — deploy the backend to Supabase Postgres
+# Step 3 runbook — set up the database on Supabase Postgres
 
-The exact, ordered sequence to run migrations `0012–0016` (and the full chain on
-a fresh project), confirm the RLS backstop, and prove tenant isolation against
-**real Postgres** rather than SQLite. Every command and query below was executed
+The exact, ordered sequence to run the migrations (the full chain on a fresh
+project), confirm the RLS backstop, and prove tenant isolation against **real
+Postgres** rather than SQLite. Every command and query below was executed
 against a real PostgreSQL 16.2 instance; expected outputs are from that run.
+
+> **This runbook covers the database, not the application.** Supabase *is*
+> hosted PostgreSQL — it gives you the schema, the data and the RLS policies.
+> It does not run the FastAPI backend, which is a Python program and needs an
+> application host (Render, Railway, Fly.io). That host is what you hand the
+> Supabase connection string to via `DATABASE_URL`. The old title of this file
+> ("deploy the backend to Supabase") conflated the two; see
+> [docs/LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md) for the correct ordering.
 
 > **Two migration bugs were found and fixed by running this on real Postgres**
 > (they are invisible on SQLite, which the test suite uses). See
@@ -51,7 +59,7 @@ $env:DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.
 
 ```bash
 alembic current        # where the DB is now (empty on a fresh project)
-alembic upgrade head   # applies 0001 → 0016_merge_heads
+alembic upgrade head   # applies 0001 → 0018_integer_pk_sequences
 ```
 
 Expected tail on a fresh project (single head, no ambiguity):

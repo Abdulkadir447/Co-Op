@@ -129,11 +129,18 @@ typecheck+lint+build clean). What actually stands between you and launch is
    to live keys and point the webhook at `POST /webhooks/paystack`.
 2. **Clerk:** production keys + the security settings (MFA, session lifetime,
    password policy, rate limits).
-3. **Deploy** the backend (Supabase/Postgres): run `alembic upgrade head`
-   (currently through `0018_integer_pk_sequences`) **including RLS** on the
-   real database and smoke-test. Do not cherry-pick a revision range — 0018
-   fixes `id` columns that 0010-0015 created without a sequence, so stopping
-   early leaves inserts failing with a not-null violation.
+3. **Deploy — this is TWO hosts, not one.**
+   * **Database (Supabase):** Supabase *is* hosted PostgreSQL. Create the
+     project, then run `alembic upgrade head` (currently through
+     `0018_integer_pk_sequences`) against it **including RLS**, following
+     `docs/DEPLOY_POSTGRES.md`. Do not cherry-pick a revision range — 0018
+     fixes `id` columns that 0010-0015 created without a sequence, so stopping
+     early leaves inserts failing with a not-null violation.
+   * **Backend (an application host):** the FastAPI backend is a Python
+     program and Supabase cannot run it (its serverless functions are
+     Deno/TypeScript). Host it on Render / Railway / Fly.io and give it
+     `DATABASE_URL` = the Supabase connection string. **That host's URL is the
+     one step 4 bakes into the installer.**
 4. **Build the `.exe`:** Actions → *Desktop installer (Windows)* → Run workflow
    and enter the backend URL; or push a `v*` tag to also publish the GitHub
    Release (`.exe` + `latest.yml` + `.blockmap`) that auto-update reads. The
