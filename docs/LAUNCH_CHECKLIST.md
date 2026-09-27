@@ -78,7 +78,7 @@ ops/infra · ➖ not code (business/legal/marketing).
 | Renderer bundling into the app | ✅ | `electron/scripts/copy-renderer.js` (path fixed this round) |
 | Auto-update (check/download/apply, staged install) | ✅ | `electron/updater.js` + test |
 | `VITE_API_URL` baked at build time | ✅ | The desktop workflow **requires** it (input, or the `COOP_API_URL` repo variable) and refuses to build without it. `scripts/copy-renderer.js` also bakes the origin into `api-origin.json`, which `electron/apiOrigin.js` reads into the CSP `connect-src` — a packaged app has no env at runtime, so without this every API request is blocked. |
-| Build the Windows `.exe` | ✅ | `.github/workflows/desktop.yml` builds it on a GitHub Windows runner — no local Windows, toolchain or ~100MB Electron download needed. |
+| Build the Windows `.exe` | 🚧 | `.github/workflows/desktop.yml` builds it on a GitHub Windows runner — no local Windows, toolchain or ~100MB Electron download needed. **Not yet run to completion:** its `npm ci` step was broken until `electron/package-lock.json` was repaired (it was missing `electron-updater` and pinned 70 entries to `registry.npmmirror.com`). Run it once to confirm. |
 | Code signing + SmartScreen reputation | 🚧➖ | Needs an EV/OV certificate; until then SmartScreen shows "More info → Run anyway". |
 
 ## 5. Website (React)
@@ -119,16 +119,21 @@ launch tasks but no amount of code completes them.
 
 ## Bottom line — the short "before Sunday" list
 
-Everything code-level is implemented and tested (backend 328 passed / 3 skipped;
-Electron 82 pass / 2 skip; frontend typecheck+lint+build clean). What actually
-stands between you and launch is **operator work**, in this order:
+Everything code-level is implemented and tested (backend 346 passed / 1 skipped
+on Postgres and 343 passed / 6 skipped on SQLite; Electron 89 tests, 87 pass
+plus the 2 Windows-only ones, which run on the CI Windows runner; frontend
+typecheck+lint+build clean). What actually stands between you and launch is
+**operator work**, in this order:
 
 1. **Paystack:** set the test secret key, run one live test charge, then switch
    to live keys and point the webhook at `POST /webhooks/paystack`.
 2. **Clerk:** production keys + the security settings (MFA, session lifetime,
    password policy, rate limits).
-3. **Deploy** the backend (Supabase/Postgres): run migrations `0012–0014`
-   **including RLS** on the real database and smoke-test.
+3. **Deploy** the backend (Supabase/Postgres): run `alembic upgrade head`
+   (currently through `0018_integer_pk_sequences`) **including RLS** on the
+   real database and smoke-test. Do not cherry-pick a revision range — 0018
+   fixes `id` columns that 0010-0015 created without a sequence, so stopping
+   early leaves inserts failing with a not-null violation.
 4. **Build the `.exe`:** Actions → *Desktop installer (Windows)* → Run workflow
    and enter the backend URL; or push a `v*` tag to also publish the GitHub
    Release (`.exe` + `latest.yml` + `.blockmap`) that auto-update reads. The
