@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 PG_URL = os.getenv("TEST_DATABASE_URL", "")
 NEEDS_PG = not PG_URL.startswith("postgres")
 REPO_ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0017_issue_reports"
+HEAD = "0018_integer_pk_sequences"
 
 
 def _asyncpg_url(url: str) -> str:
@@ -179,6 +179,118 @@ async def test_alembic_rerun_and_rollback_are_safe():
                     await conn.execute(text("SELECT version_num FROM alembic_version"))
                 ).scalar()
                 assert version == HEAD, version
+        finally:
+            await eng.dispose()
+    finally:
+        cleanup = create_async_engine(base.set(database="postgres"), isolation_level="AUTOCOMMIT")
+        try:
+            async with cleanup.connect() as conn:
+                await conn.execute(text(f'DROP DATABASE IF EXISTS "{temp_name}"'))
+        finally:
+            await cleanup.dispose()
+
+
+@pytest.mark.skipif(NEEDS_PG, reason="requires Postgres (set TEST_DATABASE_URL)")
+@pytest.mark.asyncio
+async def test_omitting_id_inserts_on_the_0010_0015_tables():
+    """Regression: 0010-0015 created bare ``INTEGER PRIMARY KEY`` columns.
+
+    SQLite aliases that to rowid, so the suite stayed green while every insert
+    that omitted ``id`` failed on Postgres with a not-null violation. 0018 adds
+    the sequence + ``nextval`` default. This asserts the *behaviour* an ORM
+    insert depends on rather than the DDL text: omit ``id``, get a real id back.
+
+    Each row is inserted once, because five of the six tables carry a UNIQUE
+    constraint (member, invitation token, payment reference, licence
+    fingerprint, invoice number+order) that a repeat insert would trip.
+    Sequence advancement is proved separately on ``feedback``, the one table
+    with no uniqueness rule.
+    """
+    base = make_url(_asyncpg_url(PG_URL))
+    temp_name = f"coop_mig_{uuid.uuid4().hex[:12]}"
+    maint = create_async_engine(base.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        async with maint.connect() as conn:
+            try:
+                await conn.execute(text(f'CREATE DATABASE "{temp_name}"'))
+            except Exception as exc:  # noqa: BLE001 — skip, don't fail, without CREATEDB
+                pytest.skip(f"role cannot CREATE DATABASE on this server: {exc}")
+    finally:
+        await maint.dispose()
+
+    temp_url = base.set(database=temp_name)
+    db_url = str(temp_url).replace("postgresql+asyncpg://", "postgresql://", 1)
+    env = {**os.environ, "DATABASE_URL": db_url}
+    proc = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=REPO_ROOT, env=env, capture_output=True, text=True,
+    )
+    try:
+        assert proc.returncode == 0, (
+            f"alembic upgrade head failed (rc={proc.returncode}):\n"
+            f"{proc.stdout}\n{proc.stderr}"
+        )
+
+        eng = create_async_engine(temp_url)
+        try:
+            # invoices needs an order and orders needs a customer, so build the
+            # chain once and share it.
+            async with eng.begin() as conn:
+                bid = (await conn.execute(
+                    text("INSERT INTO businesses (name) VALUES ('Acme') RETURNING id")
+                )).scalar()
+                cid = (await conn.execute(
+                    text("INSERT INTO customers (full_name, email) "
+                         "VALUES ('A A', 'a@a.test') RETURNING id")
+                )).scalar()
+                oid = (await conn.execute(
+                    text("INSERT INTO orders (business_id, customer_id) "
+                         "VALUES (:b, :c) RETURNING id"),
+                    {"b": bid, "c": cid},
+                )).scalar()
+
+            # table -> (column list + VALUES, params). `id` is deliberately
+            # absent from every one of these: that omission is the bug.
+            inserts = [
+                ("business_members",
+                 "(business_id, user_id, role) VALUES (:b, 'user_1', 'admin')",
+                 {"b": bid}),
+                ("business_invitations",
+                 "(business_id, email, role, token) "
+                 "VALUES (:b, 'invite@a.test', 'staff', 'tok_0001')",
+                 {"b": bid}),
+                ("payments",
+                 "(business_id, reference, plan) VALUES (:b, 'ref_0001', 'starter')",
+                 {"b": bid}),
+                ("licenses",
+                 "(business_id, fingerprint, plan) VALUES (:b, 'fp_0001', 'starter')",
+                 {"b": bid}),
+                ("invoices",
+                 "(business_id, order_id, number, issue_date) "
+                 "VALUES (:b, :o, 'INV-0001', now())",
+                 {"b": bid, "o": oid}),
+                ("feedback",
+                 "(business_id, rating) VALUES (:b, 5)",
+                 {"b": bid}),
+            ]
+            for table, cols, params in inserts:
+                async with eng.begin() as conn:
+                    new_id = (await conn.execute(
+                        text(f"INSERT INTO {table} {cols} RETURNING id"), params
+                    )).scalar()
+                assert isinstance(new_id, int) and new_id > 0, (table, new_id)
+
+            # The default must be a live sequence, not a constant.
+            async with eng.begin() as conn:
+                first = (await conn.execute(
+                    text("INSERT INTO feedback (business_id, rating) "
+                         "VALUES (:b, 4) RETURNING id"), {"b": bid}
+                )).scalar()
+                second = (await conn.execute(
+                    text("INSERT INTO feedback (business_id, rating) "
+                         "VALUES (:b, 3) RETURNING id"), {"b": bid}
+                )).scalar()
+            assert second > first, f"feedback id did not advance: {first} -> {second}"
         finally:
             await eng.dispose()
     finally:
