@@ -15,17 +15,29 @@ name: Desktop installer (Windows)
 #     the repository variable COOP_API_URL (Settings -> Secrets and variables ->
 #     Actions -> Variables).
 #
-# VITE_API_URL is REQUIRED and not optional by accident: a packaged app has no
-# Vite dev-server proxy, so without it the renderer calls the relative /api and
-# cannot reach any backend. It is baked into the renderer here, and
-# scripts/copy-renderer.js bakes the same origin into api-origin.json so the
-# main process CSP allows it (see electron/apiOrigin.js).
+# VITE_API_URL is baked in deliberately: a packaged app has no Vite dev-server
+# proxy, so without it the renderer calls the relative /api and cannot reach
+# any backend. It goes into the renderer here, and scripts/copy-renderer.js
+# bakes the same origin into api-origin.json so the main process CSP allows it
+# (see electron/apiOrigin.js). Leaving it blank produces a labelled
+# -UNCONFIGURED artifact rather than a hard failure.
+#
+# VITE_CLERK_PUBLISHABLE_KEY is a HARD requirement, and the difference matters:
+# frontend/src/main.tsx throws when it is missing, but the throw is runtime, so
+# `vite build` still exits 0. Skipping it therefore yields an installer that
+# dies on launch with no build error to warn you. This workflow refuses to
+# build one. It is the PUBLISHABLE key (pk_...), not the secret (sk_...).
 
 on:
   workflow_dispatch:
     inputs:
       api_url:
         description: 'Backend base URL to bake in, e.g. https://api.yourdomain.com. Leave blank for a pipeline-check build.'
+        required: false
+        default: ''
+        type: string
+      clerk_key:
+        description: 'Clerk PUBLISHABLE key (pk_live_... or pk_test_...). Not a secret, but the app throws on launch without it.'
         required: false
         default: ''
         type: string
@@ -112,6 +124,24 @@ jobs:
           "suffix=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Baking backend URL: $url"
 
+      # frontend/src/main.tsx THROWS at startup when this is missing, and the
+      # build still succeeds because the throw is runtime, not build time — so
+      # omitting it produces an installer that dies on launch with no build
+      # error to warn you. Refuse to build one.
+      - name: Resolve the Clerk publishable key
+        id: clerk
+        run: |
+          $key = "${{ inputs.clerk_key }}"
+          if (-not $key) { $key = "${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}" }
+          if (-not $key) {
+            throw "No Clerk publishable key. Pass the clerk_key input (pk_live_... / pk_test_...) or set the VITE_CLERK_PUBLISHABLE_KEY repository variable. Without it the packaged app throws on launch."
+          }
+          if ($key -notmatch '^pk_(live|test)_') {
+            throw "That does not look like a Clerk publishable key: expected a pk_live_... or pk_test_... prefix. The SECRET key (sk_...) belongs on the backend, never here."
+          }
+          "key=$key" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Baking Clerk publishable key: $($key.Substring(0, 11))..."
+
       # A tag is the release version; electron-builder reads package.json, so the
       # two must agree or the auto-updater compares the wrong versions.
       - name: Align the app version with the tag
@@ -128,6 +158,7 @@ jobs:
         working-directory: electron
         env:
           VITE_API_URL: ${{ steps.api.outputs.url }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ steps.clerk.outputs.key }}
         run: npm run build:renderer
 
       # Publish (tag, or explicitly asked): electron-builder uploads the .exe,
