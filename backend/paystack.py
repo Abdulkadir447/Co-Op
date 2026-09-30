@@ -172,10 +172,18 @@ def public_config(cfg: Optional[PaystackConfig] = None) -> dict[str, Any]:
     configured = is_configured(cfg)
     plans = {}
     for plan in PURCHASABLE_PLANS:
+        page = cfg.page_for(plan)
+        prices = cfg.prices_kobo.get(plan) or {}
+        # A plan is purchasable when there is somewhere to send the owner:
+        # either a hosted page, or a price the API checkout can charge. The
+        # billing UI keys its Upgrade button off this flag, so it must not
+        # depend on the hosted-page flow alone — otherwise dropping the pages
+        # would silently turn every card into "Contact Sales".
         plans[plan] = {
             # The page URL is not a secret — it is the thing we redirect to.
-            "checkout_url": cfg.page_for(plan) if configured else None,
-            "prices_kobo": cfg.prices_kobo.get(plan) or {},
+            "checkout_url": page if configured else None,
+            "prices_kobo": prices,
+            "checkout_enabled": bool(configured and (page or prices)),
         }
     return {
         "provider": "paystack" if configured else None,

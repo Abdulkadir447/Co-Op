@@ -128,11 +128,10 @@
       "localhost",
       "127.0.0.1"
     ],
-    "payment_pages": {
-      "starter": "https://paystack.shop/pay/cc0he0cghk",
-      "professional": "https://paystack.shop/pay/8behy0j95a",
-      "enterprise": "https://paystack.shop/pay/17zi09vwev"
-    },
-    "prices_kobo": {}
+    "payment_pages": {},
+    "prices_kobo": {
+      "starter": { "monthly": 2900, "annual": 27600 },
+      "professional": { "monthly": 9900, "annual": 94800 }
+    }
   }
 }

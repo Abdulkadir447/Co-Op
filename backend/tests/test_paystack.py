@@ -609,18 +609,78 @@ async def test_webhook_body_must_be_json(api, paystack):
 # Config file sanity — what ships in the repo
 # ---------------------------------------------------------------------------
 
-def test_shipped_config_wires_the_three_payment_pages():
+def test_shipped_config_charges_through_the_api():
     import backend.paystack as ps
     from backend.config import load_config
 
     raw = load_config("development").get("paystack", {})
     assert raw["enabled"] is True
     assert raw["currency"] == "USD"
-    assert set(raw["payment_pages"]) == {"starter", "professional", "enterprise"}
-    assert all(u.startswith("https://") for u in raw["payment_pages"].values())
+    # The hosted payment pages were removed: paystack.shop is not a Paystack
+    # domain, so a charge through it could not be trusted. Checkout now goes
+    # through POST /transaction/initialize, which requires a price.
+    assert raw["payment_pages"] == {}
+    assert raw["prices_kobo"] == {
+        "starter": {"monthly": 2900, "annual": 27600},
+        "professional": {"monthly": 9900, "annual": 94800},
+    }
+    # Enterprise is Contact Sales, so it must carry no price to charge.
+    assert "enterprise" not in raw["prices_kobo"]
+    # every environment agrees on the catalog
+    for env in ("production", "testing"):
+        assert load_config(env)["paystack"]["payment_pages"] == {}
+        assert load_config(env)["paystack"]["prices_kobo"] == raw["prices_kobo"]
     # the testing environment never takes money
     assert load_config("testing")["paystack"]["enabled"] is False
     assert ps.SIGNATURE_HEADER == "x-paystack-signature"
+
+
+def test_public_config_marks_a_priced_plan_purchasable_without_a_page(monkeypatch):
+    """The billing UI keys its Upgrade button off ``checkout_enabled``.
+
+    Regression: it used to key off ``checkout_url``, which only exists in the
+    hosted-page flow — so removing the pages would have silently turned every
+    pricing card into "Contact Sales" with no way to buy.
+    """
+    monkeypatch.setenv("PAYSTACK_SECRET_KEY", SECRET)
+    cfg = PaystackConfig(
+        enabled=True,
+        currency="USD",
+        payment_pages={},
+        prices_kobo={"starter": {"monthly": 2900}},
+    )
+    plans = public_config(cfg)["plans"]
+    assert plans["starter"]["checkout_enabled"] is True
+    # no hosted page, and still buyable
+    assert plans["starter"]["checkout_url"] is None
+    assert plans["professional"]["checkout_enabled"] is False
+    assert plans["enterprise"]["checkout_enabled"] is False
+
+
+def test_without_a_secret_key_nothing_is_purchasable(monkeypatch):
+    """Dropping the hosted pages made the secret key mandatory.
+
+    A price with no page and no key is not a way to take money, so the UI must
+    show no buy button rather than one that 422s on click.
+    """
+    monkeypatch.delenv("PAYSTACK_SECRET_KEY", raising=False)
+    cfg = PaystackConfig(
+        enabled=True,
+        currency="USD",
+        payment_pages={},
+        prices_kobo={"starter": {"monthly": 2900}},
+    )
+    plans = public_config(cfg)["plans"]
+    assert all(p["checkout_enabled"] is False for p in plans.values())
+    assert public_config(cfg)["verification"] is False
+
+
+def test_public_config_marks_nothing_purchasable_when_unconfigured(monkeypatch):
+    """A price on its own is not a way to take money — the provider must be on."""
+    monkeypatch.setenv("PAYSTACK_SECRET_KEY", SECRET)
+    cfg = PaystackConfig(enabled=False, prices_kobo={"starter": {"monthly": 2900}})
+    plans = public_config(cfg)["plans"]
+    assert all(p["checkout_enabled"] is False for p in plans.values())
 
 
 # ---------------------------------------------------------------------------
@@ -688,3 +748,58 @@ async def test_env_callback_url_reaches_the_checkout_redirect(api, monkeypatch):
     parsed = urlparse(body["url"])
     assert parsed.netloc == "pay.example.com"
     assert parse_qs(parsed.query)["callback_url"] == ["https://coop.example/billing"]
+
+
+async def test_shipped_catalog_produces_a_real_api_checkout(api, monkeypatch):
+    """The shipped config, not a synthetic one.
+
+    With the hosted pages gone, a real checkout has to go through
+    /transaction/initialize carrying the configured USD amount. This drives
+    the actual route against the actual config/*.json catalog and asserts the
+    body Paystack would receive.
+    """
+    import backend.paystack as ps
+    from backend.config import load_config
+
+    monkeypatch.setattr(
+        ps, "load_config",
+        lambda: {"paystack": load_config("development")["paystack"]},
+    )
+    # point the route at the same real function, so the patched load_config applies
+    monkeypatch.setattr(payments_mod, "paystack_config", ps.paystack_config)
+    monkeypatch.setenv("PAYSTACK_SECRET_KEY", SECRET)
+    api.set_user("user-a", "owner@example.com")
+
+    calls = use_transport(monkeypatch, lambda request: httpx.Response(200, json={
+        "status": True,
+        "data": {"authorization_url": "https://checkout.paystack.test/xyz",
+                 "access_code": "xyz", "reference": "coop_shipped_1"},
+    }))
+
+    out = await start_checkout(api, "starter", interval="annual")
+    assert out["mode"] == "api"
+    assert out["currency"] == "USD"
+    assert out["url"] == "https://checkout.paystack.test/xyz"
+
+    body = json.loads(calls[0].content)
+    assert body["amount"] == 27600        # $276.00, in minor units
+    assert body["currency"] == "USD"
+    assert body["metadata"]["plan"] == "starter"
+
+
+async def test_enterprise_cannot_be_checked_out(api, monkeypatch):
+    """Enterprise is Contact Sales: no price, so no charge can be started."""
+    import backend.paystack as ps
+    from backend.config import load_config
+
+    monkeypatch.setattr(
+        ps, "load_config",
+        lambda: {"paystack": load_config("development")["paystack"]},
+    )
+    monkeypatch.setattr(payments_mod, "paystack_config", ps.paystack_config)
+    monkeypatch.setenv("PAYSTACK_SECRET_KEY", SECRET)
+    api.set_user("user-a", "owner@example.com")
+
+    r = await api.client.post("/billing/checkout", json={"plan": "enterprise"})
+    assert r.status_code == 422, r.text
+    assert "No amount is configured" in r.json()["detail"]

@@ -45,28 +45,35 @@ Non-secret settings live in `config/<env>.json` under `"paystack"`:
 ```json
 "paystack": {
   "enabled": true,
-  "currency": "NGN",
+  "currency": "USD",
   "api_base": "https://api.paystack.co",
   "secret_key_env": "PAYSTACK_SECRET_KEY",
-  "callback_url": "http://localhost:5173/billing",
-  "allowed_callback_hosts": ["localhost", "127.0.0.1"],
-  "payment_pages": {
-    "starter": "https://paystack.shop/pay/cc0he0cghk",
-    "professional": "https://paystack.shop/pay/8behy0j95a",
-    "enterprise": "https://paystack.shop/pay/17zi09vwev"
-  },
-  "prices_kobo": {}
+  "callback_url": null,
+  "allowed_callback_hosts": [],
+  "payment_pages": {},
+  "prices_kobo": {
+    "starter": { "monthly": 2900, "annual": 27600 },
+    "professional": { "monthly": 9900, "annual": 94800 }
+  }
 }
 ```
 
-* **`payment_pages`** — plan → hosted payment page. The order above is the
-  order the three pages were supplied in (starter, professional, enterprise);
-  **confirm it against the dashboard** and swap lines if it is wrong. One line
-  each, no code change.
-* **`prices_kobo`** — empty on purpose. Each hosted page already carries the
-  amount you set when you created it, so Co-op does not send one. Fill it in
-  (e.g. `{"starter": {"monthly": 2900000}}`, kobo = ₦ × 100) when you want
-  Co-op to own the price — then the API checkout path also works.
+* **`payment_pages`** — plan → hosted payment page. **Empty on purpose.** The
+  three `paystack.shop/pay/…` links were removed: that is not a Paystack
+  domain, so a charge taken through it could neither be trusted nor traced.
+  The hosted-page code path is still supported — add a real
+  `paystack.com/pay/<slug>` URL here and Co-op will prefer it over the API.
+* **`prices_kobo`** — what Co-op charges, in the currency's minor unit (USD
+  cents, despite the legacy name). These are the figures the pricing screen
+  already displays (`frontend/src/billing/plans.ts`): Starter $29/mo and
+  Professional $99/mo, each with a 20% annual discount. The annual amounts are
+  the UI's displayed monthly-equivalent × 12 — $23 × 12 = $276 and
+  $79 × 12 = $948. **Confirm them before taking real money:** the UI rounds
+  the monthly figure first, which is not the same as 20% off the yearly total
+  ($278.40 / $948.00).
+* **Enterprise is absent on purpose** — it is "Contact Sales", so there must
+  be no price to charge. `POST /billing/checkout` returns 422 for it and the
+  pricing card shows no buy button.
 * **`callback_url`** — where Paystack sends the owner afterwards. In
   production set the absolute URL of the deployed Billing page, or add the
   host to `allowed_callback_hosts`; a `return_url` from the browser is only
@@ -77,9 +84,12 @@ Secrets come from the environment only — `PAYSTACK_SECRET_KEY`
 never returned by any endpoint (`GET /billing/payment-config` returns a
 boolean `verification` flag instead), and never reaches the frontend.
 
-Without the key, checkout still redirects to the hosted page — but nothing can
-be verified locally and webhooks are rejected, so set it in every environment
-that takes money.
+**The key is now mandatory, not optional.** With the hosted pages removed
+there is no other way to start a charge: without `PAYSTACK_SECRET_KEY`,
+`GET /billing/payment-config` reports every plan as `checkout_enabled: false`,
+the pricing cards show no buy button, and `POST /billing/checkout` returns 422.
+That is deliberate — a button that cannot complete a charge is worse than no
+button.
 
 ### Deployment overrides (environment)
 
@@ -98,17 +108,17 @@ extended — so an operator cannot accidentally widen it by typo.
 
 ## Before the first real charge
 
-1. Confirm the plan → page mapping above.
-2. Set `PAYSTACK_SECRET_KEY` on the backend.
+1. Confirm the `prices_kobo` figures match what the pricing screen shows *and*
+   what you intend to charge. The annual amounts are derived from the UI's
+   rounded monthly figure, not decided independently.
+2. Set `PAYSTACK_SECRET_KEY` on the backend. Without it nothing is buyable.
 3. In the Paystack dashboard, point the webhook at
    `https://<your-api>/webhooks/paystack`. No shared secret to copy —
    Paystack signs with the same secret key.
-4. `paystack.shop` is not a standard Paystack domain (hosted pages usually live
-   at `paystack.com/pay/<slug>`). Check the links open a real Paystack
-   checkout before launch; if they are a redirector, replace them with the
-   `paystack.com/pay/…` URLs from the dashboard.
+4. Set `PAYSTACK_CALLBACK_URL` to the absolute URL of the deployed Billing page.
 5. Run one `sk_test_` charge end to end and confirm the plan flips and the row
-   in `payments` reads `success`.
+   in `payments` reads `success`. `scripts/paystack_live_smoke.py` proves the
+   key authenticates and the API round-trips without capturing a card.
 
 ## Endpoints
 

@@ -580,7 +580,7 @@ const BillingPage: React.FC = () => {
                     variant="secondary"
                     onClick={() =>
                       message.info(
-                        payment?.plans?.enterprise?.checkout_url
+                        payment?.plans?.enterprise?.checkout_enabled
                           ? 'Enterprise checkout opens in your browser — tell us if you need invoicing instead.'
                           : 'Talk to us about Enterprise — we will tailor seats, invoicing and support.',
                       )

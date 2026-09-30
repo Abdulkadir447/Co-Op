@@ -122,7 +122,7 @@
     }
   },
   "paystack": {
-    "_comment": "Paystack. Set paystack.callback_url to the absolute URL of the deployed Billing page (e.g. https://app.example.com/billing) or add the host to allowed_callback_hosts; without one, Paystack uses the callback configured on the payment page. The plan -> page mapping below is the order the pages were supplied in \u2014 confirm it against the dashboard before launch. PAYSTACK_SECRET_KEY must be set for webhook signature verification.",
+    "_comment": "Paystack. Charges go through the API (POST /transaction/initialize) using prices_kobo, so PAYSTACK_SECRET_KEY is REQUIRED - without it no checkout can start and no webhook can be verified. Amounts are in the currency's minor unit (USD cents): starter $29/mo, $276/yr; professional $99/mo, $948/yr. The annual figures are the UI's displayed monthly-equivalent x 12 (frontend/src/billing/plans.ts, 20% discount rounded to whole dollars) - confirm them before taking real money. Enterprise has no price on purpose: it is Contact Sales. Set paystack.callback_url (or the PAYSTACK_CALLBACK_URL env var) to the absolute URL of the deployed Billing page.",
     "enabled": true,
     "currency": "USD",
     "api_base": "https://api.paystack.co",
@@ -131,11 +131,10 @@
     "public_key_env": "PAYSTACK_PUBLIC_KEY",
     "callback_url": null,
     "allowed_callback_hosts": [],
-    "payment_pages": {
-      "starter": "https://paystack.shop/pay/cc0he0cghk",
-      "professional": "https://paystack.shop/pay/8behy0j95a",
-      "enterprise": "https://paystack.shop/pay/17zi09vwev"
-    },
-    "prices_kobo": {}
+    "payment_pages": {},
+    "prices_kobo": {
+      "starter": { "monthly": 2900, "annual": 27600 },
+      "professional": { "monthly": 9900, "annual": 94800 }
+    }
   }
 }

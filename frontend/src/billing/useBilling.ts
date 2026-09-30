@@ -85,7 +85,17 @@ export interface PaymentConfig {
   enabled: boolean;
   currency: string;
   intervals: string[];
-  plans: Partial<Record<PlanId, { checkout_url: string | null; prices_kobo: Record<string, number> }>>;
+  plans: Partial<
+    Record<
+      PlanId,
+      {
+        checkout_url: string | null;
+        prices_kobo: Record<string, number>;
+        /** True when this plan can actually be bought — hosted page or price. */
+        checkout_enabled: boolean;
+      }
+    >
+  >;
   /** True when the backend can confirm a charge itself (not just redirect). */
   verification: boolean;
 }
@@ -367,7 +377,10 @@ export function useBilling() {
   /** Can this plan be bought right now (a payment page or API is wired up)? */
   const canCheckout = useCallback(
     (id: PlanId): boolean =>
-      Boolean(payment?.enabled && payment.plans?.[id]?.checkout_url),
+      // The backend's own verdict, not the presence of a hosted page: the API
+      // checkout flow has no checkout_url, and keying off that URL turned
+      // every card into "Contact Sales" once the hosted pages were removed.
+      Boolean(payment?.enabled && payment.plans?.[id]?.checkout_enabled),
     [payment],
   );
 
