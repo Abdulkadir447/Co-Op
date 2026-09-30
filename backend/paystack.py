@@ -29,10 +29,11 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import secrets
 from dataclasses import dataclass, field
 from typing import Any, Optional
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from .config import load_config, secret
 
@@ -124,19 +125,36 @@ def paystack_config() -> PaystackConfig:
         if clean:
             prices[plan] = clean
 
+    # Deployment-specific overrides. The committed config file holds the
+    # defaults; the environment holds what differs per deployment (above all
+    # the live Billing page URL), so an operator never has to commit it.
+    callback_url = (
+        os.getenv("PAYSTACK_CALLBACK_URL") or raw.get("callback_url") or None
+    )
+
+    hosts = [
+        str(h).strip().lower()
+        for h in (raw.get("allowed_callback_hosts") or [])
+        if str(h).strip()
+    ]
+    # The env list ADDS to the file list rather than replacing it: the file is
+    # a deliberate allow-list, and a deployment only contributes its own host.
+    for host in (os.getenv("PAYSTACK_ALLOWED_CALLBACK_HOSTS") or "").split(","):
+        host = host.strip().lower()
+        if "://" in host:  # tolerate a full URL pasted by mistake
+            host = urlparse(host).hostname or ""
+        if host and host not in hosts:
+            hosts.append(host)
+
     return PaystackConfig(
         enabled=bool(raw.get("enabled", False)),
         currency=str(raw.get("currency", "NGN")).upper(),
         api_base=str(raw.get("api_base", API_BASE)).rstrip("/"),
-        callback_url=raw.get("callback_url") or None,
+        callback_url=callback_url,
         secret_key_env=str(raw.get("secret_key_env", DEFAULT_SECRET_ENV)),
         public_key_env=str(raw.get("public_key_env", DEFAULT_PUBLIC_KEY_ENV)),
         timeout_seconds=float(raw.get("timeout_seconds", 15.0)),
-        allowed_callback_hosts=tuple(
-            str(h).strip().lower()
-            for h in (raw.get("allowed_callback_hosts") or [])
-            if str(h).strip()
-        ),
+        allowed_callback_hosts=tuple(hosts),
         payment_pages=pages,
         prices_kobo=prices,
     )

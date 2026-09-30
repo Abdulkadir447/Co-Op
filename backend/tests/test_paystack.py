@@ -621,3 +621,70 @@ def test_shipped_config_wires_the_three_payment_pages():
     # the testing environment never takes money
     assert load_config("testing")["paystack"]["enabled"] is False
     assert ps.SIGNATURE_HEADER == "x-paystack-signature"
+
+
+# ---------------------------------------------------------------------------
+# Deployment overrides from the environment
+#
+# The committed config file holds the defaults. The values that differ per
+# deployment — above all the live Billing page URL — come from the
+# environment, so an operator configures a host without committing anything.
+# ---------------------------------------------------------------------------
+
+def _fake_config(monkeypatch, paystack_section: dict) -> None:
+    import backend.paystack as ps
+
+    monkeypatch.setattr(ps, "load_config", lambda: {"paystack": paystack_section})
+
+
+def test_env_callback_url_overrides_the_config_file(monkeypatch):
+    import backend.paystack as ps
+
+    _fake_config(monkeypatch, {"callback_url": "https://committed.example/billing"})
+    monkeypatch.delenv("PAYSTACK_CALLBACK_URL", raising=False)
+    assert ps.paystack_config().callback_url == "https://committed.example/billing"
+
+    monkeypatch.setenv("PAYSTACK_CALLBACK_URL", "https://live.example/billing")
+    assert ps.paystack_config().callback_url == "https://live.example/billing"
+
+
+def test_env_hosts_add_to_the_allowlist_and_tolerate_a_full_url(monkeypatch):
+    import backend.paystack as ps
+
+    _fake_config(monkeypatch, {"allowed_callback_hosts": ["app.coop.example"]})
+    monkeypatch.delenv("PAYSTACK_ALLOWED_CALLBACK_HOSTS", raising=False)
+    assert ps.paystack_config().allowed_callback_hosts == ("app.coop.example",)
+
+    monkeypatch.setenv(
+        "PAYSTACK_ALLOWED_CALLBACK_HOSTS",
+        "https://Billing.coop.example, extra.coop.example ,app.coop.example",
+    )
+    # added (not replacing), de-duplicated, lower-cased, and a pasted URL
+    # reduced to its hostname.
+    assert ps.paystack_config().allowed_callback_hosts == (
+        "app.coop.example",
+        "billing.coop.example",
+        "extra.coop.example",
+    )
+
+
+async def test_env_callback_url_reaches_the_checkout_redirect(api, monkeypatch):
+    """The assertion that matters for a deploy: set the env var on the host,
+    and the URL the owner is sent to carries it — with no repo edit."""
+    _fake_config(monkeypatch, {
+        "enabled": True,
+        "currency": "USD",
+        "payment_pages": {"starter": PAGE_STARTER},
+        "callback_url": None,
+    })
+    monkeypatch.setenv("PAYSTACK_SECRET_KEY", SECRET)
+    monkeypatch.setenv("PAYSTACK_CALLBACK_URL", "https://coop.example/billing")
+    api.set_user("user-a", "owner@example.com")
+
+    r = await api.client.post("/billing/checkout", json={"plan": "starter"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["mode"] == "page"
+    parsed = urlparse(body["url"])
+    assert parsed.netloc == "pay.example.com"
+    assert parse_qs(parsed.query)["callback_url"] == ["https://coop.example/billing"]

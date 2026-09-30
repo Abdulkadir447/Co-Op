@@ -81,6 +81,21 @@ Without the key, checkout still redirects to the hosted page — but nothing can
 be verified locally and webhooks are rejected, so set it in every environment
 that takes money.
 
+### Deployment overrides (environment)
+
+Two settings differ per deployment rather than per environment, so they can be
+supplied from the environment instead of committing them:
+
+| Variable | Effect |
+| --- | --- |
+| `PAYSTACK_CALLBACK_URL` | Overrides `paystack.callback_url`. Set it to the absolute URL of the deployed Billing page. |
+| `PAYSTACK_ALLOWED_CALLBACK_HOSTS` | **Adds to** `paystack.allowed_callback_hosts` (comma-separated). A full URL is accepted and reduced to its hostname. |
+
+On a host such as Render these go in the service's environment alongside
+`PAYSTACK_SECRET_KEY`, which keeps the live URL out of git. The config file
+still holds the defaults, and the file's allow-list is never replaced — only
+extended — so an operator cannot accidentally widen it by typo.
+
 ## Before the first real charge
 
 1. Confirm the plan → page mapping above.
