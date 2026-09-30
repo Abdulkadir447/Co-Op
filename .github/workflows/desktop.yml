@@ -25,8 +25,9 @@ on:
   workflow_dispatch:
     inputs:
       api_url:
-        description: 'Backend base URL to bake in, e.g. https://api.yourdomain.com'
-        required: true
+        description: 'Backend base URL to bake in, e.g. https://api.yourdomain.com. Leave blank for a pipeline-check build.'
+        required: false
+        default: ''
         type: string
       publish:
         description: 'Also publish a GitHub Release (required for auto-update)'
@@ -92,15 +93,23 @@ jobs:
           $url = "${{ inputs.api_url }}"
           if (-not $url) { $url = "${{ vars.COOP_API_URL }}" }
           if (-not $url) {
-            throw "No backend URL: pass the api_url input, or set the COOP_API_URL repository variable."
+            # Not fatal. An installer with no baked origin still proves the
+            # whole pipeline builds, which is worth knowing before the backend
+            # exists — but it cannot reach any backend, so it is labelled and
+            # must not be handed to a customer.
+            Write-Host "::warning title=Unconfigured build::No backend URL was given. This installer will open but cannot reach any backend. Re-run with api_url (or set the COOP_API_URL variable) before distributing it."
+            "url=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            "suffix=-UNCONFIGURED" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            exit 0
           }
-          # Fail here rather than shipping an app that cannot reach its backend.
+          # A malformed origin is fatal: it would bake a CSP that matches nothing.
           $uri = $null
           if (-not [System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uri)) {
             throw "Not an absolute URL: $url (expected e.g. https://api.yourdomain.com)"
           }
           "url=$($uri.Scheme)://$($uri.Authority)$($uri.PathAndQuery.TrimEnd('/'))" |
             Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "suffix=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Baking backend URL: $url"
 
       # A tag is the release version; electron-builder reads package.json, so the
@@ -115,7 +124,7 @@ jobs:
           $env:RELEASE_VERSION = "${{ github.ref_name }}".TrimStart('v')
           node -e "const fs=require('fs');const f='package.json';const p=JSON.parse(fs.readFileSync(f,'utf8'));console.log('version '+p.version+' -> '+process.env.RELEASE_VERSION);p.version=process.env.RELEASE_VERSION;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n');"
 
-      - name: Build the installer
+      - name: Build the renderer bundle (this is where the API origin is baked)
         working-directory: electron
         env:
           VITE_API_URL: ${{ steps.api.outputs.url }}
@@ -143,7 +152,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: coop-windows-installer
+          # Suffixed -UNCONFIGURED when no backend URL was baked in, so a
+          # pipeline-check build can never be mistaken for a shippable one.
+          name: coop-windows-installer${{ steps.api.outputs.suffix }}
           path: |
             electron/dist/*.exe
             electron/dist/latest.yml
