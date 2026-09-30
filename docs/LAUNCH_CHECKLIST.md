@@ -119,17 +119,18 @@ launch tasks but no amount of code completes them.
 
 ## Bottom line — the short "before Sunday" list
 
-Everything code-level is implemented and tested (backend 346 passed / 1 skipped
-on Postgres and 343 passed / 6 skipped on SQLite; Electron 89 tests, 87 pass
-plus the 2 Windows-only ones, which run on the CI Windows runner; frontend
-typecheck+lint+build clean). What actually stands between you and launch is
-**operator work**, in this order:
+Everything code-level is implemented and tested (backend 351 passed / 6 skipped
+on SQLite; Electron 89 tests, 87 pass plus the 2 Windows-only ones, which run
+on the CI Windows runner; frontend typecheck, lint, 22 tests and build clean).
+What actually stands between you and launch is **operator work**, in this
+order:
 
-1. **Paystack:** set the test secret key, run one live test charge, then switch
-   to live keys and point the webhook at `POST /webhooks/paystack`.
-2. **Clerk:** production keys + the security settings (MFA, session lifetime,
-   password policy, rate limits).
-3. **Deploy — this is TWO hosts, not one.**
+0. **Land the working branch on `master` first.** Nothing below is possible
+   before it: `master` has no `.github/workflows/desktop.yml`, and GitHub only
+   registers workflows that exist on the *default* branch — so the installer
+   workflow does not appear in the Actions tab and cannot be dispatched until
+   it is merged.
+1. **Deploy — this is TWO hosts, not one.**
    * **Database (Supabase):** Supabase *is* hosted PostgreSQL. Create the
      project, then run `alembic upgrade head` (currently through
      `0018_integer_pk_sequences`) against it **including RLS**, following
@@ -141,11 +142,22 @@ typecheck+lint+build clean). What actually stands between you and launch is
      Deno/TypeScript). Host it on Render / Railway / Fly.io and give it
      `DATABASE_URL` = the Supabase connection string. **That host's URL is the
      one step 4 bakes into the installer.**
-4. **Build the `.exe`:** Actions → *Desktop installer (Windows)* → Run workflow
-   and enter the backend URL; or push a `v*` tag to also publish the GitHub
-   Release (`.exe` + `latest.yml` + `.blockmap`) that auto-update reads. The
-   build runs on GitHub's runners, so a slow local connection to GitHub no
-   longer stalls it.
+2. **Clerk:** production instance, then the security settings (MFA, session
+   lifetime, password policy, rate limits). The *secret* key is not needed by
+   this backend — it verifies tokens against the instance's public JWKS. What
+   it needs is `CLERK_FRONTEND_API`, and that is a hard boot failure if unset.
+3. **Paystack:** confirm the `prices_kobo` figures (the annual amounts are
+   derived from the UI's rounded monthly figure, not decided independently),
+   set `PAYSTACK_SECRET_KEY` (`sk_live_…`) on the backend — mandatory now that
+   the hosted pages are gone — and point the webhook at
+   `POST /webhooks/paystack`.
+4. **Build the `.exe`:** Actions → *Desktop installer (Windows)* → Run
+   workflow, supplying **both** `api_url` (the backend URL from step 1) and
+   `clerk_key` (the `pk_live_…` publishable key). Omitting the Clerk key is a
+   hard failure by design: `frontend/src/main.tsx` throws on launch without it
+   while the build still succeeds, so it used to produce a silently broken
+   installer. Push a `v*` tag instead to also publish the GitHub Release
+   (`.exe` + `latest.yml` + `.blockmap`) that auto-update reads.
 5. **Website:** deploy + point the domain.
 6. **Optional but recommended:** Electron Fuses + code signing (§6).
 
