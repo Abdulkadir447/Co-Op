@@ -57,8 +57,11 @@ python3 -m venv .venv
 # frontend (workspace member)
 pnpm install --frozen-lockfile
 
-# desktop (its own step; needs the C++ toolchain)
-cd electron && pnpm install && cd ..
+# desktop (its own step; npm, NOT pnpm — electron/ ships a package-lock.json
+# and is deliberately not a pnpm workspace member, so pnpm would ignore the
+# committed lockfile. Needs the C++ toolchain for better-sqlite3; if that
+# native build fails the app still runs, on the node:sqlite fallback.)
+cd electron && npm ci && cd ..
 
 # website (standalone npm project)
 cd website && npm install && cd ..
@@ -76,11 +79,35 @@ cd website && npm install && cd ..
 pnpm --filter ./frontend dev      # http://localhost:3000 (proxies /api -> :8000)
 ```
 
-**Desktop (Electron)** — new terminal:
+**Desktop (Electron)** — new terminal. **You must build the renderer first.**
+`electron/main.js` loads `electron/renderer-dist/index.html`, falling back to
+`frontend/dist/index.html`; if neither exists it loads a missing file and shows
+a blank window with no error to explain why.
+
 ```sh
-cd frontend && npm run start      # runs vite dev + electron together
-#   or: cd electron && npm run electron   (uses built renderer)
+cd electron
+# Both values are baked into the bundle at build time — the packaged renderer
+# has no environment of its own.
+VITE_API_URL=http://127.0.0.1:8000 \
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_... \
+    npm run build:renderer
+npm start                          # = npm run electron = `electron .`
 ```
+
+On Windows PowerShell set the variables on their own lines instead:
+```powershell
+cd electron
+$env:VITE_API_URL="http://127.0.0.1:8000"
+$env:VITE_CLERK_PUBLISHABLE_KEY="pk_test_..."
+npm run build:renderer
+npm start
+```
+
+> `cd frontend && npm run start` does **not** work, despite the `start` script
+> existing there: it runs `electron .` from `frontend/`, which is not an
+> Electron app (no `main` in its package.json) and does not have `electron`
+> installed. Run the desktop app from `electron/`.
+
 To ship an installer: `cd electron && npm run dist` (needs the C++ toolchain).
 
 ## 5. Run the website
@@ -98,7 +125,7 @@ All from the repo root unless noted.
 ```sh
 # Backend: lint + full suite (MUST run from repo root — pytest.ini sets paths)
 .venv/bin/python -m ruff check backend/
-.venv/bin/python -m pytest                      # 314 passed, 3 skipped
+.venv/bin/python -m pytest                      # 351 passed, 6 skipped
 
 # Frontend: lint, types, unit tests, build
 pnpm --filter ./frontend lint
@@ -107,7 +134,7 @@ pnpm --filter ./frontend test
 pnpm --filter ./frontend build
 
 # Desktop / Electron data-layer + sync + backup suite
-cd electron && pnpm test && cd ..
+cd electron && npm test && cd ..
 #   (windows.test.js has a group that only runs on a real Windows filesystem)
 
 # Website: type-check + build

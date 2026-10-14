@@ -7,7 +7,10 @@
 # native build blocks every subsequent pnpm command. The desktop wrapper keeps
 # its own install step, as documented in the README:
 #
-#     cd electron && pnpm install
+#     cd electron && npm ci
+#
+# (npm, not pnpm: electron/ ships a package-lock.json and the installer
+# workflow installs it with `npm ci`.)
 #
 # Note: pnpm uses a strict, non-hoisted node_modules tree, so every import
 # must be declared in its own package.json (npm's flat tree hides missing
