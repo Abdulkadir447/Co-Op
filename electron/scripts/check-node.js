@@ -38,22 +38,36 @@ Co-op desktop: Node ${process.versions.node} (ABI ${abi}) has no prebuilt
 better-sqlite3 binary, so npm would try to compile it from source and fail
 unless the Visual Studio "Desktop development with C++" workload is installed.
 
-This is not a compiler problem. Switch Node and no compiler is needed:
+This is not a compiler problem.
+
+FASTEST UNBLOCK — skip the Node-ABI build entirely:
+
+    npm ci --ignore-scripts
+
+Packaging does not need it: electron-builder's @electron/rebuild fetches the
+prebuilt better-sqlite3 for Electron's own ABI, so "npm run dist" still works
+and the installer is complete. What you lose is "npm start" (dev mode), which
+loads the module against Node's ABI.
+
+PROPER FIX — use a Node that has a prebuild:
 
     nvm install 22.20.0
     nvm use 22.20.0
     node -p "process.versions.modules"   # must print 127
 
-Prebuilds exist for: ${supported}.
-Node 22 LTS is recommended. If you are using nvm on Windows (nvm4w), remove
-electron/node_modules first so the stale build artifacts do not get reused:
+Prebuilds exist for: ${supported}. Node 22 LTS is recommended. Clear
+electron/node_modules first so stale build artifacts are not reused:
 
     Remove-Item -Recurse -Force node_modules
     npm ci
 
-If you must stay on Node ${major}, install the C++ workload instead, or run
-"npm ci --ignore-scripts" and accept that "npm start" (dev) will not work
-until electron-builder rebuilds the module for Electron's own ABI.
+If nvm cannot reach nodejs.org, point it at a mirror first:
+
+    nvm node_mirror https://npmmirror.com/mirrors/node/
+    nvm install 22.20.0
+
+Last resort on Node ${major}: install the Visual Studio "Desktop development
+with C++" workload.
 `);
 
 process.exit(1);

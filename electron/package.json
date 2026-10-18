@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "preinstall": "node scripts/check-node.js",
+    "ci:nobuild": "npm ci --ignore-scripts",
     "start": "npm run electron",
     "electron": "electron .",
     "test": "node --test \"test/*.test.js\"",

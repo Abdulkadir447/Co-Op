@@ -45,6 +45,9 @@ test('fails on Node 24, which has no prebuild, and says why', () => {
   // And give the exact escape hatch.
   assert.match(r.stderr, /nvm use 22/);
   assert.match(r.stderr, /process\.versions\.modules/);
+  // The zero-download escape hatch must be offered, since installing another
+  // Node is not always possible (nvm needs to reach nodejs.org).
+  assert.match(r.stderr, /npm ci --ignore-scripts/);
 });
 
 test('the failure message lists the ABIs that do work', () => {

@@ -67,6 +67,12 @@ pnpm install --frozen-lockfile
 # misleading — it is an ABI problem, not a missing compiler. Use Node 22 LTS
 # and no C++ toolchain is needed. scripts/check-node.js blocks the install
 # early with that explanation.
+#
+# Stuck on Node 24 and cannot install another Node? Use:
+#     cd electron && npm ci --ignore-scripts && cd ..
+# Packaging still works — electron-builder's @electron/rebuild fetches the
+# prebuilt better-sqlite3 for Electron's own ABI. Only "npm start" (dev mode,
+# which loads the module against Node's ABI) is unavailable.
 cd electron && npm ci && cd ..
 
 # website (standalone npm project)
