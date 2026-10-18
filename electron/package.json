@@ -4,6 +4,7 @@
   "description": "Electron wrapper for the Co-op frontend",
   "main": "main.js",
   "scripts": {
+    "preinstall": "node scripts/check-node.js",
     "start": "npm run electron",
     "electron": "electron .",
     "test": "node --test \"test/*.test.js\"",
@@ -88,5 +89,8 @@
   "author": "Co-op",
   "allowScripts": {
     "electron@33.4.11": true
+  },
+  "engines": {
+    "node": ">=18 <24"
   }
 }

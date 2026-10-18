@@ -13,7 +13,7 @@ Everything below is the exact command CI runs (`.github/workflows/ci.yml`), so
 | Python | 3.11 | `python3 -m venv` + `pip` |
 | Node | 22 | |
 | pnpm | 9 | `corepack enable` (reads nothing here) or `npm i -g pnpm@9` |
-| C++ toolchain | — | **only** if you build the Electron desktop app (better-sqlite3). On Windows: Visual Studio Build Tools. Not needed for backend/frontend/website/tests-on-non-Windows. |
+| C++ toolchain | — | Not normally needed. Only if your Node has no `better-sqlite3` prebuild (Node 24+); use Node 22 LTS instead and skip it entirely. See §3. |
 
 ### On Windows (PowerShell)
 
@@ -59,8 +59,14 @@ pnpm install --frozen-lockfile
 
 # desktop (its own step; npm, NOT pnpm — electron/ ships a package-lock.json
 # and is deliberately not a pnpm workspace member, so pnpm would ignore the
-# committed lockfile. Needs the C++ toolchain for better-sqlite3; if that
-# native build fails the app still runs, on the node:sqlite fallback.)
+# committed lockfile.)
+#
+# Requires Node 18, 20, 22 or 23. better-sqlite3 ships prebuilt binaries only
+# for those ABIs; on Node 24+ npm tries to compile it and fails with
+# "Could not find any Visual Studio installation to use". That message is
+# misleading — it is an ABI problem, not a missing compiler. Use Node 22 LTS
+# and no C++ toolchain is needed. scripts/check-node.js blocks the install
+# early with that explanation.
 cd electron && npm ci && cd ..
 
 # website (standalone npm project)
@@ -128,9 +134,12 @@ The artifact lands at `electron/dist/Co-op-<version>-setup.exe`.
 > wrong directory.
 
 `dist` passes `--publish never`; use `npm run release` when you actually want
-to publish to GitHub Releases. `dist` still needs the C++ toolchain for
-`better-sqlite3`, and downloads the ~100 MB Electron binary on first install —
-on a metered connection that looks like a hang. It is not one.
+to publish to GitHub Releases.
+
+No C++ toolchain is involved: `@electron/rebuild` fetches the prebuilt
+`better-sqlite3` for Electron's own ABI (33.4.11 → ABI 130, which exists), so
+the compiler is never invoked. It does download the ~100 MB Electron binary on
+first run — on a metered connection that looks like a hang. It is not one.
 
 ## 5. Run the website
 
