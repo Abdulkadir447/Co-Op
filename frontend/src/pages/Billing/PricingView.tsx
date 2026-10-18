@@ -10,6 +10,7 @@ import {
   type PlanId,
 } from '../../billing/plans';
 import { useBilling, type PaymentRecord } from '../../billing/useBilling';
+import { CrownOutlined } from '@ant-design/icons';
 import { CoopButton, SparkleIcon } from '../../components/ui';
 
 /**
@@ -120,7 +121,7 @@ const PlanCard: React.FC<{
                 block
                 loading={processing}
                 onClick={() => onTrial(plan.id)}
-                icon={plan.id === 'professional' ? <SparkleIcon size={14} color={colors.onPrimary} /> : undefined}
+                icon={plan.id === 'professional' ? <CrownOutlined style={{ fontSize: 14, color: colors.onPrimary }} /> : undefined}
               >
                 {`Start ${trialDays}-Day Free Trial`}
               </CoopButton>
@@ -129,7 +130,7 @@ const PlanCard: React.FC<{
                 block
                 loading={processing}
                 onClick={() => onCheckout(plan.id)}
-                icon={plan.id === 'professional' ? <SparkleIcon size={14} color={colors.onPrimary} /> : undefined}
+                icon={plan.id === 'professional' ? <CrownOutlined style={{ fontSize: 14, color: colors.onPrimary }} /> : undefined}
               >
                 {ctaLabel}
               </CoopButton>
@@ -163,7 +164,7 @@ const PlanCard: React.FC<{
               block
               loading={processing}
               onClick={() => onTrial(plan.id)}
-              icon={plan.id === 'professional' ? <SparkleIcon size={14} color={colors.onPrimary} /> : undefined}
+              icon={plan.id === 'professional' ? <CrownOutlined style={{ fontSize: 14, color: colors.onPrimary }} /> : undefined}
             >
               {`Start ${trialDays}-Day Free Trial`}
             </CoopButton>
@@ -191,7 +192,7 @@ const PlanCard: React.FC<{
             block
             loading={processing}
             onClick={() => onSelect(plan.id)}
-            icon={plan.id === 'professional' ? <SparkleIcon size={14} color={colors.onPrimary} /> : undefined}
+            icon={plan.id === 'professional' ? <CrownOutlined style={{ fontSize: 14, color: colors.onPrimary }} /> : undefined}
           >
             {plan.cta}
           </CoopButton>
