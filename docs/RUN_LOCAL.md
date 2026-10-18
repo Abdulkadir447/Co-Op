@@ -108,7 +108,29 @@ npm start
 > Electron app (no `main` in its package.json) and does not have `electron`
 > installed. Run the desktop app from `electron/`.
 
-To ship an installer: `cd electron && npm run dist` (needs the C++ toolchain).
+To ship an installer, with the two `VITE_*` variables still set in the same
+shell:
+
+```sh
+npm run dist:desktop          # from the repo root, or:
+cd electron && npm run dist   # the same thing
+```
+
+The artifact lands at `electron/dist/Co-op-<version>-setup.exe`.
+
+> **Do not run `npx electron-builder` from the repo root.** The root
+> `package.json` has empty `dependencies` and no `electron`, so electron-builder
+> reads the wrong manifest and dies with *"Cannot compute electron version from
+> installed node modules"* (plus an *"author is missed"* warning, since only
+> `electron/package.json` has an `author`). It also ignores the pinned
+> `electron-builder@24.13.3` and downloads whatever the latest major is. Build
+> from `electron/`, or use `npm run dist:desktop`, which cannot be run from the
+> wrong directory.
+
+`dist` passes `--publish never`; use `npm run release` when you actually want
+to publish to GitHub Releases. `dist` still needs the C++ toolchain for
+`better-sqlite3`, and downloads the ~100 MB Electron binary on first install —
+on a metered connection that looks like a hang. It is not one.
 
 ## 5. Run the website
 

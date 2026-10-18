@@ -9,7 +9,7 @@
     "test": "node --test \"test/*.test.js\"",
     "build:renderer": "npm --prefix ../frontend run build && node scripts/copy-renderer.js",
     "pack": "npm run build:renderer && electron-builder --dir",
-    "dist": "npm run build:renderer && electron-builder",
+    "dist": "npm run build:renderer && electron-builder --publish never",
     "release": "npm run build:renderer && electron-builder --publish always"
   },
   "devDependencies": {
