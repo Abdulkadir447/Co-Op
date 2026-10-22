@@ -63,6 +63,9 @@ class Business(Base):
     tax_id = Column(String(100))
     website = Column(String(255))
     timezone = Column(String(64))
+    # Public Supabase Storage URL for the business logo (0019). The bytes live
+    # in object storage; the database records only which logo is current.
+    logo_url = Column(String(1024), nullable=True)
     # Ask Zeno answer style preference (0009): concise | standard | detailed.
     ai_response_style = Column(
         String(20), default="standard", server_default="standard", nullable=False

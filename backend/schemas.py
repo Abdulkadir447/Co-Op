@@ -366,6 +366,10 @@ class BusinessSettingsOut(BaseModel):
     tax_id: Optional[str] = None
     website: Optional[str] = None
     timezone: Optional[str] = None
+    # Set only by POST /business/logo (a Storage upload), never by PATCH —
+    # letting a caller write an arbitrary URL here would let them point the
+    # logo at any external host.
+    logo_url: Optional[str] = None
     ai_response_style: str = "standard"
     created_at: datetime
     updated_at: Optional[datetime] = None

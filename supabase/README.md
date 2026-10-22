@@ -6,20 +6,35 @@ This folder holds what belongs on the Supabase side of that split. It does not
 contain the application, and it cannot — see
 [Why the backend does not live here](#why-the-backend-does-not-live-here).
 
+## What Supabase features Co-op uses
+
+| Supabase feature | Used? | Where |
+| --- | --- | --- |
+| **Postgres database** | ✅ yes | the entire backend — `backend/database.py`, `asyncpg` |
+| **Row-Level Security** | ✅ yes | 18 policies from `0014_rls`, tenant isolation backstop |
+| **Migrations** | ✅ yes | `backend/alembic/` → head `0019_business_logo` |
+| **Storage** | ✅ yes | business logos — `backend/storage.py`, `POST /business/logo` |
+| **Auth** | ❌ deliberately | identity is **Clerk** — `backend/clerk_auth.py` |
+| **Realtime** | ❌ no | nothing subscribes; the desktop app polls via `frontend/src/sync/` |
+| **Edge Functions** | ❌ cannot | TypeScript/Deno only; this backend is Python |
+
+There is no `@supabase/supabase-js` and no `supabase-py` anywhere. Supabase
+Storage is a plain REST API and `httpx` was already a dependency, so
+`backend/storage.py` talks to it directly rather than pulling in a client for
+one feature.
+
 ## What is where
 
 | Concern | Lives in | Notes |
 | --- | --- | --- |
 | Postgres database | **Supabase** | connection string via `DATABASE_URL` |
+| Object storage | **Supabase Storage** | bucket `coop-assets` |
 | Schema, migrations | `backend/alembic/versions/` | authoritative source |
 | Schema snapshot for Supabase | `supabase/migrations/` | **generated** from the above |
 | API | `backend/` | FastAPI, runs on its own host (e.g. Render) |
 | Identity | Clerk | `backend/clerk_auth.py` — *not* Supabase Auth |
 | Desktop shell | `electron/` | bakes the API origin at build time |
 
-There is no Supabase client library in this repository — no `@supabase/supabase-js`,
-no Edge Functions, no Supabase Storage, no Supabase Auth. The application talks
-to Supabase the way it talks to any Postgres: SQLAlchemy over `asyncpg`.
 
 ## 1. Link this folder to your project
 
@@ -88,6 +103,38 @@ Step 3/4 use a throwaway `coop_connection_probe` table on purpose: it proves
 read/write access without touching business data and without having to satisfy
 foreign keys or RLS policies. Step 2 is what proves the real application
 schema is reachable.
+
+## 4. Storage (business logos)
+
+Storage is optional — without it the app runs normally and `POST /business/logo`
+answers `503` rather than `500`, so a missing env var is obvious.
+
+Create the bucket (idempotent, **Supabase-only** — it will fail on a plain
+local Postgres, which is expected):
+
+```sql
+-- paste supabase/migrations/20261022010000_storage_bucket.sql into the SQL editor
+```
+
+Then set both variables on the API host:
+
+```sh
+SUPABASE_URL=https://<your-project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service_role key>     # Project Settings → API
+```
+
+> **The service-role key bypasses row-level security.** It belongs on the API
+> host only. It must never appear in the frontend bundle or the desktop app —
+> browsers read logos through the bucket's public URL, not through this key.
+
+`supabase/scripts/check_connection.py` probes Storage automatically when those
+are set: it lists buckets, uploads a small object, fetches it back over HTTPS,
+and deletes it. Without them it prints `SKIP` and the database result still
+stands.
+
+The bucket is public because a logo is rendered by an `<img>` tag with no
+session attached. Anything private needs its own private bucket plus
+`backend.storage.signed_url()` — do not make that bucket public.
 
 ## Keeping the snapshot honest
 

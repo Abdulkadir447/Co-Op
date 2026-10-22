@@ -1,7 +1,7 @@
 -- Co-op schema snapshot — GENERATED, DO NOT EDIT BY HAND.
 --
 -- Regenerate with:  python supabase/scripts/export_schema.py
--- Source of truth:  backend/alembic/versions/ (revision 0018_integer_pk_sequences (head))
+-- Source of truth:  backend/alembic/versions/ (revision 0019_business_logo (head))
 --
 -- Apply in the Supabase SQL editor, or with:
 --     supabase db push
@@ -281,7 +281,8 @@ CREATE TABLE public.businesses (
     deleted_at timestamp with time zone,
     deleted_by character varying(255),
     version integer DEFAULT 1 NOT NULL,
-    ai_response_style character varying(20) DEFAULT 'standard'::character varying NOT NULL
+    ai_response_style character varying(20) DEFAULT 'standard'::character varying NOT NULL,
+    logo_url character varying(1024)
 );
 
 

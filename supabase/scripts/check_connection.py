@@ -161,11 +161,74 @@ async def main() -> int:
         await dispose_db()
 
     print()
+    storage_ok = _check_storage()
+
+    print()
     if failures:
         print(f"RESULT  FAILED at: {', '.join(failures)}")
         return 1
-    print("RESULT  all 5 steps passed — the connection reads and writes")
+    if storage_ok is False:
+        print("RESULT  database passed, but Supabase Storage FAILED")
+        return 1
+    print("RESULT  all steps passed — the connection reads and writes")
     return 0
+
+
+def _check_storage() -> bool | None:
+    """Probe Supabase Storage: list buckets, upload, fetch, delete.
+
+    Returns None when Storage is not configured (not a failure — Co-op runs
+    without it and answers 503 on the logo endpoint), True on success, False
+    on a configured-but-broken Storage.
+    """
+    from backend import storage as st
+
+    if not st.is_configured():
+        print("[-]   storage          SKIP SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set")
+        return None
+
+    cfg = st.storage_config()
+    print(f"[-]   storage          probing bucket '{cfg.bucket}'")
+
+    try:
+        buckets = {b.get("name") for b in st.list_buckets(cfg)}
+    except st.StorageError as exc:
+        print(f"      storage list     FAIL {exc}")
+        return False
+
+    if cfg.bucket not in buckets:
+        print(f"      storage bucket   FAIL '{cfg.bucket}' does not exist")
+        print("      Apply supabase/migrations/20261022010000_storage_bucket.sql")
+        return False
+    print(f"      storage bucket   OK   '{cfg.bucket}' present")
+
+    name = f"connection-probe/{uuid.uuid4().hex[:12]}.txt"
+    try:
+        st.upload(name, b"coop storage probe", "text/plain", cfg=cfg)
+    except st.StorageError as exc:
+        print(f"      storage WRITE    FAIL {exc}")
+        return False
+    print(f"      storage WRITE    OK   uploaded {name}")
+
+    import httpx
+
+    try:
+        r = httpx.get(st.public_url(name, cfg), timeout=30)
+        if r.status_code != 200 or r.content != b"coop storage probe":
+            print(f"      storage READ     FAIL HTTP {r.status_code}")
+            return False
+    except httpx.HTTPError as exc:
+        print(f"      storage READ     FAIL {exc}")
+        return False
+    print("      storage READ     OK   fetched the same bytes back over HTTPS")
+
+    try:
+        st.delete(name, cfg=cfg)
+        print("      storage cleanup  OK")
+    except st.StorageError as exc:
+        print(f"      storage cleanup  FAIL {exc}")
+        return False
+    return True
 
 
 if __name__ == "__main__":

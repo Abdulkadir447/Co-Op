@@ -44,6 +44,7 @@ from . import briefing as briefing_mod
 from . import importer
 from . import audit as audit_mod
 from . import backups as backups_mod
+from . import storage as storage_mod
 from .ai import service as ai_service
 from .ai import forecast as ai_forecast_mod
 from .ai import history as ai_history_mod
@@ -827,6 +828,73 @@ async def update_business_settings(
     await audit_mod.record_audit(
         db, business.id, "businesses", business.id, "update",
         change=data, actor=business.owner_id,
+    )
+    return business
+
+
+# Image types a logo may be. Anything else is rejected before it reaches
+# Storage, so a caller cannot park an HTML or SVG payload behind a public URL.
+_ALLOWED_LOGO_TYPES = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+}
+
+
+@app.post("/business/logo", response_model=BusinessSettingsOut, tags=["Settings"])
+async def upload_business_logo(
+    file: UploadFile = File(...),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> Business:
+    """Upload the business logo to Supabase Storage and record its URL.
+
+    The bytes go to object storage under a tenant-scoped path; the database
+    keeps only the resulting public URL. Rejects non-image payloads and
+    returns 503 (not 500) when Storage is not configured, so an operator can
+    tell a missing env var from a genuine failure.
+    """
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    ext = _ALLOWED_LOGO_TYPES.get(content_type)
+    if not ext:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Unsupported logo type '{content_type or 'unknown'}'. "
+                f"Allowed: {', '.join(sorted(_ALLOWED_LOGO_TYPES))}"
+            ),
+        )
+
+    data = await _read_upload(file)
+    if not data:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    if not storage_mod.is_configured():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "File storage is not configured on this server "
+                "(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required)."
+            ),
+        )
+
+    path = f"businesses/{business.id}/logo.{ext}"
+    try:
+        result = storage_mod.upload(path, data, content_type)
+    except storage_mod.StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except storage_mod.StorageError as exc:
+        raise HTTPException(status_code=502, detail=f"Logo upload failed: {exc}") from exc
+
+    previous = business.logo_url
+    business.logo_url = result["url"]
+    business.updated_by = business.owner_id
+    await db.flush()
+    await db.refresh(business)
+    await audit_mod.record_audit(
+        db, business.id, "businesses", business.id, "update",
+        change={"logo_url": {"from": previous, "to": result["url"]}},
+        actor=business.owner_id,
     )
     return business
 
