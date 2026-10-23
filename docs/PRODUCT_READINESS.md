@@ -2,6 +2,23 @@
 
 _Last updated: 2026-08-28 (product-readiness pass over the v1 feature set)._
 
+> **Update — 2026-10-23 (supersedes the counts and the payments section below).**
+>
+> * Backend suite is now **405 passed / 6 skipped** (not 226/310). Frontend 26.
+> * **Payments are no longer parked.** Paystack hosted-page checkout + verify +
+>   signature-checked webhook are implemented (`backend/payments.py`,
+>   `backend/paystack.py`, 37 tests). The remaining risk is that *no live
+>   charge has ever been made* — see `docs/LAUNCH_READINESS.md` §Blocking 4.
+> * **Receivables exist** (migration `0020_order_payments`): a customer payment
+>   can be recorded against an order, partially or fully, with an audited
+>   ledger and a computed balance. This was the largest "can't actually run a
+>   shop on it" gap. Invoices now report paid/balance too.
+> * **RLS is applied to the live Supabase project** (19 policies) —
+>   `docs/SUPABASE_PROVISIONING.md`.
+> * The RLS functional test still skips without `TEST_DATABASE_URL`, and the
+>   desktop offline mirror does **not** carry the payment ledger (payments are
+>   recorded online; the UI says so instead of guessing).
+
 **Verdict:** Co-op has a coherent, working v1 foundation: ingest →
 understand → operate → report → explain → draft → confirm → meter, with
 honest UI states wherever a capability is provisional. It is ready for

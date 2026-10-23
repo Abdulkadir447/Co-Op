@@ -77,6 +77,28 @@ project, compared with the counts in the snapshot file:
 | `profiles` keys | `id, clerk_user_id, email` | **exact** ✅ |
 | Write → read round-trip | succeeds | **succeeds**, probe table dropped ✅ |
 
+## Addendum — migration 0020 (order_payments), 2026-10-23
+
+The receivables feature added `order_payments` (see
+`backend/alembic/versions/0020_order_payments.py`). It was applied to the live
+project the same day, immediately after the schema above:
+
+| Check | Expected | Live |
+|---|---|---|
+| Public tables | 23 | **23** ✅ |
+| RLS policies | 19 | **19** ✅ |
+| `alembic_version` | `0020_order_payments` | **`0020_order_payments`** ✅ |
+| `order_payments` columns | id, business_id, order_id, amount, method, reference, note, received_at, created_by, created_at | **exact** ✅ |
+
+`supabase/migrations/20261022000000_coop_schema.sql` was updated in the same
+commit, so a fresh replay creates all 23 tables and 19 policies in one pass —
+the snapshot and the alembic head agree (enforced by
+`backend/tests/test_supabase_snapshot.py`).
+
+> Note: `export_schema.py` needs `pg_dump` on PATH. Where it is unavailable,
+> the snapshot must be maintained by hand **and** the consistency tests are
+> what stop it drifting. Prefer running the generator.
+
 ## Wiring the app to it
 
 Nothing in the repo referenced this project ref, and `.env` is gitignored — so

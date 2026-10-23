@@ -29,7 +29,7 @@ Legend:
 | 8 | ✅ | `grep -rnIE "service_role\|sk-[A-Za-z0-9]{16,}\|AKIA[0-9A-Z]{12}" .` → 0 |
 | 9 | ✅ | no secret in `electron/`; `PAYSTACK_SECRET_KEY` etc. are backend env-only |
 | 10 | ✅ | `backend/config.py` reads DB URL from env; no literal creds |
-| 11 | ✅ | `OPENAI_API_KEY` from env |
+| 11 | ✅ | `OPENROUTER_API_KEY` from env |
 | 12 | ✅ | Gmail/OAuth deferred; nothing hardcoded |
 | 13 | ✅ | `.env` gitignored; only `.env.example` committed; one source of truth (root) |
 | 14 | ✅ | no secrets committed |

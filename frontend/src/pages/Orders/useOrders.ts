@@ -35,6 +35,14 @@ export interface Order {
   /** Legal next statuses, published by the backend (Task 12 / M4). */
   allowed_transitions: OrderStatus[];
   total_amount: number;
+  /**
+   * Receivables (0020). Computed server-side from the payment ledger on every
+   * read, so it can never drift from the order. `unknown` only appears on the
+   * offline mirror, which does not carry payments (they are recorded online).
+   */
+  amount_paid?: number;
+  balance_due?: number;
+  payment_status?: 'unpaid' | 'partial' | 'paid' | 'overpaid' | 'unknown';
   order_date: string;
   created_at: string;
   items: OrderItem[];

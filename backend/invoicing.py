@@ -191,8 +191,13 @@ async def _load(
 
 def to_dict(row: Invoice, order: Optional[Order], customer: Optional[Customer],
             currency: str = "USD") -> dict[str, Any]:
+    from .receivables import balance_for
+
     status = (order.status.value if order and hasattr(order.status, "value") else
               (order.status if order else None))
+    # Receivables (0020): an invoice says what was charged; the payment ledger
+    # says what came in. Both are shown so "sent" never implies "paid".
+    balance = balance_for(order) if order is not None else None
     return {
         "id": row.id,
         "number": row.number,
@@ -202,6 +207,9 @@ def to_dict(row: Invoice, order: Optional[Order], customer: Optional[Customer],
         "notes": row.notes,
         "currency": currency,
         "total": float(order.total_amount) if order else 0.0,
+        "amount_paid": balance.paid if balance else 0.0,
+        "balance_due": balance.balance if balance else 0.0,
+        "payment_status": balance.status if balance else "unpaid",
         "order": {
             "id": order.id,
             "status": status,
@@ -281,7 +289,8 @@ def render_csv(business: Business, items: list[dict[str, Any]]) -> bytes:
     writer = csv.writer(buf)
     writer.writerow([
         "Invoice number", "Status", "Issue date", "Due date", "Order",
-        "Customer", "Email", "Total", "Currency",
+        "Customer", "Email", "Total", "Paid", "Balance", "Payment status",
+        "Currency",
     ])
     for it in items:
         writer.writerow([
@@ -294,6 +303,9 @@ def render_csv(business: Business, items: list[dict[str, Any]]) -> bytes:
             csv_safe(it["customer"]["full_name"]) if it["customer"] else "",
             csv_safe(it["customer"]["email"] or "") if it["customer"] else "",
             f"{it['total']:.2f}",
+            f"{it.get('amount_paid', 0.0):.2f}",
+            f"{it.get('balance_due', 0.0):.2f}",
+            it.get("payment_status", "unpaid"),
             it["currency"],
         ])
     return buf.getvalue().encode("utf-8")

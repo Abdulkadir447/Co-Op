@@ -265,9 +265,54 @@ class Order(Base):
         back_populates="order",
         cascade="all, delete-orphan",
     )
+    # Money received from the customer against this order (0020). Eagerly
+    # loaded with ``selectin`` so every place that already loads an Order can
+    # compute paid/balance without an extra query or a lazy-load in async
+    # context (which would raise MissingGreenlet).
+    payments = relationship(
+        "OrderPayment",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="OrderPayment.id",
+    )
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Order id={self.id} status={self.status.value!r}>"
+
+
+class OrderPayment(Base):
+    """One payment received from a customer against an order (0020).
+
+    Before this table Co-op could create, deliver and invoice an order and
+    never record that the customer actually paid — so "who owes me money?"
+    was unanswerable. Order *totals* stay the single source of truth for what
+    was charged (``orders.total_amount``); payments are a separate ledger of
+    what came in, which is why partial payments and overpayment detection are
+    possible without ever mutating the order.
+
+    Rows are append-only by convention: a correction is a delete (owner/
+    manager, audited) rather than an edit, so the ledger never silently
+    rewrites history.
+    """
+
+    __tablename__ = "order_payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)   # tenant isolation
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    method = Column(String(20), nullable=False, default="cash", server_default="cash")
+    reference = Column(String(120), nullable=True)   # transfer ref / receipt no.
+    note = Column(String(500), nullable=True)
+    received_at = Column(DateTime, server_default=func.now(), nullable=False)
+    created_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    order = relationship("Order", back_populates="payments")
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<OrderPayment id={self.id} order={self.order_id} amount={self.amount}>"
 
 
 class OrderItem(Base):

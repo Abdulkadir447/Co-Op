@@ -1,7 +1,7 @@
 -- Co-op schema snapshot — GENERATED, DO NOT EDIT BY HAND.
 --
 -- Regenerate with:  python supabase/scripts/export_schema.py
--- Source of truth:  backend/alembic/versions/ (revision 0019_business_logo (head))
+-- Source of truth:  backend/alembic/versions/ (revision 0020_order_payments (head))
 --
 -- Apply in the Supabase SQL editor, or with:
 --     supabase db push
@@ -582,6 +582,44 @@ ALTER SEQUENCE public.order_items_id_seq OWNED BY public.order_items.id;
 
 
 --
+-- Name: order_payments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.order_payments (
+    id integer NOT NULL,
+    business_id integer NOT NULL,
+    order_id integer NOT NULL,
+    amount double precision NOT NULL,
+    method character varying(20) DEFAULT 'cash'::character varying NOT NULL,
+    reference character varying(120),
+    note character varying(500),
+    received_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_by character varying(255),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: order_payments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.order_payments_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: order_payments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.order_payments_id_seq OWNED BY public.order_payments.id;
+
+
+--
 -- Name: orders; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -974,6 +1012,7 @@ ALTER TABLE ONLY public.order_items ALTER COLUMN id SET DEFAULT nextval('public.
 -- Name: orders id; Type: DEFAULT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.order_payments ALTER COLUMN id SET DEFAULT nextval('public.order_payments_id_seq'::regclass);
 ALTER TABLE ONLY public.orders ALTER COLUMN id SET DEFAULT nextval('public.orders_id_seq'::regclass);
 
 
@@ -1145,6 +1184,14 @@ ALTER TABLE ONLY public.licenses
 
 ALTER TABLE ONLY public.order_items
     ADD CONSTRAINT order_items_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: order_payments order_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_payments
+    ADD CONSTRAINT order_payments_pkey PRIMARY KEY (id);
 
 
 --
@@ -1498,6 +1545,20 @@ CREATE INDEX ix_licenses_business_id ON public.licenses USING btree (business_id
 
 
 --
+-- Name: ix_order_payments_business_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_order_payments_business_id ON public.order_payments USING btree (business_id);
+
+
+--
+-- Name: ix_order_payments_order_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_order_payments_order_id ON public.order_payments USING btree (order_id);
+
+
+--
 -- Name: ix_payments_business_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1628,6 +1689,14 @@ ALTER TABLE ONLY public.order_items
 
 ALTER TABLE ONLY public.order_items
     ADD CONSTRAINT fk_order_items_product_id FOREIGN KEY (product_id) REFERENCES public.products(id);
+
+
+--
+-- Name: order_payments order_payments_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_payments
+    ADD CONSTRAINT order_payments_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id);
 
 
 --
@@ -1773,6 +1842,7 @@ ALTER TABLE public.licenses ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_payments ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: orders; Type: ROW SECURITY; Schema: public; Owner: -
@@ -1892,6 +1962,13 @@ CREATE POLICY tenant_isolation_licenses ON public.licenses USING ((business_id =
 --
 
 CREATE POLICY tenant_isolation_order_items ON public.order_items USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
+
+
+--
+-- Name: order_payments tenant_isolation_order_payments; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation_order_payments ON public.order_payments USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
 
 
 --

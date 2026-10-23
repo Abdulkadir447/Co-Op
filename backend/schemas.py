@@ -240,9 +240,44 @@ class OrderOut(BaseModel):
     # of maintaining its own copy of the rules.
     allowed_transitions: List[OrderStatus] = []
     total_amount: float
+    # Receivables (0020): what came in, what is still owed. Computed from the
+    # payment ledger on every read — never stored, so it cannot drift.
+    amount_paid: float = 0.0
+    balance_due: float = 0.0
+    payment_status: str = "unpaid"  # unpaid | partial | paid | overpaid
     order_date: datetime
     created_at: datetime
     items: List[OrderItemOut]
+
+
+class OrderPaymentCreate(BaseModel):
+    """One payment received against an order."""
+
+    amount: float = Field(..., gt=0)
+    method: Optional[str] = "cash"  # cash | transfer | card | pos | other
+    reference: Optional[str] = Field(None, max_length=120)
+    note: Optional[str] = Field(None, max_length=500)
+
+
+class OrderPaymentOut(BaseModel):
+    id: int
+    order_id: int
+    amount: float
+    method: str
+    reference: Optional[str] = None
+    note: Optional[str] = None
+    received_at: Optional[datetime] = None
+    created_by: Optional[str] = None
+
+
+class OrderPaymentsResponse(BaseModel):
+    """The payment ledger of one order plus its balance."""
+
+    order_id: int
+    items: List[OrderPaymentOut]
+    amount_paid: float
+    balance_due: float
+    payment_status: str
 
     model_config = ConfigDict(from_attributes=True)
 

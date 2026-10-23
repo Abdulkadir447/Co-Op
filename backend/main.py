@@ -101,6 +101,8 @@ from .schemas import (
     OrderCreate,
     OrderListResponse,
     OrderOut,
+    OrderPaymentCreate,
+    OrderPaymentsResponse,
     OrderUpdate,
     ProductCreate,
     ProductListResponse,
@@ -1451,6 +1453,10 @@ def _serialize_order(order: Order) -> OrderOut:
         for s in sorted(ALLOWED_ORDER_TRANSITIONS.get(current, set()))
     ]
 
+    from .receivables import balance_for
+
+    balance = balance_for(order)
+
     return OrderOut(
         id=order.id,
         customer_id=order.customer_id,
@@ -1458,6 +1464,9 @@ def _serialize_order(order: Order) -> OrderOut:
         status=order.status,
         allowed_transitions=allowed,
         total_amount=order.total_amount,
+        amount_paid=balance.paid,
+        balance_due=balance.balance,
+        payment_status=balance.status,
         order_date=order.order_date,
         created_at=order.created_at,
         items=[
@@ -1675,6 +1684,93 @@ async def update_order_status(
     )
     # Re-load relationships refreshed by the stock restore.
     return _serialize_order(await _load_order(id, business, db))
+
+
+# ---------------------------------------------------------------------------
+# Receivables — money received against an order (0020)
+#
+# Reads are open to every role. Writes are limited to the people who
+# actually handle money: owner, manager, accountant and sales. (The path
+# matrix in team.py keys on the FIRST path segment, so `/orders/{id}/payments`
+# would otherwise inherit the sales/inventory rule — the accountant has to be
+# added explicitly here.)
+# ---------------------------------------------------------------------------
+
+_PAYMENT_ROLES = ("owner", "manager", "accountant", "sales")
+
+
+def _require_payment_role(role: str = Depends(team_mod.get_current_role)) -> str:
+    if role not in _PAYMENT_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Role {role!r} cannot record customer payments",
+        )
+    return role
+
+
+@app.get("/orders/{id}/payments", response_model=OrderPaymentsResponse, tags=["Orders"])
+async def list_order_payments(
+    id: int,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> OrderPaymentsResponse:
+    """The payment ledger for one order, with paid/outstanding totals."""
+    from . import receivables as recv
+
+    order = await _load_order(id, business, db)
+    return OrderPaymentsResponse(**await recv.list_payments(business, order))
+
+
+@app.post(
+    "/orders/{id}/payments",
+    response_model=OrderPaymentsResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Orders"],
+)
+async def record_order_payment(
+    id: int,
+    req: OrderPaymentCreate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(_require_payment_role),
+) -> OrderPaymentsResponse:
+    """Record money received. Refuses overpayment and cancelled orders."""
+    from . import receivables as recv
+
+    order = await _load_order(id, business, db)
+    try:
+        await recv.record_payment(
+            db, business, order,
+            amount=req.amount, method=req.method,
+            reference=req.reference, note=req.note,
+            actor=business.owner_id,
+        )
+    except recv.PaymentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    return OrderPaymentsResponse(**await recv.list_payments(business, order))
+
+
+@app.delete(
+    "/orders/{id}/payments/{payment_id}",
+    response_model=OrderPaymentsResponse,
+    tags=["Orders"],
+)
+async def delete_order_payment(
+    id: int,
+    payment_id: int,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(_require_payment_role),
+) -> OrderPaymentsResponse:
+    """Remove a mis-keyed payment (audited); the order itself is untouched."""
+    from . import receivables as recv
+
+    order = await _load_order(id, business, db)
+    try:
+        await recv.delete_payment(db, business, order, payment_id, actor=business.owner_id)
+    except recv.PaymentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    return OrderPaymentsResponse(**await recv.list_payments(business, order))
 
 
 @app.delete("/orders/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Orders"])
