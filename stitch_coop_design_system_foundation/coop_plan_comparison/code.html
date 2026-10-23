@@ -1,0 +1,305 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Co-op - Plan Comparison</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-container": "#b55700",
+                        "primary-fixed": "#e1e0ff",
+                        "tertiary-fixed": "#ffdbc8",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#311300",
+                        "surface-container-low": "#f5f2fe",
+                        "on-secondary": "#ffffff",
+                        "inverse-primary": "#c0c1ff",
+                        "on-primary-container": "#f9f6ff",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "on-secondary-fixed": "#25005a",
+                        "error": "#ba1a1a",
+                        "surface-container": "#efecf9",
+                        "on-secondary-container": "#fffbff",
+                        "on-primary-fixed-variant": "#2c2cc3",
+                        "primary": "#4143d5",
+                        "surface-dim": "#dbd8e5",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#474adb",
+                        "on-tertiary-fixed-variant": "#733500",
+                        "on-background": "#1b1b23",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#5a00c6",
+                        "surface-bright": "#fcf8ff",
+                        "surface-container-high": "#e9e6f3",
+                        "secondary": "#712ae2",
+                        "on-tertiary-container": "#fff6f2",
+                        "on-surface": "#1b1b23",
+                        "surface-container-highest": "#e4e1ed",
+                        "on-error": "#ffffff",
+                        "surface-variant": "#e4e1ed",
+                        "background": "#fcf8ff",
+                        "tertiary": "#904400",
+                        "on-primary-fixed": "#05006c",
+                        "on-surface-variant": "#464555",
+                        "surface": "#fcf8ff",
+                        "secondary-container": "#8a4cfc",
+                        "outline-variant": "#c6c5d7",
+                        "inverse-surface": "#303039",
+                        "primary-container": "#5b5fef",
+                        "on-primary": "#ffffff",
+                        "inverse-on-surface": "#f2effc",
+                        "outline": "#767586",
+                        "secondary-fixed": "#eaddff",
+                        "secondary-fixed-dim": "#d2bbff",
+                        "tertiary-fixed-dim": "#ffb689"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "xl": "32px",
+                        "2xl": "48px",
+                        "3xl": "64px"
+                    },
+                    "fontFamily": {
+                        "body-compact": ["Inter"],
+                        "page-title": ["Inter"],
+                        "page-title-mobile": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "section-heading": ["Inter"],
+                        "body-default": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-compact": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "page-title": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "page-title-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "section-heading": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-default": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .ai-gradient {
+            background: linear-gradient(135deg, #4143d5 0%, #8a4cfc 100%);
+        }
+        .table-row-hover:hover {
+            background-color: #f5f2fe;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-default min-h-screen">
+<!-- TopNavBar -->
+<nav aria-label="Top Navigation" class="fixed top-0 right-0 h-[64px] left-0 md:left-[220px] bg-surface-container-lowest/80 backdrop-blur-md border-b border-border-subtle flex items-center justify-between px-lg w-full z-40 hidden md:flex">
+<div class="flex items-center gap-md hidden">
+<span class="font-section-heading text-section-heading text-primary">Co-op</span>
+</div>
+<div class="flex items-center gap-md flex-1">
+<!-- Search Bar placeholder -->
+</div>
+<div class="flex items-center gap-md">
+<button class="flex items-center gap-sm px-md py-sm bg-surface-container-low text-primary rounded-full hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="font-label-caps text-label-caps">AI Assistant</span>
+</button>
+<div class="flex items-center gap-sm text-on-surface-variant">
+<button class="p-sm hover:text-primary transition-colors"><span class="material-symbols-outlined" data-icon="notifications">notifications</span></button>
+<button class="p-sm hover:text-primary transition-colors"><span class="material-symbols-outlined" data-icon="account_circle">account_circle</span></button>
+</div>
+<img alt="User Profile" class="w-8 h-8 rounded-full object-cover border border-outline-variant" data-alt="A clean, professional headshot of a person in a modern office environment. High-key lighting, bright and airy. The person is looking slightly off-camera with a confident, slight smile. Minimalist background to ensure the face is clearly visible. Used as a user profile avatar." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-qtx_AcCLj8eTIBezd4WmiaU1d0rCaw9o0CIzHieZLT3d4x4RSHP5uO5gRh_4sMq64iQEqYINyo8IEn3D9lnDrHwuBkn2GUCFD4FCd3Kcp9VFultlCBG_ZPhU5pnvhjQfpnL5FFcN9hTohAc7_K27SGWU9p-yFewTy16rg1mxVvPR2pCCvJ-XQreUkfk7jYJShXvCDwXUOgz9T8eVZsCSZDFZ9DkKa1UImrudoADYXBDM35nP2Q2_Rg">
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside aria-label="Sidebar Navigation" class="fixed left-0 top-0 h-screen w-[220px] bg-surface-container-lowest border-r border-border-subtle flex flex-col h-full py-lg px-md hidden md:flex">
+<div class="mb-xl flex items-center gap-md px-md">
+<img alt="Co-op Logo" class="w-8 h-8 rounded-DEFAULT" data-alt="A sleek, abstract geometric logo representing a tech company named Co-op. It features a stylized bird motif composed of sharp, clean lines and subtle gradients of deep purple and vibrant indigo, set against a pristine white background. High contrast, modern SaaS aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuATKGdKu_3eiFBQDQCHKbKLVU2oQQkApIYBIQbNE0St-2zZY3E1KF6Px0XS_0a__LXbWMIrLcJhz2fp4Ks0T8yoLgWOAaGUABtqd3id8xhszan8wbmAwngFy_3dIME4T0lm2tIoTpFStvxWqjLrXqHdasI67xRDQncVmJ_rZEcHmkMzGNgzW4lQD6TiHvhI-nySt1pt_354lOiwvjj-d1V7mXslDXoty3hpH1DcGV62dGPRztNU3Z69Gg">
+<div>
+<h1 class="font-section-heading text-section-heading text-primary m-0 p-0 leading-none">Co-op</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant mt-xs">Premium SaaS</p>
+</div>
+</div>
+<nav aria-label="Main Navigation" class="flex-1 space-y-sm">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-compact text-body-compact">Overview</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-body-compact text-body-compact">Products</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="warehouse">warehouse</span>
+<span class="font-body-compact text-body-compact">Inventory</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
+<span class="font-body-compact text-body-compact">Orders</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-body-compact text-body-compact">Customers</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="auto_awesome" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="font-body-compact text-body-compact">Co-op AI</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary font-bold bg-surface-container-low opacity-80 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-compact text-body-compact">Settings</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-body-compact text-body-compact">Help</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-body-compact text-body-compact">Billing</span>
+</a>
+</nav>
+<div class="mt-auto">
+<button class="w-full bg-primary text-on-primary font-label-caps text-label-caps py-md rounded-lg hover:bg-primary-container transition-colors shadow-sm">
+                Upgrade Plan
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-[220px] md:pt-[64px] min-h-screen p-lg md:p-xl lg:p-2xl max-w-7xl mx-auto flex flex-col gap-xl">
+<header class="flex flex-col gap-sm text-center md:text-left mb-lg">
+<h1 class="font-page-title-mobile md:font-page-title text-page-title-mobile md:text-page-title text-on-background">Choose the right plan for your team</h1>
+<p class="font-body-default text-body-default text-on-surface-variant max-w-2xl">Compare features across our Starter, Professional, and Enterprise plans to find the perfect fit for your growing business operations.</p>
+</header>
+<!-- Pricing Cards Summary -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
+<!-- Starter -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col h-full shadow-sm">
+<h2 class="font-section-heading text-section-heading text-on-surface">Starter</h2>
+<p class="font-body-compact text-body-compact text-on-surface-variant mt-sm mb-lg">For small teams just getting started.</p>
+<div class="mb-lg">
+<span class="text-3xl font-bold text-on-background">$49</span><span class="text-on-surface-variant">/mo</span>
+</div>
+<button class="w-full py-sm px-md border border-outline-variant text-on-surface font-label-caps text-label-caps rounded-lg hover:bg-surface-container-low transition-colors mt-auto">Current Plan</button>
+</div>
+<!-- Professional -->
+<div class="bg-surface-container-lowest border-2 border-primary rounded-xl p-lg flex flex-col h-full shadow-[0_4px_16px_rgba(91,95,239,0.08)] relative overflow-hidden">
+<div class="absolute top-0 right-0 bg-primary text-on-primary font-label-caps text-label-caps px-md py-xs rounded-bl-lg">Recommended</div>
+<h2 class="font-section-heading text-section-heading text-on-surface">Professional</h2>
+<p class="font-body-compact text-body-compact text-on-surface-variant mt-sm mb-lg">Advanced features for growing businesses.</p>
+<div class="mb-lg">
+<span class="text-3xl font-bold text-on-background">$149</span><span class="text-on-surface-variant">/mo</span>
+</div>
+<button class="w-full py-sm px-md bg-primary text-on-primary font-label-caps text-label-caps rounded-lg hover:bg-primary-container transition-colors mt-auto">Upgrade to Pro</button>
+</div>
+<!-- Enterprise -->
+<div class="bg-surface-container-lowest border border-outline-variant border-t-2 border-t-secondary-container rounded-xl p-lg flex flex-col h-full shadow-sm">
+<h2 class="font-section-heading text-section-heading text-on-surface">Enterprise</h2>
+<p class="font-body-compact text-body-compact text-on-surface-variant mt-sm mb-lg">Custom solutions for large-scale operations.</p>
+<div class="mb-lg">
+<span class="text-3xl font-bold text-on-background">Custom</span>
+</div>
+<button class="w-full py-sm px-md ai-gradient text-on-primary font-label-caps text-label-caps rounded-lg hover:opacity-90 transition-opacity mt-auto flex justify-center items-center gap-xs">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">auto_awesome</span> Upgrade Now
+                </button>
+</div>
+</div>
+<!-- Detailed Comparison Table -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="p-md font-section-heading text-section-heading text-on-surface w-1/4">Features</th>
+<th class="p-md font-section-heading text-section-heading text-on-surface text-center w-1/4">Starter</th>
+<th class="p-md font-section-heading text-section-heading text-primary text-center w-1/4">Professional</th>
+<th class="p-md font-section-heading text-section-heading text-on-surface text-center w-1/4">Enterprise</th>
+</tr>
+</thead>
+<tbody class="font-body-compact text-body-compact text-on-surface-variant divide-y divide-outline-variant">
+<!-- Core Features -->
+<tr class="bg-surface text-on-surface font-semibold">
+<td class="p-md" colspan="4">Core Capabilities</td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="p-md font-medium text-on-surface">Number of Users</td>
+<td class="p-md text-center">Up to 5</td>
+<td class="p-md text-center font-medium text-on-surface">Up to 25</td>
+<td class="p-md text-center">Unlimited</td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="p-md font-medium text-on-surface">Inventory Limits</td>
+<td class="p-md text-center">1,000 SKUs</td>
+<td class="p-md text-center font-medium text-on-surface">10,000 SKUs</td>
+<td class="p-md text-center">Unlimited</td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="p-md font-medium text-on-surface">Warehouses</td>
+<td class="p-md text-center">1</td>
+<td class="p-md text-center font-medium text-on-surface">Up to 5</td>
+<td class="p-md text-center">Unlimited</td>
+</tr>
+<!-- AI & Analytics -->
+<tr class="bg-surface text-on-surface font-semibold border-t-2 border-t-primary-fixed-dim">
+<td class="p-md flex items-center gap-xs" colspan="4">
+<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+                                AI &amp; Analytics
+                            </td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="p-md font-medium text-on-surface">AI Insights Level</td>
+<td class="p-md text-center">Basic Reporting</td>
+<td class="p-md text-center font-medium text-on-surface">Predictive Analytics</td>
+<td class="p-md text-center text-secondary font-medium">Custom Models</td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="p-md font-medium text-on-surface">Automated Reordering</td>
+<td class="p-md text-center text-outline"><span class="material-symbols-outlined">remove</span></td>
+<td class="p-md text-center text-primary"><span class="material-symbols-outlined">check_circle</span></td>
+<td class="p-md text-center text-primary"><span class="material-symbols-outlined">check_circle</span></td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="p-md font-medium text-on-surface">Custom Dashboards</td>
+<td class="p-md text-center text-outline"><span class="material-symbols-outlined">remove</span></td>
+<td class="p-md text-center font-medium text-on-surface">3 Included</td>
+<td class="p-md text-center">Unlimited</td>
+</tr>
+<!-- Support -->
+<tr class="bg-surface text-on-surface font-semibold">
+<td class="p-md" colspan="4">Support &amp; Service</td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="p-md font-medium text-on-surface">Support Response Time</td>
+<td class="p-md text-center">48 Hours</td>
+<td class="p-md text-center font-medium text-on-surface">24 Hours</td>
+<td class="p-md text-center">1 Hour (24/7)</td>
+</tr>
+<tr class="table-row-hover transition-colors">
+<td class="p-md font-medium text-on-surface">Dedicated Account Manager</td>
+<td class="p-md text-center text-outline"><span class="material-symbols-outlined">remove</span></td>
+<td class="p-md text-center text-outline"><span class="material-symbols-outlined">remove</span></td>
+<td class="p-md text-center text-primary"><span class="material-symbols-outlined">check_circle</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="bg-surface-container p-lg flex justify-end items-center gap-md border-t border-outline-variant">
+<span class="font-body-compact text-body-compact text-on-surface-variant">Need a custom plan?</span>
+<button class="py-sm px-md border border-outline-variant text-on-surface font-label-caps text-label-caps rounded-lg hover:bg-surface-container-lowest transition-colors">Contact Sales</button>
+</div>
+</div>
+</main>
+</body></html>

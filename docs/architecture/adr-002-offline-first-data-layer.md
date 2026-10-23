@@ -45,7 +45,7 @@ external service.
 
 Deterministic, locally-calculated insights (the briefing/reporting engine)
 keep working offline; the *model-based* assistant degrades to an honest
-"Co-op AI is unavailable offline — your data and workflows remain available."
+"Zeno is unavailable offline — your data and workflows remain available."
 
 ## Consequences & rules (non-negotiable)
 

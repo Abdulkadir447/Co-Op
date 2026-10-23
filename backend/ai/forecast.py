@@ -31,7 +31,8 @@ from typing import Any, Optional
 
 from sqlalchemy import func, select
 
-from ..models import Order
+from .. import timezones as tz_mod
+from ..models import Business, Order
 
 MIN_COMPLETED_MONTHS = 3
 WINDOW_MONTHS = 12  # completed months considered (plus the in-progress current one)
@@ -47,10 +48,10 @@ def _add_months(d: _dt.date, n: int) -> _dt.date:
     return _dt.date(idx // 12, idx % 12 + 1, min(d.day, 28) if d.day > 28 else d.day)
 
 
-def _as_date(x) -> Optional[_dt.date]:
-    """SQLite may return datetime where the model says DateTime -> normalise."""
+def _as_date(x, tz) -> Optional[_dt.date]:
+    """Local calendar date of a naive-UTC timestamp (a date passes through)."""
     if isinstance(x, _dt.datetime):
-        return x.date()
+        return tz_mod.utc_to_local_date(x, tz)
     return x
 
 
@@ -78,7 +79,11 @@ def _least_squares(ys: list[float]) -> tuple[float, float, float]:
 
 async def build_forecast(db, business_id: int, currency: str = "USD") -> dict[str, Any]:
     """Build the verified revenue forecast for one business. Read-only."""
-    today = _dt.date.today()
+    business = (await db.execute(
+        select(Business).where(Business.id == business_id)
+    )).scalar_one_or_none()
+    tz = tz_mod.business_tz(business.timezone if business else None)
+    today = tz_mod.local_today(tz)
     cur = _month_start(today)
     window_start = _add_months(cur, -(WINDOW_MONTHS - 1))
 
@@ -122,7 +127,7 @@ async def build_forecast(db, business_id: int, currency: str = "USD") -> dict[st
     if first_day is None:
         return _unavailable("no_sales_history", _series(window_start), 0)
 
-    series_start = max(window_start, _month_start(_as_date(first_day)))
+    series_start = max(window_start, _month_start(_as_date(first_day, tz)))
     months = _series(series_start)
     next_after_cur = _add_months(cur, 1)
 
@@ -138,7 +143,7 @@ async def build_forecast(db, business_id: int, currency: str = "USD") -> dict[st
 
     bucket = {m["key"]: m for m in months}
     for order_date, total in rows:
-        od = _as_date(order_date)
+        od = _as_date(order_date, tz)
         if od is None:
             continue
         m = bucket.get(od.strftime("%Y-%m"))

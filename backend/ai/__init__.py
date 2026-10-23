@@ -1,1 +1,1 @@
-"""Co-op AI Platform — verified context, structured answers, metered usage, safe action drafts."""
+"""Zeno Platform — verified context, structured answers, metered usage, safe action drafts."""

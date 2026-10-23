@@ -1,5 +1,5 @@
 /**
- * Co-op AI — data bundle (Stage 2.2).
+ * Zeno — data bundle (Stage 2.2).
  *
  * One parallel round over EXISTING endpoints only. The AI layer never talks
  * to the database; this is its entire data path.

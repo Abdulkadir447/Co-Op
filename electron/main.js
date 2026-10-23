@@ -1,9 +1,13 @@
-const { app, BrowserWindow, session, ipcMain, net, dialog } = require('electron');
+const { app, BrowserWindow, session, ipcMain, net, dialog, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { createDataLayer, defaultDbPath } = require('./db');
 const { createDataLayerApp } = require('./dataLayerApp');
 const { isSqliteFile, snapshot, replaceDbFile, assertRestoreSafe } = require('./db/backup');
+const { bakedApiOrigin } = require('./apiOrigin');
+const { APP_USER_MODEL_ID, backupFileName } = require('./platform');
+const { containNavigation, isExternalSafeUrl, isTrustedSender, rendererPreferences } = require('./security');
+const { initAutoUpdate } = require('./updater');
 
 // ---------------------------------------------------------------------------
 // Content Security Policy for the Co-op desktop app.
@@ -38,10 +42,30 @@ const CLERK_FAPI_DEV = 'https://bursting-swan-43.clerk.accounts.dev';
 const CLERK_FAPI = process.env.CLERK_FRONTEND_API
   ? `https://${process.env.CLERK_FRONTEND_API}`
   : CLERK_FAPI_DEV;
+// The Co-op backend the renderer calls. A packaged build has no dev-server
+// proxy, so the renderer talks to an absolute URL (VITE_API_URL, baked into the
+// renderer at build time) — the CSP must allow that origin or EVERY API request
+// is blocked. localhost:8000 covers local dev/testing (uvicorn's default port);
+// a distributed build carries its origin in api-origin.json (written by
+// scripts/copy-renderer.js from the same VITE_API_URL), because there is no
+// environment on the user's machine to read at runtime. COOP_API_URL remains as
+// an override for running the unpackaged app against a deployed backend.
+const COOP_API_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000'];
+const bakedOrigin = bakedApiOrigin();
+if (bakedOrigin) {
+  COOP_API_ORIGINS.push(bakedOrigin);
+}
+if (process.env.COOP_API_URL) {
+  try {
+    COOP_API_ORIGINS.push(new URL(process.env.COOP_API_URL).origin);
+  } catch {
+    /* ignore a malformed COOP_API_URL */
+  }
+}
 const CSP = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLERK_FAPI} https://challenges.cloudflare.com https://*.protect.clerk.com`,
-  `connect-src 'self' ${CLERK_FAPI} https://*.accounts.dev https://*.protect.clerk.com`,
+  `connect-src 'self' ${CLERK_FAPI} https://*.accounts.dev https://*.protect.clerk.com ${COOP_API_ORIGINS.join(' ')}`,
   "img-src 'self' data: https://img.clerk.com",
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
@@ -73,11 +97,7 @@ function createWindow () {
     title: 'Co-op',
     icon: path.join(__dirname, 'coop-icon.png'),
     show: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-    }
+    webPreferences: rendererPreferences(path.join(__dirname, 'preload.js'))
   });
 
   // Show only once the first paint is ready (no blank-frame flicker).
@@ -118,13 +138,43 @@ let mainWindow = null;
 // the restored database without a relaunch.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// The one bridge out to the OS browser.
+//
+// The renderer cannot navigate anywhere (see electron/security.js), so paying
+// a bill or opening a receipt has to be handed to the user's real browser.
+// http(s) only, checked in the main process — the renderer is not trusted to
+// decide what is safe.
+// ---------------------------------------------------------------------------
+function registerShellIpc() {
+  ipcMain.handle('coop:shell', async (event, { method, arg }) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      throw new Error('Blocked coop:shell from an untrusted renderer.');
+    }
+    if (method !== 'openExternal') {
+      throw new Error(`Blocked non-allow-listed shell method: ${method}`);
+    }
+    if (!isExternalSafeUrl(arg)) {
+      throw new Error(`Refusing to open a non-http(s) URL: ${String(arg).slice(0, 120)}`);
+    }
+    await shell.openExternal(arg);
+    return true;
+  });
+}
+
 function registerBackupIpc() {
-  ipcMain.handle('coop:backup', async (_event, { method }) => {
+  ipcMain.handle('coop:backup', async (event, { method }) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      throw new Error('Blocked coop:backup from an untrusted renderer.');
+    }
     if (method === 'create') {
-      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      // A name Windows will actually accept: no <>:"|?*, no trailing dot or
+      // space, never a reserved device name (a business called "NUL" or
+      // "CON" must not produce an unwritable file).
+      const stamp = new Date();
       const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
         title: 'Back up Co-op local database',
-        defaultPath: `coop-backup-${stamp}.db`,
+        defaultPath: backupFileName({ stamp, label: app.name }),
         filters: [{ name: 'SQLite database', extensions: ['db'] }],
       });
       if (canceled || !filePath) return { ok: false, canceled: true };
@@ -181,6 +231,9 @@ function registerDataLayerIpc() {
     if (mainWindow && !mainWindow.isDestroyed()) broadcastSync(mainWindow);
   });
   ipcMain.handle('coop:db', (event, { method, arg }) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      throw new Error('Blocked coop:db from an untrusted renderer.');
+    }
     if (typeof method !== 'string' || !Object.prototype.hasOwnProperty.call(handlers, method)) {
       throw new Error(`Blocked non-allow-listed data-layer method: ${method}`);
     }
@@ -202,24 +255,77 @@ function watchConnectivity(win) {
   update();
 }
 
-app.whenReady().then(() => {
-  dataLayerPath = defaultDbPath(app.getPath('userData'));
-  dataLayer = createDataLayer(dataLayerPath);
-  dataLayerApp = createDataLayerApp(dataLayer); // cold start: trust an existing mirror
-  registerDataLayerIpc();
-  registerBackupIpc();
-  const win = createWindow();
-  mainWindow = win;
-  watchConnectivity(win);
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      const w = createWindow();
-      mainWindow = w;
-      watchConnectivity(w);
-    }
+// ---------------------------------------------------------------------------
+// Single instance.
+//
+// Windows owners double-click the desktop shortcut, and the taskbar makes a
+// second launch one click away. Two instances would fight over the same
+// SQLite file (WAL tolerates it, but the second window's sync engine would
+// push the same queue twice and the backup dialog would target a database the
+// other instance is rewriting). The second launch focuses the running window
+// instead.
+// ---------------------------------------------------------------------------
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
   });
+
+  // ---------------------------------------------------------------------------
+// Navigation containment (electron/security.js).
+//
+// The app loads one local file and nothing else; see that module for why.
+// ---------------------------------------------------------------------------
+app.on('web-contents-created', (_event, contents) => {
+  containNavigation(contents, { openExternal: (url) => shell.openExternal(url) });
 });
 
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit();
-});
+app.whenReady().then(() => {
+    // Taskbar grouping and notifications on Windows use the AppUserModelID;
+    // without it the pinned icon reads "Electron". Kept equal to the
+    // electron-builder appId (asserted in electron/test/windows.test.js).
+    if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
+
+    // Deny every permission request by default (camera, microphone,
+    // geolocation, MIDI, USB, notifications, etc.). Co-op is a business app
+    // that uses none of them, so a denied prompt is never a missing feature —
+    // it just means a compromised renderer cannot ask the OS for device access.
+    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => {
+      callback(false);
+    });
+    session.defaultSession.setPermissionCheckHandler(() => false);
+
+    dataLayerPath = defaultDbPath(app.getPath('userData'));
+    dataLayer = createDataLayer(dataLayerPath);
+    dataLayerApp = createDataLayerApp(dataLayer); // cold start: trust an existing mirror
+    registerDataLayerIpc();
+    registerBackupIpc();
+    registerShellIpc();
+    const win = createWindow();
+    mainWindow = win;
+    watchConnectivity(win);
+    // Desktop auto-update: downloads in the background, the owner chooses when
+    // to restart, and a deferred update force-installs after a week
+    // (see electron/updater.js). No-ops in dev / unpackaged runs.
+    initAutoUpdate({
+      app,
+      dialog,
+      getWindow: () => mainWindow,
+      log: (...a) => console.log('[updater]', ...a),
+    });
+    app.on('activate', function () {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        const w = createWindow();
+        mainWindow = w;
+        watchConnectivity(w);
+      }
+    });
+  });
+
+  app.on('window-all-closed', function () {
+    if (process.platform !== 'darwin') app.quit();
+  });
+}

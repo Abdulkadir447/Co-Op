@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Co-op Orders - Mobile</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-primary-fixed": "#05006c",
+                "tertiary": "#904400",
+                "on-primary-container": "#f9f6ff",
+                "primary-fixed-dim": "#c0c1ff",
+                "background": "#fcf8ff",
+                "on-primary": "#ffffff",
+                "surface-container-highest": "#e4e1ed",
+                "surface-container-low": "#f5f2fe",
+                "error": "#ba1a1a",
+                "inverse-on-surface": "#f2effc",
+                "surface-bright": "#fcf8ff",
+                "surface-container-high": "#e9e6f3",
+                "surface-tint": "#474adb",
+                "on-secondary-fixed-variant": "#5a00c6",
+                "secondary-container": "#8a4cfc",
+                "on-tertiary-fixed-variant": "#733500",
+                "on-background": "#1b1b23",
+                "tertiary-fixed-dim": "#ffb689",
+                "outline": "#767586",
+                "primary-container": "#5b5fef",
+                "on-primary-fixed-variant": "#2c2cc3",
+                "tertiary-container": "#b55700",
+                "on-tertiary-fixed": "#311300",
+                "surface-container-lowest": "#ffffff",
+                "tertiary-fixed": "#ffdbc8",
+                "on-secondary": "#ffffff",
+                "secondary": "#712ae2",
+                "on-error-container": "#93000a",
+                "on-surface": "#1b1b23",
+                "on-secondary-fixed": "#25005a",
+                "surface": "#fcf8ff",
+                "inverse-surface": "#303039",
+                "on-tertiary": "#ffffff",
+                "error-container": "#ffdad6",
+                "surface-variant": "#e4e1ed",
+                "inverse-primary": "#c0c1ff",
+                "on-tertiary-container": "#fff6f2",
+                "surface-container": "#efecf9",
+                "on-secondary-container": "#fffbff",
+                "surface-dim": "#dbd8e5",
+                "secondary-fixed-dim": "#d2bbff",
+                "secondary-fixed": "#eaddff",
+                "on-surface-variant": "#464555",
+                "outline-variant": "#c6c5d7",
+                "primary": "#4143d5",
+                "on-error": "#ffffff",
+                "primary-fixed": "#e1e0ff"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px",
+                "12px": "12px"
+        },
+        "spacing": {
+                "3xl": "64px",
+                "2xl": "48px",
+                "xl": "32px",
+                "sm": "8px",
+                "lg": "24px",
+                "md": "16px",
+                "xs": "4px",
+                "16px": "16px"
+        },
+        "fontFamily": {
+                "label-caps": [
+                        "Inter"
+                ],
+                "page-title": [
+                        "Inter"
+                ],
+                "section-heading": [
+                        "Inter"
+                ],
+                "body-default": [
+                        "Inter"
+                ],
+                "body-compact": [
+                        "Inter"
+                ],
+                "page-title-mobile": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "label-caps": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "page-title": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "section-heading": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-default": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-compact": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "page-title-mobile": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "700"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background h-full font-body-default flex flex-col">
+<!-- Top Navigation Area (Mobile Optimized) -->
+<header class="w-full top-0 sticky bg-surface/80 backdrop-blur-md z-40 border-b border-outline-variant dark:border-outline flat no shadows flex justify-between items-center px-lg py-sm text-primary dark:text-primary-fixed">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined cursor-pointer hover:bg-surface-container-low transition-colors rounded-full p-xs">menu</span>
+<h1 class="font-page-title-mobile text-page-title-mobile text-primary">Orders</h1>
+</div>
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined cursor-pointer hover:bg-surface-container-low transition-colors rounded-full p-xs" data-icon="search">search</span>
+<span class="material-symbols-outlined cursor-pointer hover:bg-surface-container-low transition-colors rounded-full p-xs" data-icon="notifications">notifications</span>
+<img class="w-8 h-8 rounded-full object-cover border border-outline-variant" data-alt="A small, circular avatar image of a professional person in a corporate setting, soft lighting, vibrant purple accents in the background, signaling a modern SaaS product environment. Close up shot." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnCcPt-M6W2W0WUR1QmMUqNp74PpRlcpwFmcJHEkagaV2cGbQLd4eZDt1PTMbnXMM-uxonkQntXOFLc5_QojRmxR-Kv7pfoXQWeLemcENvTDjeiZJ80SaVBUGbdd3_q8TFmbUceJSddA2wa1CiB161l2EZogRLsCN_T7YlsJbrWNIpH_c43_9en2VM59vnSMQ2NcwP1u-0KL2HoGnL7Rw-pdjb0aeKsujd-N9Pom0MD1EPbaG9otMGkg"/>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 overflow-y-auto pb-24 relative">
+<!-- Search and Filters Section -->
+<section class="p-md space-y-md sticky top-0 bg-background z-30 shadow-[0_4px_12px_rgba(91,95,239,0.03)] border-b border-outline-variant/30">
+<!-- Search Bar -->
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant z-10" data-icon="search">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant text-on-surface rounded-lg pl-xl py-sm font-body-compact focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search orders..." type="text"/>
+</div>
+<!-- Scrollable Filters -->
+<div class="flex overflow-x-auto gap-sm pb-xs snap-x scrollbar-hide">
+<button class="snap-start flex-shrink-0 bg-primary-container text-on-primary-container px-md py-xs rounded-full font-label-caps text-label-caps border border-primary transition-all">All Orders</button>
+<button class="snap-start flex-shrink-0 bg-surface-container-high text-on-surface-variant hover:bg-surface-variant px-md py-xs rounded-full font-label-caps text-label-caps border border-outline-variant transition-all">Pending</button>
+<button class="snap-start flex-shrink-0 bg-surface-container-high text-on-surface-variant hover:bg-surface-variant px-md py-xs rounded-full font-label-caps text-label-caps border border-outline-variant transition-all">Processing</button>
+<button class="snap-start flex-shrink-0 bg-surface-container-high text-on-surface-variant hover:bg-surface-variant px-md py-xs rounded-full font-label-caps text-label-caps border border-outline-variant transition-all">Shipped</button>
+<button class="snap-start flex-shrink-0 bg-surface-container-high text-on-surface-variant hover:bg-surface-variant px-md py-xs rounded-full font-label-caps text-label-caps border border-outline-variant transition-all">Delivered</button>
+</div>
+</section>
+<!-- Order Cards List -->
+<section class="p-md space-y-md">
+<!-- Card 1 -->
+<div class="bg-surface border border-outline-variant rounded-[12px] p-[16px] shadow-[0_2px_8px_rgba(91,95,239,0.04)] active:shadow-[0_4px_16px_rgba(91,95,239,0.08)] transition-all">
+<div class="flex justify-between items-start mb-sm">
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider block mb-xs">Order #ORD-2023-1042</span>
+<h3 class="font-section-heading text-section-heading text-on-surface">Acme Corp</h3>
+</div>
+<span class="bg-primary/10 text-primary px-sm py-xs rounded-sm font-label-caps text-label-caps">Processing</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant font-body-compact mb-md">
+<span class="material-symbols-outlined text-[16px]" data-icon="calendar_today">calendar_today</span>
+<span>Oct 24, 2023</span>
+</div>
+<div class="flex justify-between items-center border-t border-surface-variant pt-sm mt-sm">
+<div class="flex -space-x-2">
+<img class="w-6 h-6 rounded-full border border-surface" data-alt="A small, stylized avatar image representing a corporate client contact, soft professional lighting, subtle purple hue overlay." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqQ2BSn__Bv8aT95UpE7kR3KOG-kLseYTiweT9dH1qByoAVSHNWJ57MW81w26lklfo2Nfb8qQCIrkjbaoApFPhSElvGsM7OlFU-9aqWU-aZGHxNsbLmMfwItk20C4KIBDPMNod8MI7ieR5w6dnPtHw-hJDYpqq1LuS4t1kAB4tQV2iPsQC9pYxhS2Bi7oB0Zabh-NnfsHVoZEKu6Pw3Gn44-jgA_fcB5u6qefCWYGJtfDfqeSzmsT-Gw"/>
+<img class="w-6 h-6 rounded-full border border-surface" data-alt="A second small, stylized avatar image representing a corporate client contact, soft professional lighting, subtle purple hue overlay." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBI7F-bn7lVTP5ZEGLisn_koW0TgT4siZefmW565zr6NC9dSyH49dHZJlbw6dojypxx0dAQkHfZ8D4qfJxg8MtgssPGNui5iCenlfpexVPISHXTeVa7pG6-yxV0KezagNbguRj83oxCN5p7SeTKkVAoUuGsKLrM4vQaATuXa4uKZKSJ9P7Y62dHOSAGhVUCw9365aH0YqUHI0jj0waB5PJT73x7TSBX8wfe2dUG315iBndkAs2860USwg"/>
+</div>
+<span class="font-section-heading text-section-heading text-on-surface">$4,250.00</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface border border-outline-variant rounded-[12px] p-[16px] shadow-[0_2px_8px_rgba(91,95,239,0.04)] active:shadow-[0_4px_16px_rgba(91,95,239,0.08)] transition-all">
+<div class="flex justify-between items-start mb-sm">
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider block mb-xs">Order #ORD-2023-1041</span>
+<h3 class="font-section-heading text-section-heading text-on-surface">Globex Inc.</h3>
+</div>
+<span class="bg-secondary-container text-on-secondary-container px-sm py-xs rounded-sm font-label-caps text-label-caps">Shipped</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant font-body-compact mb-md">
+<span class="material-symbols-outlined text-[16px]" data-icon="calendar_today">calendar_today</span>
+<span>Oct 22, 2023</span>
+</div>
+<div class="flex justify-between items-center border-t border-surface-variant pt-sm mt-sm">
+<div class="flex -space-x-2">
+<img class="w-6 h-6 rounded-full border border-surface" data-alt="A small avatar image representing a team member involved in the order, simple professional setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXMxOkQHwKrh6sKLIlekkRmc0srPrFSlBZ9jW077kwNv7_sT1GDOBUJoaQq5ih8o-KPVgxPq_H6g3sG_jNKxLcNwvaUcyKH_BF129n0Dxlq_1m132uxN4q6aLSLCHKhMaNW0iFsggYX20Yqy2b2WwcJAbUvguztCZRxl0fUI4GKV0kqCZ9bBgikrPV7OQE4Rq1ZeGWUmDHFv_a1r6RFZsc9EqHU0cfdo59DFIE7Znm2D_cPoHVsqKYpQ"/>
+</div>
+<span class="font-section-heading text-section-heading text-on-surface">$1,120.50</span>
+</div>
+</div>
+<!-- Card 3 (AI Insight) -->
+<div class="bg-surface border border-secondary-container rounded-[12px] p-[16px] shadow-[0_2px_8px_rgba(91,95,239,0.04)] active:shadow-[0_4px_16px_rgba(91,95,239,0.08)] transition-all">
+<div class="flex justify-between items-start mb-sm">
+<div>
+<span class="flex items-center gap-xs font-label-caps text-label-caps text-secondary-container uppercase tracking-wider block mb-xs">
+<span class="material-symbols-outlined text-[14px]" data-icon="auto_awesome">auto_awesome</span> AI INSIGHT
+                        </span>
+<h3 class="font-section-heading text-section-heading text-on-surface">Initech LLC</h3>
+</div>
+<span class="bg-surface-variant text-on-surface-variant px-sm py-xs rounded-sm font-label-caps text-label-caps">Pending</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant font-body-compact mb-md">
+<span class="material-symbols-outlined text-[16px]" data-icon="warning">warning</span>
+<span class="text-error">High risk of delay detected.</span>
+</div>
+<div class="flex justify-between items-center border-t border-surface-variant pt-sm mt-sm">
+<div class="flex -space-x-2">
+<img class="w-6 h-6 rounded-full border border-surface" data-alt="A small avatar image representing a team member." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9IG5fEU3cICfDRMJcZOAMr-7WNawUoFg4zcFaXCHTq2iSVh3X0ll_FMXgBQwPW2cUcpxlSqhT4BhIHL5Hf3JNGQMgqS3Fxwe1klV9K5EwSq9oKjgKW0axeR2ZFsIEZtxmKSD6xYzY-ZtmiasFOw3d5FTJmioS6W833eEyGV5S_xm9s5JtFHPMkF_5N8kxFTjFil5m0v7ORfxjUizsjTot3lUXAUET7PcrEzNEdFjzZVcJzmBVxhXvnw"/>
+</div>
+<span class="font-section-heading text-section-heading text-on-surface">$8,900.00</span>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface border border-outline-variant rounded-[12px] p-[16px] shadow-[0_2px_8px_rgba(91,95,239,0.04)] active:shadow-[0_4px_16px_rgba(91,95,239,0.08)] transition-all opacity-70">
+<div class="flex justify-between items-start mb-sm">
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider block mb-xs">Order #ORD-2023-1039</span>
+<h3 class="font-section-heading text-section-heading text-on-surface">Soylent Corp</h3>
+</div>
+<span class="bg-surface-container-high text-on-surface-variant px-sm py-xs rounded-sm font-label-caps text-label-caps">Delivered</span>
+</div>
+<div class="flex items-center gap-xs text-on-surface-variant font-body-compact mb-md">
+<span class="material-symbols-outlined text-[16px]" data-icon="calendar_today">calendar_today</span>
+<span>Oct 15, 2023</span>
+</div>
+<div class="flex justify-between items-center border-t border-surface-variant pt-sm mt-sm">
+<div class="flex -space-x-2">
+<span class="w-6 h-6 rounded-full border border-surface bg-surface-variant flex items-center justify-center text-[10px] font-bold text-on-surface-variant">SC</span>
+</div>
+<span class="font-section-heading text-section-heading text-on-surface">$550.00</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed right-md bottom-20 z-50 bg-primary text-on-primary w-14 h-14 rounded-2xl flex items-center justify-center shadow-[0_8px_16px_rgba(91,95,239,0.2)] hover:bg-surface-tint active:scale-95 transition-all">
+<span class="material-symbols-outlined text-2xl" data-icon="add">add</span>
+</button>
+<!-- Bottom Navigation Bar (Mobile) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-md py-sm bg-surface dark:bg-surface-dim font-label-caps text-label-caps md:hidden shadow-md border-t border-outline-variant tap-highlight-transparent">
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant w-16 h-12 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="mt-xs">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-4 py-1 w-16 h-12 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="list_alt" style="font-variation-settings: 'FILL' 1;">list_alt</span>
+<span class="mt-xs">Orders</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant w-16 h-12 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span class="mt-xs">AI</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant w-16 h-12 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="mt-xs">Clients</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant w-16 h-12 rounded-xl transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+<span class="mt-xs">More</span>
+</a>
+</nav>
+</body></html>

@@ -4,7 +4,7 @@ import { useCoopTheme } from '../../theme-provider';
 import type { BusinessIdentity } from './useDashboardData';
 
 /**
- * Dashboard page header (Stitch finch_business_dashboard_qa_polished):
+ * Dashboard page header (Stitch coop_business_dashboard_qa_polished):
  * "CURRENT BUSINESS DISPLAY" label-caps eyebrow, the business name +
  * currency as the page title, and a live "Last updated" line.
  *
@@ -41,21 +41,10 @@ const DashboardHeader: React.FC<{
         alignItems: 'flex-end',
         justifyContent: 'space-between',
         gap: spacing.md,
-        marginBottom: spacing.lg,
+        marginBottom: spacing.md,
       }}
     >
       <div style={{ minWidth: 0 }}>
-        <div
-          style={{
-            ...type.labelCaps,
-            color: colors.outline,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            marginBottom: 6,
-          }}
-        >
-          Current business display
-        </div>
         <h1
           style={{
             margin: 0,

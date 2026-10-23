@@ -3,8 +3,8 @@
  * PageHeader · CoopCard section menu · one real section per entry.
  *
  * Every section in the menu is implemented (no "coming soon" panels):
- *   Company · Appearance · AI · Notifications · Security · Backup & Restore
- *   · Sync · Audit Log · About
+ *   Company · Licence · Appearance · AI · Notifications · Security
+ *   · Backup & Restore · Sync · Audit Log · About
  *
  * Company + AI read/write the tenant settings through the shared hook here;
  * the other sections own their state (theme, device prefs, Clerk, sync
@@ -21,12 +21,14 @@ import {
   InfoCircleOutlined,
   KeyOutlined,
   RobotOutlined,
+  SafetyCertificateOutlined,
   SkinOutlined,
 } from '@ant-design/icons';
 import { CoopCard, CoopErrorState } from '../../components/ui';
 import PageHeader from '../../components/layout/PageHeader';
 import { useSettings } from './useSettings';
 import CompanySection from './sections/CompanySection';
+import LicenceSection from './sections/LicenceSection';
 import AppearanceSection from './sections/AppearanceSection';
 import AiPreferencesSection from './sections/AiPreferencesSection';
 import NotificationsSection from './sections/NotificationsSection';
@@ -41,6 +43,7 @@ import { TeamOutlined } from '@ant-design/icons';
 
 const SECTIONS = [
   { key: 'company', label: 'Company', icon: <BankOutlined />, ownerOnly: true },
+  { key: 'licence', label: 'Licence', icon: <SafetyCertificateOutlined />, ownerOnly: true },
   { key: 'team', label: 'Team', icon: <TeamOutlined />, teamVisible: true },
   { key: 'appearance', label: 'Appearance', icon: <SkinOutlined /> },
   { key: 'ai', label: 'AI', icon: <RobotOutlined /> },
@@ -80,6 +83,8 @@ const SettingsPage: React.FC = () => {
         return (
           <CompanySection settings={settings} loading={loading} saving={saving} save={save} messageApi={messageApi} />
         );
+      case 'licence':
+        return <LicenceSection />;
       case 'appearance':
         return <AppearanceSection />;
       case 'ai':
@@ -109,7 +114,7 @@ const SettingsPage: React.FC = () => {
 
       <PageHeader title="Settings" subtitle="Configure your business and application preferences." />
 
-      {error && active !== 'appearance' && active !== 'notifications' && active !== 'security' && active !== 'backup' && active !== 'sync' && active !== 'audit' && active !== 'about' && (
+      {error && active !== 'licence' && active !== 'appearance' && active !== 'notifications' && active !== 'security' && active !== 'backup' && active !== 'sync' && active !== 'audit' && active !== 'about' && (
         <div style={{ marginBottom: 16 }}>
           <CoopErrorState
             title={error.isAuthError ? 'Authentication required' : 'Unable to load settings'}

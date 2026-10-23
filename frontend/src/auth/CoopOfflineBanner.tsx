@@ -1,6 +1,6 @@
 /**
  * Co-op offline banner (Stage 3 — auth error states, "Offline/Network
- * Error" pattern from finch_system_error_states_polished).
+ * Error" pattern from coop_system_error_states_polished).
  *
  * Clerk is a hosted service: without a network the sign-in/sign-up card can
  * do nothing. Rather than a silently stuck form, the auth screens show this

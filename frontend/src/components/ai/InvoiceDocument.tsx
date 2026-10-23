@@ -114,7 +114,7 @@ const InvoiceDocument: React.FC<{ draft: DraftInvoice; onClose: () => void }> = 
         </div>
 
         <div style={{ borderTop: '1px solid #e9e6f3', paddingTop: 16, textAlign: 'center', fontSize: 12, color: '#767586' }}>
-          Generated with Co-op AI — reviewed and confirmed by you. Thank you for your business.
+          Generated with Zeno — reviewed and confirmed by you. Thank you for your business.
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }} className="coop-invoice-actions">

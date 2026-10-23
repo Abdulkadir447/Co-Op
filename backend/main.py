@@ -44,11 +44,13 @@ from . import briefing as briefing_mod
 from . import importer
 from . import audit as audit_mod
 from . import backups as backups_mod
+from . import storage as storage_mod
 from .ai import service as ai_service
 from .ai import forecast as ai_forecast_mod
 from .ai import history as ai_history_mod
 from .ai import prompts as ai_prompts_mod
 from .ai.ratelimit import SlidingWindowRateLimiter, enforce_ai_rate_limit
+from .ratelimits import enforce_export_rate_limit, enforce_import_rate_limit
 from .exports import export_report, ExportError
 from .notifications import build_daily_summary
 from .notifications import delivery as delivery_mod
@@ -58,6 +60,7 @@ from .sync import ALLOWED_ORDER_TRANSITIONS, apply_push
 from .pull import build_pull_payload
 from .clerk_auth import ClerkUser, get_frontend_api, verify_clerk_token
 from .config import get_env, load_config
+from . import platform_admin
 from . import team as team_mod
 from .database import dispose_db, get_db, init_db
 from .models import (
@@ -65,12 +68,14 @@ from .models import (
     BusinessInvitation,
     BusinessMember,
     Customer,
+    License,
     Order,
     OrderItem,
     Product,
     StockMovement,
     StockMovementReason,
 )
+from . import timezones as tz_mod
 from .schemas import (
     ALLOWED_CURRENCIES,
     ALLOWED_TIMEZONES,
@@ -85,8 +90,13 @@ from .schemas import (
     CustomerOut,
     CustomerUpdate,
     DashboardSummary,
+    FeedbackOut,
+    FeedbackStatusOut,
+    FeedbackSubmitIn,
     GrowthResponse,
     InventorySummary,
+    IssueReportIn,
+    IssueReportOut,
     MovementListResponse,
     OrderCreate,
     OrderListResponse,
@@ -164,6 +174,57 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Defence-in-depth HTTP hardening (checklist 148-155).
+#
+# Auth is a Bearer token, not a cookie, so the browser never holds a session
+# that a third-party page could ride on — but the headers below remove whole
+# classes of browser-side attacks anyway and cost nothing.
+# ---------------------------------------------------------------------------
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
+    # The API is never rendered as a page; a strict CSP is safe here and
+    # stops any accidental HTML/JS from executing if an error page leaks.
+    response.headers.setdefault(
+        "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+    )
+    # HSTS only makes sense over HTTPS in production; adding it in dev would
+    # make local browsers refuse plain-http localhost afterwards.
+    if get_env() == "production":
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=63072000; includeSubDomains"
+        )
+    return response
+
+
+@app.exception_handler(Exception)
+async def _unhandled_error_handler(request, exc):
+    """Never let a traceback or an internal detail reach a client (149).
+
+    HTTPException keeps its own (already-sanitised) detail; anything else is
+    a bug, and the client gets a generic 500 while the real error goes to the
+    server log.
+    """
+    import logging
+    import traceback
+
+    from .redact import scrub_text
+
+    logging.getLogger("coop").error(
+        "Unhandled error on %s %s\n%s",
+        request.method, request.url.path, scrub_text(traceback.format_exc()),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error."},
+    )
 
 # Order statuses that count toward revenue/profit (not pending/cancelled).
 _ACTIVE_STATUSES = ["shipped", "delivered"]
@@ -269,6 +330,13 @@ async def get_current_business(
     request.state.team_role = role
     request.state.is_owner = role == "owner"
     team_mod.assert_can_write(role, request.method, request.url.path)
+
+    # Database-side tenant backstop (Supabase RLS): carry the tenant in the
+    # app.business_id GUC for this transaction. No-op on SQLite; the owner
+    # bypasses RLS anyway, so this only constrains future non-owner roles.
+    from .rls import set_tenant_context
+
+    await set_tenant_context(db, business.id)
     return business
 
 
@@ -521,6 +589,15 @@ async def create_team_invite(
         {"email": email, "role": payload.role},
         actor=user.user_id,
     )
+    # Best-effort invite email. The invite exists regardless — the invitee can
+    # always accept by signing in to the app — so a delivery failure must never
+    # block the invite itself.
+    try:
+        await run_in_threadpool(
+            delivery_mod.send_invite_email, email, business.name, payload.role
+        )
+    except Exception:  # noqa: BLE001 — email is best-effort, never fatal here
+        pass
     return _invite_out(invite, business.name)
 
 
@@ -755,6 +832,73 @@ async def update_business_settings(
     return business
 
 
+# Image types a logo may be. Anything else is rejected before it reaches
+# Storage, so a caller cannot park an HTML or SVG payload behind a public URL.
+_ALLOWED_LOGO_TYPES = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+}
+
+
+@app.post("/business/logo", response_model=BusinessSettingsOut, tags=["Settings"])
+async def upload_business_logo(
+    file: UploadFile = File(...),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> Business:
+    """Upload the business logo to Supabase Storage and record its URL.
+
+    The bytes go to object storage under a tenant-scoped path; the database
+    keeps only the resulting public URL. Rejects non-image payloads and
+    returns 503 (not 500) when Storage is not configured, so an operator can
+    tell a missing env var from a genuine failure.
+    """
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    ext = _ALLOWED_LOGO_TYPES.get(content_type)
+    if not ext:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Unsupported logo type '{content_type or 'unknown'}'. "
+                f"Allowed: {', '.join(sorted(_ALLOWED_LOGO_TYPES))}"
+            ),
+        )
+
+    data = await _read_upload(file)
+    if not data:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    if not storage_mod.is_configured():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "File storage is not configured on this server "
+                "(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required)."
+            ),
+        )
+
+    path = f"businesses/{business.id}/logo.{ext}"
+    try:
+        result = storage_mod.upload(path, data, content_type)
+    except storage_mod.StorageNotConfigured as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except storage_mod.StorageError as exc:
+        raise HTTPException(status_code=502, detail=f"Logo upload failed: {exc}") from exc
+
+    previous = business.logo_url
+    business.logo_url = result["url"]
+    business.updated_by = business.owner_id
+    await db.flush()
+    await db.refresh(business)
+    await audit_mod.record_audit(
+        db, business.id, "businesses", business.id, "update",
+        change={"logo_url": {"from": previous, "to": result["url"]}},
+        actor=business.owner_id,
+    )
+    return business
+
+
 # ---------------------------------------------------------------------------
 # Audit log (hardening backlog) — append-only trail of every mutation in the
 # tenant, written by the same transaction as the mutation it describes.
@@ -785,7 +929,7 @@ async def backups_export(
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Download the tenant's business data as a Co-op backup file."""
-    payload = await backups_mod.build_backup(db, business)
+    payload = backups_mod.encrypt_backup(await backups_mod.build_backup(db, business))
     stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     return JSONResponse(
         content=payload,
@@ -803,6 +947,7 @@ async def backups_restore(
 ) -> Dict[str, Any]:
     """Restore a Co-op backup into an EMPTY business (409 otherwise)."""
     try:
+        payload = backups_mod.decrypt_backup(payload)
         result = await backups_mod.restore_backup(db, business, payload)
     except backups_mod.RestoreRefused as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -1675,20 +1820,28 @@ async def revenue_timeseries(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> List[TimeseriesPoint]:
-    """Daily revenue/orders for the Revenue chart (missing days are omitted;
-    the frontend fills gaps with zeros rather than inventing data)."""
-    since = datetime.combine(date.today() - timedelta(days=days - 1), time.min)
-    day = func.date(Order.order_date).label("day")
+    """Daily revenue/orders for the Revenue chart, bucketed by the business's
+    LOCAL day (missing days are omitted; the frontend fills gaps with zeros
+    rather than inventing data). Bucketing in Python keeps it identical on
+    SQLite and Postgres; the day boundary follows Business.timezone (UTC default)."""
+    tz = tz_mod.business_tz(business.timezone)
+    first_local_day = tz_mod.local_today(tz) - timedelta(days=days - 1)
+    since = tz_mod.local_midnight_utc(first_local_day, tz)
     rows = (await db.execute(
-        select(day, func.coalesce(func.sum(Order.total_amount), 0.0), func.count(Order.id))
+        select(Order.order_date, Order.total_amount)
         .where(Order.business_id == business.id, Order.deleted_at.is_(None),
                Order.status.in_(_ACTIVE_STATUSES), Order.order_date >= since)
-        .group_by(day)
-        .order_by(day)
     )).all()
+    buckets: dict[date, list] = {}
+    for order_date, amount in rows:
+        if order_date is None:
+            continue
+        bucket = buckets.setdefault(tz_mod.utc_to_local_date(order_date, tz), [0.0, 0])
+        bucket[0] += float(amount or 0.0)
+        bucket[1] += 1
     return [
-        TimeseriesPoint(date=str(row[0]), revenue=row[1], orders=row[2])
-        for row in rows
+        TimeseriesPoint(date=str(day), revenue=bucket[0], orders=bucket[1])
+        for day, bucket in sorted(buckets.items())
     ]
 
 
@@ -1718,11 +1871,13 @@ async def revenue_today(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> RevenueTodayResponse:
+    tz = tz_mod.business_tz(business.timezone)
+    today_start = tz_mod.local_midnight_utc(tz_mod.local_today(tz), tz)
     row = (await db.execute(
         select(func.coalesce(func.sum(Order.total_amount), 0.0), func.count(Order.id))
         .where(Order.business_id == business.id, Order.deleted_at.is_(None),
                Order.status == "delivered",
-               Order.order_date >= datetime.combine(date.today(), time.min))
+               Order.order_date >= today_start)
     )).one()
     return RevenueTodayResponse(total_revenue=row[0], delivered_orders=row[1])
 
@@ -1732,13 +1887,16 @@ async def revenue_current_month(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> RevenueMonthResponse:
-    today = date.today()
+    tz = tz_mod.business_tz(business.timezone)
+    today = tz_mod.local_today(tz)
+    month_start = tz_mod.local_midnight_utc(_first_day_of_month(today), tz)
+    month_end = tz_mod.local_midnight_utc(_next_month_start(today), tz)
     row = (await db.execute(
         select(func.coalesce(func.sum(Order.total_amount), 0.0), func.count(Order.id))
         .where(Order.business_id == business.id, Order.deleted_at.is_(None),
                Order.status.in_(_ACTIVE_STATUSES),
-               Order.order_date >= datetime.combine(_first_day_of_month(today), time.min),
-               Order.order_date < datetime.combine(_next_month_start(today), time.min))
+               Order.order_date >= month_start,
+               Order.order_date < month_end)
     )).one()
     return RevenueMonthResponse(total_revenue=row[0], total_orders=row[1])
 
@@ -1996,6 +2154,7 @@ async def imports_commit(
     mapping: str = Form("{}"),
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_import_rate_limit),
 ) -> dict:
     """The ONLY mutating import endpoint (spec item 7): one transaction,
     all-or-nothing, every created row stamped with its ImportBatch (item 9)."""
@@ -2132,7 +2291,8 @@ async def ai_chat(
     if not ai_service.ai_enabled():
         raise HTTPException(
             status_code=503,
-            detail="The AI assistant is not configured on this server (OPENAI_API_KEY).",
+            detail="The AI assistant is not configured on this server "
+                   "(OPENROUTER_API_KEY).",
         )
     try:
         result = await ai_service.handle_chat(
@@ -2284,12 +2444,20 @@ async def billing_change_plan(
     """Switch plans. Real state (enforcement updates immediately); payment
     is deliberately NOT taken in this phase."""
     from . import billing as billing_mod
-    from .billing import InvalidPlan
+    from .billing import InvalidPlan, PaymentRequired, TrialLockedError
 
     try:
         await billing_mod.change_plan(db, business, req.plan, actor=business.owner_id)
     except InvalidPlan as e:
         raise HTTPException(status_code=422, detail=str(e))
+    except TrialLockedError as e:
+        # A started trial cannot be stopped — it runs to the end.
+        raise HTTPException(status_code=409, detail={"error": "trial_locked",
+                                                     "message": str(e)})
+    except PaymentRequired as e:
+        # Paid plans go through the paid checkout, not a free switch.
+        raise HTTPException(status_code=402, detail={"error": "payment_required",
+                                                     "message": str(e)})
     await audit_mod.record_audit(
         db, business.id, "subscriptions", None, "plan",
         change={"plan": req.plan}, actor=business.owner_id,
@@ -2327,6 +2495,866 @@ async def billing_start_trial(
         actor=business.owner_id,
     )
     return await billing_mod.billing_summary(db, business)
+
+
+class CheckoutRequest(BaseModel):
+    plan: str
+    interval: str = "monthly"
+    return_url: Optional[str] = None
+    # Payer email for Paystack. The UI sends the signed-in user's email so the
+    # charge works even when the business has no owner_email on file.
+    email: Optional[str] = None
+
+
+class VerifyPaymentRequest(BaseModel):
+    reference: str
+
+
+@app.get("/billing/payment-config", tags=["Billing"])
+async def billing_payment_config_route() -> dict:
+    """What the UI needs to render a real checkout.
+
+    Reports whether payments are live, the currency, the intervals on offer
+    and each plan's hosted payment page. Secret keys are never returned —
+    ``verification`` only says whether the backend can confirm a charge.
+    """
+    from .paystack import public_config
+
+    return public_config()
+
+
+@app.post("/billing/checkout", tags=["Billing"])
+async def billing_checkout_route(
+    req: CheckoutRequest,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Start a Paystack charge and return the URL the owner should pay at.
+
+    Writes a ``pending`` row in ``payments`` first, so the reference exists
+    before the browser leaves — the plan only changes once Paystack confirms
+    the charge (``/billing/payments/verify`` or the webhook).
+    """
+    from . import payments as payments_mod
+
+    try:
+        result = await payments_mod.start_checkout(
+            db,
+            business,
+            plan=req.plan,
+            interval=req.interval,
+            email=req.email or business.owner_email or user.email,
+            user_id=user.user_id,
+            return_url=req.return_url,
+        )
+    except payments_mod.PaymentsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    await audit_mod.record_audit(
+        db, business.id, "payments", None, "checkout_started",
+        change={"reference": result["reference"], "plan": result["plan"],
+                "interval": result["interval"], "mode": result["mode"]},
+        actor=user.user_id,
+    )
+    return result
+
+
+@app.get("/billing/payments", tags=["Billing"])
+async def billing_payments_route(
+    limit: int = Query(20, ge=1, le=100),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """This business's charge history (newest first)."""
+    from . import payments as payments_mod
+
+    return {"items": await payments_mod.list_payments(db, business, limit)}
+
+
+@app.post("/billing/payments/verify", tags=["Billing"])
+async def billing_verify_payment_route(
+    req: VerifyPaymentRequest,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Confirm a reference with Paystack and upgrade the plan if it was paid.
+
+    Called when the owner comes back from the payment page. The browser
+    returning is NOT proof of anything: the plan changes only if Paystack
+    reports the charge as successful, and it happens exactly once.
+    """
+    from . import billing as billing_mod
+    from . import payments as payments_mod
+
+    try:
+        result = await payments_mod.verify_and_apply(db, business, req.reference)
+    except payments_mod.PaymentsError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    if result["applied"]:
+        await audit_mod.record_audit(
+            db, business.id, "payments", None, "payment_applied",
+            change={"reference": req.reference, "plan": result["plan"]},
+            actor=user.user_id,
+        )
+    return {"payment": result["payment"], "applied": result["applied"],
+            "already_applied": result.get("already_applied", False),
+            "summary": await billing_mod.billing_summary(db, business)}
+
+
+@app.post("/webhooks/paystack", tags=["Billing"])
+async def paystack_webhook_route(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Paystack's ``charge.success`` webhook — the authoritative confirmation.
+
+    Unauthenticated by nature, so the body is checked against the
+    ``x-paystack-signature`` HMAC-SHA512 over the RAW bytes before anything
+    is parsed. A bad signature is a 401 and nothing else happens; a good
+    signature always gets a 200 (Paystack retries otherwise, forever).
+    """
+    import json as json_mod
+
+    from . import payments as payments_mod
+    from .paystack import SIGNATURE_HEADER, paystack_config, verify_webhook_signature
+
+    raw = await request.body()
+    cfg = paystack_config()
+    if not verify_webhook_signature(raw, request.headers.get(SIGNATURE_HEADER), cfg.secret_key):
+        from .security_events import security_event
+
+        security_event("paystack_bad_signature", path=request.url.path)
+        raise HTTPException(status_code=401, detail="Invalid Paystack signature.")
+    try:
+        payload = json_mod.loads(raw or b"{}")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Webhook body is not valid JSON.")
+
+    result = await payments_mod.apply_webhook_event(db, payload)
+
+    if result.get("applied") and result.get("business_id"):
+        await audit_mod.record_audit(
+            db, int(result["business_id"]), "payments", None, "payment_applied",
+            change={"reference": result.get("reference"), "plan": result.get("plan"),
+                    "source": "webhook"},
+            actor="paystack-webhook",
+        )
+    return {"received": True, **result}
+
+
+# ---------------------------------------------------------------------------
+# Feedback — periodic in-app "how are we doing?" prompt.
+#
+# The first prompt lands three weeks after the paid relationship begins and is
+# compulsory; later prompts repeat every three weeks and can be skipped. The
+# cadence + anchor logic lives in backend/feedback.py; these are thin routes.
+# ---------------------------------------------------------------------------
+@app.get("/feedback/status", response_model=FeedbackStatusOut, tags=["Feedback"])
+async def feedback_status_route(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Whether a feedback prompt is due, and if it is the compulsory first one."""
+    from . import feedback as feedback_mod
+
+    return await feedback_mod.feedback_status(db, business)
+
+
+@app.post("/feedback", response_model=FeedbackStatusOut, tags=["Feedback"])
+async def feedback_submit_route(
+    req: FeedbackSubmitIn,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Record a feedback response.
+
+    The compulsory first prompt requires the ``overall`` answer; later prompts
+    accept anything (including all-blank), since they are skippable anyway.
+    """
+    from . import feedback as feedback_mod
+
+    status_now = await feedback_mod.feedback_status(db, business)
+    if status_now["required"] and not (req.overall or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Please tell us how you're finding Co-op before continuing.",
+        )
+    await feedback_mod.record_feedback(
+        db, business, user.user_id,
+        kind="submitted", rating=req.rating, overall=req.overall,
+        likes=req.likes, issues=req.issues, improvements=req.improvements,
+    )
+    # Best-effort email to the product inbox. The response is already stored,
+    # so a delivery failure (or no inbox configured yet) must never block it.
+    try:
+        await run_in_threadpool(
+            delivery_mod.send_feedback_email, business.name,
+            rating=req.rating, overall=req.overall, likes=req.likes,
+            issues=req.issues, improvements=req.improvements,
+            submitted_by=user.user_id,
+        )
+    except Exception:  # noqa: BLE001 — email is best-effort, never fatal here
+        pass
+    return await feedback_mod.feedback_status(db, business)
+
+
+@app.post("/feedback/dismiss", response_model=FeedbackStatusOut, tags=["Feedback"])
+async def feedback_dismiss_route(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Skip a non-compulsory prompt until the next three-week window."""
+    from . import feedback as feedback_mod
+
+    status_now = await feedback_mod.feedback_status(db, business)
+    if status_now["required"]:
+        raise HTTPException(
+            status_code=409,
+            detail="The first feedback prompt is required and cannot be skipped.",
+        )
+    await feedback_mod.record_feedback(db, business, user.user_id, kind="dismissed")
+    return await feedback_mod.feedback_status(db, business)
+
+
+@app.get("/feedback", response_model=List[FeedbackOut], tags=["Feedback"])
+async def feedback_list_route(
+    limit: int = Query(100, ge=1, le=500),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
+) -> list[dict]:
+    """This business's stored feedback responses, newest first (owner only).
+
+    The product team reads feedback by email; this exposes the same stored
+    history over the API so it is retrievable rather than a write-only table.
+    """
+    from . import feedback as feedback_mod
+
+    return await feedback_mod.list_feedback(db, business, limit=limit)
+
+
+# ---------------------------------------------------------------------------
+# Support — owner-raised issue reports (the "Report an issue" page).
+#
+# The mirror image of the feedback prompt above: feedback is something Co-op
+# asks for on a cadence, an issue report is raised whenever something is wrong.
+# Storage lives in backend/support.py; these are thin routes.
+# ---------------------------------------------------------------------------
+@app.post("/support/issues", response_model=IssueReportOut, tags=["Support"])
+async def support_submit_issue(
+    req: IssueReportIn,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> dict:
+    """Record a problem report and email it to the support inbox.
+
+    Always allowed: there is no cadence, no prompt to dismiss and no limit on
+    how often a business can ask for help.
+    """
+    from . import support as support_mod
+
+    try:
+        row = await support_mod.record_issue_report(db, business, user.user_id, req)
+    except support_mod.InvalidIssueReport as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # Best-effort email to the support inbox. The report is already stored, so
+    # a delivery failure (or no inbox configured yet) must never block it.
+    try:
+        await run_in_threadpool(
+            delivery_mod.send_issue_report_email, business.name,
+            category=row.category, severity=row.severity, subject=row.subject,
+            description=row.description, contact_email=row.contact_email,
+            app_version=row.app_version, platform=row.platform,
+            submitted_by=user.user_id,
+        )
+    except Exception:  # noqa: BLE001 — email is best-effort, never fatal here
+        pass
+
+    return {
+        "id": row.id,
+        "category": row.category,
+        "severity": row.severity,
+        "subject": row.subject,
+        "description": row.description,
+        "contact_email": row.contact_email,
+        "app_version": row.app_version,
+        "platform": row.platform,
+        "status": row.status,
+        "submitted_by": row.submitted_by,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+@app.get("/support/issues", response_model=List[IssueReportOut], tags=["Support"])
+async def support_list_issues(
+    limit: int = Query(100, ge=1, le=500),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """This business's own issue reports, newest first.
+
+    Not owner-only: whoever can raise a report should be able to see what has
+    already been sent, so the same problem is not reported twice.
+    """
+    from . import support as support_mod
+
+    return await support_mod.list_issue_reports(db, business, limit=limit)
+
+
+# ---------------------------------------------------------------------------
+# Platform console (product owner) — a cross-tenant overview for the Co-op team.
+#
+# Clerk-authenticated and limited to the platform-admin allow-list (see
+# backend/platform_admin.py). Unlike every other route these are deliberately
+# NOT tenant-scoped: the whole point is a product-wide view. Closed by default
+# — with no allow-list configured, every caller is a 403.
+# ---------------------------------------------------------------------------
+
+async def require_platform_admin(
+    user: ClerkUser = Depends(verify_clerk_token),
+) -> ClerkUser:
+    """Gate for the in-app product-owner console (allow-list of admins)."""
+    if not platform_admin.is_platform_admin(user.email, user.user_id):
+        from .security_events import security_event
+
+        security_event("platform_admin_rejected", path="/platform")
+        raise HTTPException(status_code=403, detail="Platform admin access required")
+    return user
+
+
+@app.get("/platform/me", tags=["Platform"])
+async def platform_me(user: ClerkUser = Depends(verify_clerk_token)) -> dict:
+    """Whether the signed-in user is a platform admin (drives the admin UI).
+
+    Echoes the email/user_id the backend actually saw, so a missing email
+    claim (Clerk's default token has none) is easy to diagnose.
+    """
+    return {
+        "is_admin": platform_admin.is_platform_admin(user.email, user.user_id),
+        "email": user.email,
+        "user_id": user.user_id,
+    }
+
+
+@app.get("/platform/overview", tags=["Platform"])
+async def platform_overview(
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """Product-wide counts for the console header."""
+    from .models import Feedback, Payment
+
+    now = datetime.utcnow()
+    businesses = (await db.execute(
+        select(func.count(Business.id)).where(Business.deleted_at.is_(None))
+    )).scalar() or 0
+    members = (await db.execute(select(func.count(BusinessMember.id)))).scalar() or 0
+    feedback = (await db.execute(
+        select(func.count(Feedback.id)).where(Feedback.kind == "submitted")
+    )).scalar() or 0
+    licenses_total = (await db.execute(select(func.count(License.id)))).scalar() or 0
+    licenses_active = (await db.execute(
+        select(func.count(License.id)).where(
+            License.revoked_at.is_(None),
+            or_(License.expires_at.is_(None), License.expires_at > now),
+        )
+    )).scalar() or 0
+    payments_success = (await db.execute(
+        select(func.count(Payment.id)).where(Payment.status == "success")
+    )).scalar() or 0
+    payments_pending = (await db.execute(
+        select(func.count(Payment.id)).where(Payment.status == "pending")
+    )).scalar() or 0
+    return {
+        "businesses": businesses,
+        "members": members,
+        "feedback_responses": feedback,
+        "licenses_total": licenses_total,
+        "licenses_active": licenses_active,
+        "payments_success": payments_success,
+        "payments_pending": payments_pending,
+    }
+
+
+@app.get("/platform/feedback", tags=["Platform"])
+async def platform_feedback(
+    limit: int = Query(50, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """Every business's feedback responses, newest first (with business name)."""
+    from .models import Feedback
+
+    rows = (await db.execute(
+        select(Feedback, Business.name)
+        .join(Business, Business.id == Feedback.business_id, isouter=True)
+        .where(Feedback.kind == "submitted")
+        .order_by(Feedback.created_at.desc(), Feedback.id.desc())
+        .limit(limit)
+    )).all()
+    return {
+        "items": [
+            {
+                "id": f.id,
+                "business_id": f.business_id,
+                "business_name": name,
+                "rating": f.rating,
+                "overall": f.overall,
+                "likes": f.likes,
+                "issues": f.issues,
+                "improvements": f.improvements,
+                "submitted_by": f.submitted_by,
+                "created_at": f.created_at.isoformat() if f.created_at else None,
+            }
+            for f, name in rows
+        ]
+    }
+
+
+@app.get("/platform/businesses", tags=["Platform"])
+async def platform_businesses(
+    limit: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """Every live business with its base plan (newest first)."""
+    from .models import Subscription
+
+    rows = (await db.execute(
+        select(Business, Subscription.plan)
+        .join(Subscription, Subscription.business_id == Business.id, isouter=True)
+        .where(Business.deleted_at.is_(None))
+        .order_by(Business.created_at.desc(), Business.id.desc())
+        .limit(limit)
+    )).all()
+    return {
+        "items": [
+            {
+                "id": b.id,
+                "name": b.name,
+                "owner_email": b.owner_email,
+                "currency": b.currency,
+                "plan": plan or "free",
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            }
+            for b, plan in rows
+        ]
+    }
+
+
+@app.get("/platform/licenses", tags=["Platform"])
+async def platform_licenses(
+    limit: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """Every licence the team has minted (newest first)."""
+    rows = (await db.execute(
+        select(License, Business.name)
+        .join(Business, Business.id == License.business_id, isouter=True)
+        .order_by(License.id.desc())
+        .limit(limit)
+    )).all()
+    return {
+        "items": [
+            {
+                "id": r.id,
+                "business_id": r.business_id,
+                "business_name": name,
+                "fingerprint": r.fingerprint,
+                "plan": r.plan,
+                "seats": r.seats,
+                "issued_at": r.issued_at.isoformat() if r.issued_at else None,
+                "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+                "revoked_at": r.revoked_at.isoformat() if r.revoked_at else None,
+            }
+            for r, name in rows
+        ]
+    }
+
+
+# ---------------------------------------------------------------------------
+# Licensing (PRD Ch7 §7.19 activation flow, Ch8 §8.15 License table)
+#
+# A licence is a self-contained HMAC-signed activation string binding a
+# business id + plan + seats + expiry. The team mints them (script or the
+# admin route below); the owner pastes one into Settings -> Licence, the
+# signature is verified, and the plan is granted as a WINDOW on the
+# subscription — never an overwrite of the owned plan — so expiry needs no
+# scheduler (same design as the free trial).
+#
+# Two audiences, two gates:
+#   /admin/*   — the Co-op team only: a shared secret in X-Admin-Token,
+#                compared in constant time. This is the one surface in the
+#                API that is not Clerk-authenticated, because keys are minted
+#                from a script with no user session. No token configured =>
+#                the routes are closed (503), never open.
+#   /licenses* — the customer: Clerk-authenticated, owner-only, and a key
+#                issued to another business is a 403 rather than a re-grant.
+# ---------------------------------------------------------------------------
+
+class AdminGenerateLicenseRequest(BaseModel):
+    business_id: int
+    plan: str
+    days: Optional[int] = None
+    seats: int = 1
+    expires_at: Optional[date] = None
+
+
+class AdminRevokeLicenseRequest(BaseModel):
+    fingerprint: Optional[str] = None
+    license_key: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class LicenseActivateRequest(BaseModel):
+    key: str
+
+
+async def require_admin_token(request: Request) -> str:
+    """Team-only gate for the licence-issuing routes (see block comment)."""
+    from . import licensing as licensing_mod
+
+    tokens = licensing_mod.admin_tokens()
+    if not tokens:
+        raise HTTPException(
+            status_code=503,
+            detail="Licence issuing is not configured on this server",
+        )
+    presented = request.headers.get("x-admin-token", "")
+    if not presented or not any(secrets.compare_digest(presented, t) for t in tokens):
+        from .security_events import security_event
+
+        security_event("admin_token_rejected", path=request.url.path)
+        raise HTTPException(status_code=403, detail="Admin token rejected")
+    return "admin-token"
+
+
+def _license_audit_change(row: License) -> dict:
+    """Never the key itself — the fingerprint is the reference."""
+    return {
+        "fingerprint": row.fingerprint,
+        "plan": row.plan,
+        "seats": row.seats,
+        "expires_at": row.expires_at.isoformat() if row.expires_at else None,
+    }
+
+
+@app.post("/admin/generate-license", tags=["Admin"])
+async def admin_generate_license(
+    req: AdminGenerateLicenseRequest,
+    db: AsyncSession = Depends(get_db),
+    _admin: str = Depends(require_admin_token),
+) -> dict:
+    """Mint a signed activation string for one business (team only).
+
+    The business must exist: minting against a typo'd id would produce a key
+    nobody can ever activate. The response carries the key exactly once —
+    the server keeps only its fingerprint.
+    """
+    from . import licensing as licensing_mod
+
+    business = (await db.execute(
+        select(Business).where(Business.id == req.business_id, Business.deleted_at.is_(None))
+    )).scalars().first()
+    if business is None:
+        raise HTTPException(status_code=404, detail="No such business")
+
+    expires = datetime.combine(req.expires_at, time.min) if req.expires_at else None
+    try:
+        issued = licensing_mod.issue(
+            business.id, req.plan, seats=req.seats, days=req.days, expires_at=expires
+        )
+    except licensing_mod.LicenseError as e:
+        raise HTTPException(status_code=422, detail={"error": e.reason, "message": e.message})
+
+    row = License(
+        business_id=business.id,
+        fingerprint=issued.fingerprint,
+        plan=issued.plan,
+        seats=issued.seats,
+        issued_at=issued.issued_at,
+        expires_at=issued.expires_at,
+    )
+    db.add(row)
+    await db.flush()
+    await audit_mod.record_audit(
+        db, business.id, "licenses", row.id, "license_issue",
+        change=_license_audit_change(row), actor=_admin,
+    )
+    return issued.to_dict()
+
+
+@app.get("/admin/licenses", tags=["Admin"])
+async def admin_list_licenses(
+    business_id: Optional[int] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _admin: str = Depends(require_admin_token),
+) -> dict:
+    """Every licence the team has minted — the support view (team only)."""
+    stmt = select(License).order_by(License.id.desc()).limit(limit)
+    if business_id is not None:
+        stmt = stmt.where(License.business_id == business_id)
+    rows = (await db.execute(stmt)).scalars().all()
+    return {
+        "licenses": [
+            {
+                "id": r.id,
+                "business_id": r.business_id,
+                "fingerprint": r.fingerprint,
+                "plan": r.plan,
+                "seats": r.seats,
+                "issued_at": r.issued_at.isoformat() if r.issued_at else None,
+                "activated_at": r.activated_at.isoformat() if r.activated_at else None,
+                "activated_by": r.activated_by,
+                "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+                "revoked_at": r.revoked_at.isoformat() if r.revoked_at else None,
+                "revoked_reason": r.revoked_reason,
+            }
+            for r in rows
+        ]
+    }
+
+
+@app.post("/admin/licenses/revoke", tags=["Admin"])
+async def admin_revoke_license(
+    req: AdminRevokeLicenseRequest,
+    db: AsyncSession = Depends(get_db),
+    _admin: str = Depends(require_admin_token),
+) -> dict:
+    """Revoke a licence by fingerprint (or by the key itself) — team only.
+
+    Revocation wins over a valid signature and withdraws the granted plan
+    immediately, because the grant lives on the subscription window.
+    """
+    from . import licensing as licensing_mod
+
+    fp = req.fingerprint
+    if not fp and req.license_key:
+        try:
+            fp = licensing_mod.fingerprint(req.license_key)
+        except licensing_mod.LicenseError:
+            fp = None
+    if not fp:
+        raise HTTPException(status_code=422, detail="Provide fingerprint or license_key")
+    try:
+        row = await licensing_mod.revoke(db, fp, reason=req.reason, actor=_admin)
+    except licensing_mod.LicenseError as e:
+        raise HTTPException(
+            status_code=404, detail={"error": e.reason, "message": e.message}
+        )
+    await audit_mod.record_audit(
+        db, row.business_id, "licenses", row.id, "license_revoke",
+        change={**_license_audit_change(row), "reason": row.revoked_reason}, actor=_admin,
+    )
+    return {
+        "revoked": True,
+        "fingerprint": row.fingerprint,
+        "business_id": row.business_id,
+        "revoked_at": row.revoked_at.isoformat() if row.revoked_at else None,
+    }
+
+
+@app.get("/licenses", tags=["Licensing"])
+async def license_status(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """This business's licence position (Settings -> Licence)."""
+    from . import billing as billing_mod
+
+    sub = await billing_mod.get_or_create_subscription(db, business)
+    return {
+        "license": billing_mod.license_state(sub),
+        "effective_plan": billing_mod.effective_plan(sub),
+    }
+
+
+@app.post("/licenses/activate", tags=["Licensing"])
+async def license_activate(
+    req: LicenseActivateRequest,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    user: ClerkUser = Depends(verify_clerk_token),
+    _owner: str = Depends(team_mod.require_owner),
+) -> dict:
+    """Activate a licence key for the caller's own business (owner only).
+
+    Honest refusals: a key issued to another business (403), a revoked key
+    (403), a key already activated elsewhere (403), and an invalid/expired
+    key (422) each carry a machine-readable ``error`` the UI can explain.
+    """
+    from . import billing as billing_mod
+    from . import licensing as licensing_mod
+
+    try:
+        row = await licensing_mod.activate(db, business, req.key, actor=business.owner_id)
+    except licensing_mod.LicenseError as e:
+        code = 403 if e.reason in ("wrong_business", "already_activated", "revoked") else 422
+        raise HTTPException(status_code=code, detail={"error": e.reason, "message": e.message})
+
+    await audit_mod.record_audit(
+        db, business.id, "licenses", row.id, "license_activate",
+        change=_license_audit_change(row), actor=business.owner_id,
+    )
+    return await billing_mod.billing_summary(db, business)
+
+
+# ---------------------------------------------------------------------------
+# Invoicing (PRD "Invoice generation")
+#
+# A saved invoice per order, numbered per business (INV-0001, ...). The money
+# is never duplicated: the invoice points at its order, which stays the single
+# source of truth for amounts. Lifecycle is draft -> sent -> void; recording
+# money received belongs to the payments phase.
+# ---------------------------------------------------------------------------
+
+class InvoiceCreateRequest(BaseModel):
+    order_id: int
+    issue_date: Optional[date] = None
+    due_date: Optional[date] = None
+    notes: Optional[str] = None
+
+
+class InvoiceUpdateRequest(BaseModel):
+    issue_date: Optional[date] = None
+    due_date: Optional[date] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
+
+
+def _invoice_http_error(e) -> HTTPException:
+    code = {"order_not_found": 404, "not_found": 404,
+            "already_invoiced": 409}.get(e.reason, 422)
+    return HTTPException(status_code=code, detail={"error": e.reason, "message": e.message})
+
+
+@app.post("/invoices", status_code=status.HTTP_201_CREATED, tags=["Invoices"])
+async def create_invoice(
+    req: InvoiceCreateRequest,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Create the invoice for one of this business's orders.
+
+    One invoice per order (409 on a second attempt) and one number per
+    business, both enforced by unique indexes rather than by convention.
+    """
+    from . import invoicing as invoicing_mod
+
+    try:
+        row = await invoicing_mod.create_for_order(
+            db, business, req.order_id,
+            issue_date=datetime.combine(req.issue_date, time.min) if req.issue_date else None,
+            due_date=datetime.combine(req.due_date, time.min) if req.due_date else None,
+            notes=req.notes,
+            actor=business.owner_id,
+        )
+    except invoicing_mod.InvoiceError as e:
+        raise _invoice_http_error(e)
+    await audit_mod.record_audit(
+        db, business.id, "invoices", row.id, "create",
+        change={"number": row.number, "order_id": row.order_id}, actor=business.owner_id,
+    )
+    return await invoicing_mod.detail(db, business, row.id)
+
+
+@app.get("/invoices", tags=["Invoices"])
+async def list_invoices_route(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    search: Optional[str] = Query(None),
+    status_: Optional[str] = Query(None, alias="status"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+) -> dict:
+    """The Invoices list — number, customer, dates, status and order total."""
+    from . import invoicing as invoicing_mod
+
+    try:
+        return await invoicing_mod.list_invoices(
+            db, business, search=search, status=status_, page=page, limit=limit
+        )
+    except invoicing_mod.InvoiceError as e:
+        raise _invoice_http_error(e)
+
+
+@app.get("/invoices/export", tags=["Invoices"])
+async def export_invoices(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    format: str = Query("csv", alias="format"),
+    search: Optional[str] = Query(None),
+    status_: Optional[str] = Query(None, alias="status"),
+) -> Response:
+    """CSV of exactly the invoices the list is showing (same filters)."""
+    from . import invoicing as invoicing_mod
+
+    if format.strip().lower() != "csv":
+        raise HTTPException(status_code=422, detail="format must be: csv")
+    try:
+        data = await invoicing_mod.list_invoices(
+            db, business, search=search, status=status_, page=1, limit=1000
+        )
+    except invoicing_mod.InvoiceError as e:
+        raise _invoice_http_error(e)
+    return Response(
+        content=invoicing_mod.render_csv(business, data["items"]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="coop_invoices.csv"'},
+    )
+
+
+@app.get("/invoices/{invoice_id}", tags=["Invoices"])
+async def invoice_detail(
+    invoice_id: int,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """One invoice with its order and customer."""
+    from . import invoicing as invoicing_mod
+
+    try:
+        return await invoicing_mod.detail(db, business, invoice_id)
+    except invoicing_mod.InvoiceError as e:
+        raise _invoice_http_error(e)
+
+
+@app.patch("/invoices/{invoice_id}", tags=["Invoices"])
+async def update_invoice_route(
+    invoice_id: int,
+    req: InvoiceUpdateRequest,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Edit dates/notes or move draft -> sent -> void. A void invoice is
+    terminal: it is paperwork the customer may already hold."""
+    from . import invoicing as invoicing_mod
+
+    try:
+        row = await invoicing_mod.update_invoice(
+            db, business, invoice_id,
+            issue_date=datetime.combine(req.issue_date, time.min) if req.issue_date else None,
+            due_date=datetime.combine(req.due_date, time.min) if req.due_date else None,
+            notes=req.notes,
+            status=req.status,
+            actor=business.owner_id,
+        )
+    except invoicing_mod.InvoiceError as e:
+        raise _invoice_http_error(e)
+    await audit_mod.record_audit(
+        db, business.id, "invoices", row.id, "update",
+        change={"number": row.number, "status": row.status}, actor=business.owner_id,
+    )
+    return await invoicing_mod.detail(db, business, row.id)
 
 
 # ---------------------------------------------------------------------------
@@ -2523,6 +3551,7 @@ async def export_report_route(
     category: Optional[str] = Query(None),
     product_id: Optional[int] = Query(None),
     customer_id: Optional[int] = Query(None),
+    _rate: None = Depends(enforce_export_rate_limit),
 ) -> Response:
     """Export EXACTLY what the screen shows: same engine, same filters."""
     if key not in REPORT_TITLES:

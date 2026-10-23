@@ -18,7 +18,7 @@ export interface CoopIconProps {
 }
 
 /**
- * `auto_awesome` — the Co-op AI sparkle: one large 4-point star with two
+ * `auto_awesome` — the Zeno sparkle: one large 4-point star with two
  * small companions. This is the AI identity mark (Stage R1).
  */
 export const SparkleIcon: React.FC<CoopIconProps> = ({

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Col, Row, Spin, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
+  ArrowLeftOutlined,
   DeleteOutlined,
   EditOutlined,
   EnvironmentOutlined,
@@ -31,7 +32,7 @@ import { Customer, CustomerFormValues } from './useCustomers';
 import { KEY_ACCOUNT_THRESHOLD } from './useCustomerStats';
 
 /**
- * Customer Profile (Stitch finch_customer_details_qa_polished) — the
+ * Customer Profile (Stitch coop_customer_details_qa_polished) — the
  * customer details route.
  *
  * Data flow (existing API only):
@@ -221,22 +222,42 @@ const CustomerProfilePage: React.FC = () => {
       {/* Breadcrumb + title + actions */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.md, marginBottom: spacing.lg }}>
         <div>
-          <button
-            type="button"
-            onClick={() => navigate('/customers')}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              color: colors.outline,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: 0,
-              marginBottom: 6,
-            }}
-          >
-            Customers
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <button
+              type="button"
+              onClick={() => navigate('/customers')}
+              aria-label="Back to Customers"
+              title="Back to Customers"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                display: 'grid',
+                placeItems: 'center',
+                border: `1px solid ${colors.borderSubtle}`,
+                background: colors.surfaceContainer,
+                color: colors.onSurface,
+                cursor: 'pointer',
+              }}
+            >
+              <ArrowLeftOutlined />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/customers')}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: colors.outline,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              Customers
+            </button>
+          </div>
           <h1 style={{ margin: 0, ...type.pageTitle, fontSize: 30, lineHeight: '38px', color: colors.onBackground, letterSpacing: '-0.02em' }}>
             Customer Profile
           </h1>
@@ -374,7 +395,7 @@ const CustomerProfilePage: React.FC = () => {
             {/* Recent activity insights (honest AI placeholder) */}
             <AiNoticeBox
               title="Up next: profile-level signals"
-              description="Ask Co-op is available now. Per-customer engagement signals — order cadence, churn risk and suggested check-ins — are still on the roadmap."
+              description="Ask Zeno is available now. Per-customer engagement signals — order cadence, churn risk and suggested check-ins — are still on the roadmap."
             />
           </div>
         </Col>

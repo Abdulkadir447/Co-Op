@@ -1,0 +1,16 @@
+# Supabase CLI configuration for Co-op.
+#
+# Co-op uses Supabase for exactly one thing: the Postgres database.
+#
+#   - Identity is Clerk, not Supabase Auth  (backend/clerk_auth.py)
+#   - The API is a FastAPI app that runs on its own host, e.g. Render (backend/)
+#   - There are no Edge Functions and no Supabase Storage usage
+#
+# So this file is deliberately almost empty. The settings below the project id
+# (auth, storage, functions, realtime, edge_runtime) are all left at their
+# defaults and are not used by this application.
+#
+# Link this folder to a Supabase project with:
+#     supabase link --project-ref <your-project-ref>
+
+project_id = "coop"

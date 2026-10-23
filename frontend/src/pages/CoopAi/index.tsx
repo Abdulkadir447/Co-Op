@@ -25,7 +25,7 @@ const SUGGESTIONS = [
 ];
 
 /**
- * Ask Co-op — the reactive layer (Stage 2.2, Layer 2).
+ * Ask Zeno — the reactive layer (Stage 2.2, Layer 2).
  *
  * A conversation UI over the grounded intent engine: every answer is
  * computed from the live data bundle and labelled (fact / calculation /
@@ -58,7 +58,7 @@ const CoopAiPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // "Ask Co-op about this report" (from the Reports page): when this page is
+  // "Ask Zeno about this report" (from the Reports page): when this page is
   // opened carrying a report context, fire that question once the data
   // bundle is ready, then clear the navigation state so it fires exactly once.
   useEffect(() => {
@@ -86,9 +86,9 @@ const CoopAiPage: React.FC = () => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <CoopMark size={40} title="Co-op AI" />
+          <CoopMark size={40} title="Zeno" />
           <div>
-            <div style={{ ...type.sectionHeading, color: colors.onSurface, letterSpacing: '-0.01em' }}>Co-op AI</div>
+            <div style={{ ...type.sectionHeading, color: colors.onSurface, letterSpacing: '-0.01em' }}>Zeno</div>
             <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline }}>
               Notices what's happening · answers from your live data · drafts, never acts
             </div>
@@ -342,7 +342,7 @@ const CoopAiPage: React.FC = () => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && send(input)}
                 placeholder="Ask about revenue, stock, customers, orders, forecasts — or say “invoice for…” / “create an order for…”"
-                aria-label="Ask Co-op"
+                aria-label="Ask Zeno"
                 disabled={loading || Boolean(error)}
                 style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', color: colors.onSurface, fontFamily: 'inherit', fontSize: 14 }}
               />
@@ -369,7 +369,7 @@ const CoopAiPage: React.FC = () => {
               </button>
             </div>
             <div style={{ ...type.bodyCompact, fontSize: 11, color: colors.outline, marginTop: 8, textAlign: 'center' }}>
-              Co-op AI answers from live business data and labels every claim. It drafts actions — you confirm them.
+              Zeno answers from live business data and labels every claim. It drafts actions — you confirm them.
             </div>
           </div>
         </div>

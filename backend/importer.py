@@ -1,7 +1,7 @@
 """
 Co-op Intelligent Importer (v1) — flat-file ingestion + schema mapping.
 
-Trust model (same philosophy as Co-op AI actions):
+Trust model (same philosophy as Zeno actions):
     upload -> parse/validate -> SUGGESTED mapping (with confidence)
            -> USER reviews/edits mapping in the UI
            -> server executes the import -> reported result
@@ -85,6 +85,12 @@ def _optional(v: str) -> Optional[str]:
 
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+# Placeholder address for a customer whose old system had no email column.
+# It must be a syntactically valid, deliverable-looking domain: `.local` and
+# `.invalid` are IANA special-use names, and the API's EmailStr responses
+# reject them — which used to make /customers return 500 after such an import.
+PLACEHOLDER_EMAIL_DOMAIN = "imported.coop"
 
 
 @dataclass(frozen=True)
@@ -1036,7 +1042,7 @@ async def execute_import(
             email = rec["email"].lower()
             if not email:
                 gen_n += 1
-                email = f"{_slug(rec['full_name'])}-{gen_n:03d}@import.local"
+                email = f"{_slug(rec['full_name'])}-{gen_n:03d}@{PLACEHOLDER_EMAIL_DOMAIN}"
             if email in seen_emails:
                 skipped["in_file"] += 1
                 continue
@@ -1144,7 +1150,10 @@ async def execute_import(
                 gen_cust_n += 1
                 key = _norm_name(rec["cust_name"])
                 if key not in new_customers:
-                    gen_cust_email = f"{_slug(rec['cust_name'])}-{gen_cust_n:03d}@import.local"
+                    gen_cust_email = (
+                        f"{_slug(rec['cust_name'])}-{gen_cust_n:03d}"
+                        f"@{PLACEHOLDER_EMAIL_DOMAIN}"
+                    )
                     c = Customer(
                         business_id=business_id, full_name=rec["cust_name"],
                         email=gen_cust_email, created_by="import", import_batch_id=batch.id)

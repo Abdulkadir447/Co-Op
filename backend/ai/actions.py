@@ -1,4 +1,4 @@
-"""Action registry (Pass 5) — the fixed set of things Co-op AI may PROPOSE.
+"""Action registry (Pass 5) — the fixed set of things Zeno may PROPOSE.
 
 The model never gets arbitrary API access. It may only propose actions from
 this registry; every proposed action is validated HERE (schema + business

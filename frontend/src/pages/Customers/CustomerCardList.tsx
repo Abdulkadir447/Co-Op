@@ -15,7 +15,7 @@ export interface CustomerCardListProps {
 }
 
 /**
- * Mobile customer list (Stitch finch_customers_mobile): card per customer —
+ * Mobile customer list (Stitch coop_customers_mobile): card per customer —
  * avatar + name, company line, hairline, "Total Spent" + amount. Tapping a
  * card opens the Customer Profile.
  */

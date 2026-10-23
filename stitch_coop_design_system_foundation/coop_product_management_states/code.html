@@ -1,0 +1,303 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Edit Product Workflow &amp; Modals</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#eaddff",
+                        "tertiary": "#904400",
+                        "on-primary-fixed": "#05006c",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#25005a",
+                        "error": "#ba1a1a",
+                        "primary": "#4143d5",
+                        "inverse-primary": "#c0c1ff",
+                        "outline-variant": "#c6c5d7",
+                        "secondary-fixed-dim": "#d2bbff",
+                        "primary-fixed": "#e1e0ff",
+                        "on-tertiary-fixed": "#311300",
+                        "surface-bright": "#fcf8ff",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f5f2fe",
+                        "surface-container": "#efecf9",
+                        "surface-tint": "#474adb",
+                        "error-container": "#ffdad6",
+                        "on-surface-variant": "#464555",
+                        "tertiary-fixed-dim": "#ffb689",
+                        "on-tertiary-fixed-variant": "#733500",
+                        "surface-container-highest": "#e4e1ed",
+                        "tertiary-container": "#b55700",
+                        "secondary": "#712ae2",
+                        "on-tertiary-container": "#fff6f2",
+                        "surface": "#fcf8ff",
+                        "background": "#fcf8ff",
+                        "surface-dim": "#dbd8e5",
+                        "on-surface": "#1b1b23",
+                        "on-background": "#1b1b23",
+                        "inverse-on-surface": "#f2effc",
+                        "secondary-container": "#8a4cfc",
+                        "on-secondary-fixed-variant": "#5a00c6",
+                        "surface-variant": "#e4e1ed",
+                        "outline": "#767586",
+                        "tertiary-fixed": "#ffdbc8",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "primary-container": "#5b5fef",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#e9e6f3",
+                        "on-primary-container": "#f9f6ff",
+                        "inverse-surface": "#303039",
+                        "on-secondary-container": "#fffbff",
+                        "on-primary-fixed-variant": "#2c2cc3",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "lg": "24px",
+                        "2xl": "48px",
+                        "3xl": "64px",
+                        "xl": "32px",
+                        "xs": "4px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Inter"],
+                        "page-title": ["Inter"],
+                        "body-compact": ["Inter"],
+                        "body-default": ["Inter"],
+                        "page-title-mobile": ["Inter"],
+                        "section-heading": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "page-title": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-compact": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-default": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "page-title-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "section-heading": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .skeleton {
+            animation: skeleton-loading 1.5s infinite linear;
+            background: linear-gradient(90deg, var(--tw-colors-surface-container-high) 25%, var(--tw-colors-surface-container-highest) 50%, var(--tw-colors-surface-container-high) 75%);
+            background-size: 200% 100%;
+        }
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-default min-h-screen antialiased flex">
+<!-- SideNavBar (Background Context) -->
+<nav class="hidden md:flex flex-col h-full py-lg px-md bg-surface-container-lowest dark:bg-inverse-surface border-r border-border-subtle dark:border-outline-variant fixed left-0 top-0 h-screen w-[220px] z-10">
+<div class="mb-2xl flex items-center gap-sm px-sm">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim text-3xl">token</span>
+<div>
+<h1 class="text-section-heading font-section-heading text-primary dark:text-primary-fixed-dim m-0">Co-op</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant m-0 opacity-70 uppercase tracking-wider">Premium SaaS</p>
+</div>
+</div>
+<div class="flex-1 flex flex-col gap-sm">
+<a class="flex items-center gap-md px-md py-sm rounded-lg hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors text-on-surface-variant dark:text-outline opacity-80 hover:opacity-100 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-compact text-body-compact">Overview</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg hover:bg-surface-container-low dark:hover:bg-surface-variant transition-colors text-primary dark:text-primary-fixed-dim font-bold opacity-80 hover:opacity-100 duration-200 bg-surface-container-low" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="font-body-compact text-body-compact">Products</span>
+</a>
+<!-- Skeleton items for rest of nav to keep it brief -->
+<div class="h-10 rounded-lg w-full skeleton opacity-50 mt-xs"></div>
+<div class="h-10 rounded-lg w-full skeleton opacity-40"></div>
+<div class="h-10 rounded-lg w-full skeleton opacity-30"></div>
+</div>
+</nav>
+<!-- TopNavBar (Background Context) -->
+<header class="hidden md:flex items-center justify-between px-lg w-full z-10 bg-surface-container-lowest/80 dark:bg-inverse-surface/80 backdrop-blur-md fixed top-0 right-0 h-[64px] left-[220px] border-b border-border-subtle dark:border-outline-variant">
+<div class="flex items-center gap-sm text-on-surface-variant">
+<span class="font-body-default text-body-default">Products / </span> <span class="font-body-default text-body-default font-bold text-on-background">Edit Product</span>
+</div>
+<div class="flex items-center gap-md">
+<!-- Simplified top nav for context -->
+<div class="w-8 h-8 rounded-full skeleton"></div>
+<div class="w-8 h-8 rounded-full skeleton"></div>
+</div>
+</header>
+<!-- Main Content Canvas (Background Context - Skeleton Table) -->
+<main class="flex-1 ml-[220px] mt-[64px] p-lg md:p-2xl opacity-40 blur-sm pointer-events-none transition-all duration-300">
+<div class="mb-lg flex justify-between items-end">
+<div>
+<h2 class="font-page-title text-page-title">Products</h2>
+<p class="font-body-compact text-body-compact text-on-surface-variant mt-sm">Manage your inventory and product catalog.</p>
+</div>
+<div class="w-32 h-10 rounded-lg skeleton"></div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden">
+<!-- Table Header Skeleton -->
+<div class="flex px-lg py-md border-b border-outline-variant bg-surface-container-low">
+<div class="w-1/4 h-5 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-5 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-5 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-5 skeleton rounded"></div>
+</div>
+<!-- Table Row Skeletons -->
+<div class="flex px-lg py-md border-b border-outline-variant items-center">
+<div class="w-8 h-8 rounded skeleton mr-md"></div>
+<div class="w-1/4 h-4 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-4 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-4 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-4 skeleton rounded"></div>
+</div>
+<div class="flex px-lg py-md border-b border-outline-variant items-center">
+<div class="w-8 h-8 rounded skeleton mr-md"></div>
+<div class="w-1/4 h-4 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-4 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-4 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-4 skeleton rounded"></div>
+</div>
+<div class="flex px-lg py-md items-center">
+<div class="w-8 h-8 rounded skeleton mr-md"></div>
+<div class="w-1/4 h-4 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-4 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-4 skeleton rounded mr-4"></div>
+<div class="w-1/4 h-4 skeleton rounded"></div>
+</div>
+</div>
+</main>
+<!-- Overlay Container for Modals -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-md bg-on-background/20 backdrop-blur-sm">
+<!-- Interactive Layout Grid for Modals to display both nicely -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-xl w-full max-w-6xl items-start relative">
+<!-- Edit Product Modal (Foreground Left) -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_12px_24px_-4px_rgba(91,95,239,0.08)] flex flex-col w-full max-w-2xl mx-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+<!-- Modal Header -->
+<div class="flex items-center justify-between px-lg py-md border-b border-outline-variant bg-surface">
+<h3 class="font-section-heading text-section-heading m-0">Edit Product</h3>
+<button class="text-on-surface-variant hover:text-on-background transition-colors p-xs rounded-lg hover:bg-surface-container">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="p-lg flex flex-col gap-lg overflow-y-auto max-h-[716px]">
+<!-- Image Upload Area -->
+<div class="flex gap-md items-start">
+<div class="w-32 h-32 rounded-lg border-2 border-dashed border-outline-variant flex flex-col items-center justify-center text-on-surface-variant bg-surface cursor-pointer hover:bg-surface-container-low transition-colors relative overflow-hidden group">
+<img class="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="A high-quality, professional product photograph of a modern, sleek premium widget. The object is rendered in sleek brushed aluminum and matte black. It is well-lit with studio lighting against a clean, minimal white backdrop. The styling is typical of high-end consumer electronics or SaaS product visualizations." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEXtV4tAbPtbwHp2soCPdczWZJFyxp0D03AnDccuC1XUwjb0zWQQBlWaGjez3lCkqRJ7ReWsn3u3iXUPkAKgO1AbOInECs8ExVNuZtNkQXZAFE-9QbSWmc1DWArA2vnDK2xTFOWLg_Ppu1dotX9sZNszWITj-hx2Dj6EVrW_AmrtWUsIUvphjesf8JI8aVTUSpz1s2l2nrUN0R7MD3hYFPtfscYdrL614J-TFXrbvEttBjOPB5lm3ahg">
+<div class="absolute inset-0 flex flex-col items-center justify-center bg-surface/50 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+<span class="material-symbols-outlined text-on-background" data-icon="photo_camera">photo_camera</span>
+<span class="font-label-caps text-label-caps mt-xs text-on-background">Change</span>
+</div>
+</div>
+<div class="flex-1 space-y-md">
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-xs">Product Name</label>
+<input class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm font-body-compact text-body-compact text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" type="text" value="Premium Widget">
+</div>
+<div class="flex gap-md">
+<div class="flex-1">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-xs">SKU</label>
+<input class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm font-body-compact text-body-compact text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all opacity-70" readonly="" type="text" value="PW-8924-REV">
+</div>
+<div class="flex-1">
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-xs">Status</label>
+<select class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm font-body-compact text-body-compact text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all appearance-none">
+<option selected="">Active</option>
+<option>Draft</option>
+<option>Archived</option>
+</select>
+</div>
+</div>
+</div>
+</div>
+<!-- Details Section -->
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-xs">Description</label>
+<textarea class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm font-body-compact text-body-compact text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none" rows="3">Our flagship premium widget, designed for high-performance enterprise environments. Features integrated AI analytics and advanced telemetry.</textarea>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-xs">Base Price (USD)</label>
+<div class="relative">
+<span class="absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant font-body-compact">$</span>
+<input class="w-full bg-surface border border-outline-variant rounded-lg pl-xl pr-md py-sm font-body-compact text-body-compact text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" type="number" value="299.00">
+</div>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-on-surface-variant mb-xs">Inventory Tier</label>
+<select class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm font-body-compact text-body-compact text-on-background focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all appearance-none">
+<option>Standard</option>
+<option selected="">Priority Fulfillment</option>
+<option>On-Demand</option>
+</select>
+</div>
+</div>
+<!-- AI Insights Module (Styling demonstration) -->
+<div class="mt-md border-t-2 border-primary-container bg-surface-container-low rounded-b-xl p-md flex gap-md items-start">
+<div class="bg-gradient-to-br from-primary-container to-secondary-container p-xs rounded-full flex-shrink-0 text-on-primary-container">
+<span class="material-symbols-outlined text-sm" data-icon="auto_awesome" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps text-primary mb-xs">AI Insight</h4>
+<p class="font-body-compact text-body-compact text-on-surface-variant">Based on recent sales velocity, consider adjusting the Base Price to <strong>$315.00</strong> to optimize revenue against current demand.</p>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="px-lg py-md border-t border-outline-variant bg-surface flex justify-between items-center">
+<button class="font-body-compact text-body-compact text-error hover:bg-error-container/50 px-md py-sm rounded-lg transition-colors flex items-center gap-xs">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span> Delete Product
+                    </button>
+<div class="flex gap-sm">
+<button class="font-body-compact text-body-compact text-primary bg-transparent border border-outline-variant px-lg py-sm rounded-lg hover:bg-surface-container transition-colors">Cancel</button>
+<button class="font-body-compact text-body-compact text-on-primary bg-primary px-lg py-sm rounded-lg hover:bg-primary/90 transition-colors shadow-sm">Save Changes</button>
+</div>
+</div>
+</div>
+<!-- Delete Confirmation Modal (Foreground Right - representing the state if they clicked delete) -->
+<div class="bg-surface-container-lowest rounded-xl border border-error/20 shadow-[0_12px_24px_-4px_rgba(186,26,26,0.12)] flex flex-col w-full max-w-md mx-auto mt-2xl lg:mt-0 relative overflow-hidden animate-in fade-in zoom-in-95 duration-300 delay-150">
+<!-- Red accent top bar -->
+<div class="h-1 w-full bg-error absolute top-0 left-0"></div>
+<div class="p-lg flex flex-col items-center text-center mt-sm">
+<div class="w-12 h-12 rounded-full bg-error-container text-on-error-container flex items-center justify-center mb-md">
+<span class="material-symbols-outlined text-2xl" data-icon="warning" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<h3 class="font-section-heading text-section-heading mb-sm text-on-background">Delete Premium Widget?</h3>
+<p class="font-body-compact text-body-compact text-on-surface-variant mb-lg">
+                        Are you sure you want to delete this product? This action will move the item to the <strong>Archive</strong>. It will no longer be visible in active inventory, but historical sales data will be retained.
+                    </p>
+<div class="w-full bg-surface-container-low p-md rounded-lg border border-outline-variant/50 text-left mb-lg">
+<p class="font-label-caps text-label-caps text-on-surface-variant mb-xs">Product Details</p>
+<p class="font-body-compact text-body-compact text-on-background font-medium">Premium Widget (PW-8924-REV)</p>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="px-lg py-md border-t border-outline-variant bg-surface flex gap-sm justify-end">
+<button class="font-body-compact text-body-compact text-on-surface-variant bg-transparent border border-outline-variant px-lg py-sm rounded-lg hover:bg-surface-container transition-colors">Keep Product</button>
+<button class="font-body-compact text-body-compact text-on-error bg-error px-lg py-sm rounded-lg hover:bg-error/90 transition-colors shadow-sm flex items-center gap-xs">
+                         Move to Archive
+                    </button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

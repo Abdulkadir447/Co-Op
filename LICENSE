@@ -1,0 +1,52 @@
+Co-op — Proprietary Licence
+Copyright (c) 2026 Co-op. All Rights Reserved.
+
+This software and its source code, documentation, designs and assets (the
+"Software") are proprietary and confidential to Co-op (the "Licensor").
+
+Unlike an open-source licence, this notice grants NO rights by itself. Co-op
+is a commercial product whose revenue comes from the licences it issues (see
+the Product Requirements Document, Chapter 1 — "Primary revenue comes from
+software licenses"), so access is granted per business through an activation
+key issued by the Licensor and activated in Co-op → Settings → Licence.
+
+1. GRANT. Subject to a valid, unexpired, unrevoked activation key for your
+   business, the Licensor grants you a non-exclusive, non-transferable right
+   to install and use the Software for your own internal business operations.
+
+2. RESTRICTIONS. Except where mandatory law says otherwise, you may not:
+   copy, redistribute, publish, sublicense or sell the Software; remove or
+   alter proprietary notices; reverse engineer, decompile or disassemble it;
+   share one activation key between separate businesses; or use it to build
+   a competing product or service.
+
+3. OWNERSHIP. The Software is licensed, not sold. All title, copyright and
+   other intellectual property rights remain with the Licensor. You keep all
+   rights in the business data you put into Co-op — the Licensor claims no
+   ownership of it.
+
+4. TERM AND REVOCATION. The right to use continues while your activation key
+   is valid. The Licensor may revoke a key (for non-payment, breach, or a
+   chargeback); revocation takes effect immediately and ends this grant.
+
+5. NO WARRANTY. The Software is provided "as is", without warranty of any
+   kind, express or implied, including merchantability, fitness for a
+   particular purpose and non-infringement.
+
+6. LIMITATION OF LIABILITY. To the maximum extent permitted by law, the
+   Licensor is not liable for indirect, incidental, special, consequential
+   or punitive damages, or for lost profits, revenue or data, arising from
+   the use of or inability to use the Software.
+
+7. THIRD-PARTY COMPONENTS. The Software incorporates open-source libraries
+   (listed in frontend/package.json, electron/package.json and
+   backend/requirements.txt), each under its own licence. Nothing here
+   restricts your rights under those licences.
+
+For licensing questions, or to obtain a key, contact the Co-op team.
+
+---
+NOTE FOR THE MAINTAINERS: this is the proprietary default that matches the
+PRD's commercial model. If the project is ever released under an open-source
+licence (MIT, Apache-2.0, ...) or a formal EULA, replace this file — and the
+"Licensing" row in Settings → About, which describes it.

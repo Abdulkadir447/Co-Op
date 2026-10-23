@@ -4,7 +4,7 @@
  * Four report types (Sales, Profit & Loss, Inventory, Customers) share one
  * page structure: Report selector → Filters → KPIs → Chart → Tables →
  * Notes, plus Export (CSV/XLSX/PDF of exactly what's shown) and
- * "Ask Co-op about this report" (the AI explains this verified data).
+ * "Ask Zeno about this report" (the AI explains this verified data).
  *
  * All numbers come from the backend reporting engine — the same engine that
  * powers exports and the AI context, so nothing here is computed twice.

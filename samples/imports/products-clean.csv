@@ -1,0 +1,13 @@
+name,sku,description,category,unit_price,cost_price,current_stock,reorder_level
+Yam tuber (large),YAM-LRG-001,"Fresh large tuber, Bena variety",Tubers & Roots,4500,3200,120,30
+Cassava flour (10kg),CAS-FLR-010,"Sifted, dry-milled",Tubers & Roots,6800,5100,64,20
+"Garri (yellow, 50kg)",GAR-YEL-050,Ijebu yellow garri,Tubers & Roots,32500,27000,18,8
+"Rice (parboiled, 50kg)",RIC-PAR-050,Nigerian parboiled long grain,Grains,87500,79000,25,10
+Maize grain (100kg),MZ-GRN-100,Dried white maize,Grains,58000,50000,12,6
+Millet (50kg),MIL-050,Cleaned pearl millet,Grains,41000,35000,9,5
+Cowpea (50kg),BEAN-OLA-050,Oloyin honey beans,Legumes,96000,88000,7,5
+Groundnut oil (25L),GNO-025,Cold-pressed,Oils,74500,66000,14,6
+Palm oil (25L),PO-025,Unrefined red palm oil,Oils,62000,54000,11,6
+Tomato paste (400g tin),TOM-PST-400,Triple concentrate,Pantry,1850,1400,240,60
+Sugar (50kg),SUG-050,"Refined white, Dangote",Pantry,68000,61000,16,8
+Detergent soap (carton),SOAP-BAR-CTN,24 bars per carton,Household,15500,12500,30,12

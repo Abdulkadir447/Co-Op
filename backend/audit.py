@@ -17,6 +17,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import AuditLog
+from .redact import deep_redact
 
 
 async def record_audit(
@@ -40,7 +41,9 @@ async def record_audit(
         record_id=record_id,
         action=action[:20],
         actor=(actor or "")[:255] or None,
-        change_json=json.dumps(change) if change else None,
+        # Redact anything that looks like a secret before it is persisted —
+        # the audit ledger must describe the change, not leak credentials.
+        change_json=json.dumps(deep_redact(change)) if change else None,
     )
     db.add(row)
 

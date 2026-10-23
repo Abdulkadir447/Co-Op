@@ -5,12 +5,12 @@
 import React from 'react';
 import {
   BarChartOutlined,
-  CreditCardOutlined,
+  CustomerServiceOutlined,
   DashboardOutlined,
+  FileTextOutlined,
   InboxOutlined,
   SettingOutlined,
   ShoppingCartOutlined,
-  SyncOutlined,
   TeamOutlined,
   UploadOutlined,
   UserOutlined,
@@ -30,13 +30,13 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'products', label: 'Products', path: '/products', icon: <ShoppingCartOutlined /> },
   { key: 'inventory', label: 'Inventory', path: '/inventory', icon: <InboxOutlined /> },
   { key: 'orders', label: 'Orders', path: '/orders', icon: <TeamOutlined /> },
+  { key: 'invoices', label: 'Invoices', path: '/invoices', icon: <FileTextOutlined /> },
   { key: 'customers', label: 'Customers', path: '/customers', icon: <UserOutlined /> },
   { key: 'import', label: 'Import', path: '/import', icon: <UploadOutlined /> },
 ];
 
 /** Secondary section (account-level). */
 export const NAV_SECONDARY: NavItem[] = [
-  { key: 'sync', label: 'Sync', path: '/sync', icon: <SyncOutlined /> },
   { key: 'settings', label: 'Settings', path: '/settings', icon: <SettingOutlined /> },
-  { key: 'billing', label: 'Billing', path: '/billing', icon: <CreditCardOutlined /> },
+  { key: 'support', label: 'Report an issue', path: '/support', icon: <CustomerServiceOutlined /> },
 ];

@@ -20,7 +20,7 @@ const KIND_LABEL: Record<string, string> = {
 /**
  * AI activity (AI Platform phase — "AI history" deliverable).
  *
- * The owner-visible, SERVER-SIDE record of what Co-op AI answered: one row
+ * The owner-visible, SERVER-SIDE record of what Zeno answered: one row
  * per completed /ai/chat turn (question, kind, short summary). Failed
  * requests are never listed — the history shows only what was actually
  * answered. Complements the local conversation sidebar (which lives in this
@@ -115,7 +115,7 @@ const HistoryCard: React.FC = () => {
 
       {state === 'ready' && total === 0 && (
         <div style={{ ...type.bodyCompact, color: colors.onSurfaceVariant }}>
-          No AI answers yet. Ask Co-op something — every answer it gives will be listed here.
+          No AI answers yet. Ask Zeno something — every answer it gives will be listed here.
         </div>
       )}
 

@@ -17,7 +17,7 @@ ALLOWED_PERIODS = ("this_month", "last_month", "last_30_days", "previous_30_days
 ALLOWED_SOURCES = ("orders", "products", "customers", "inventory")
 ALLOWED_KINDS = ("fact", "calculation", "forecast", "suggestion", "draft", "clarify")
 
-# The owner's Ask Co-op answer-style preference (Settings — AI Preferences).
+# The owner's Ask Zeno answer-style preference (Settings — AI Preferences).
 ALLOWED_AI_RESPONSE_STYLES = ("concise", "standard", "detailed")
 
 _STYLE_GUIDANCE = {
@@ -34,7 +34,8 @@ _STYLE_GUIDANCE = {
 
 # Uses __TOKEN__ placeholders (not str.format) because the answer contract
 # below contains literal JSON braces that would otherwise collide.
-SYSTEM_PROMPT = """You are the Co-op AI advisor for one small business.
+SYSTEM_PROMPT = """You are Zeno, the AI advisor for one small business.
+Your name is Zeno — use it whenever you refer to yourself.
 The owner speaks to you like a smart business assistant, not a database.
 
 You are given a VERIFIED BUSINESS CONTEXT as JSON. It contains only real,

@@ -8,7 +8,7 @@
  * it plugs in HERE (or replaces this file with a provider-supplied catalog).
  * No other component may hard-code a price or a credit rule.
  *
- * Visual spec: finch_pricing_plans_qa_polished + finch_plan_comparison.
+ * Visual spec: coop_pricing_plans_qa_polished + coop_plan_comparison.
  */
 
 export type PlanId = 'free' | 'starter' | 'professional' | 'enterprise';
@@ -44,7 +44,7 @@ export const PLAN_CATALOG: Plan[] = [
     tagline: 'Essential tools for small teams getting started.',
     priceMonthly: 29,
     annualDiscountPct: 20,
-    cta: 'Get Started',
+    cta: 'Start Free Trial',
     includesLabel: 'Includes:',
     features: [
       { label: 'Up to 3 users', included: true },
@@ -64,7 +64,7 @@ export const PLAN_CATALOG: Plan[] = [
     includesLabel: 'Everything in Starter, plus:',
     features: [
       { label: 'Unlimited users', included: true },
-      { label: 'Co-op AI Insights', included: true, ai: true },
+      { label: 'Zeno Insights', included: true, ai: true },
       { label: 'Advanced integrations', included: true },
       { label: 'Priority support', included: true },
     ],
@@ -97,7 +97,7 @@ export const FREE_PLAN: Plan = {
   features: [
     { label: 'Products, inventory & orders', included: true },
     { label: 'Customers & dashboard', included: true },
-    { label: 'Co-op AI (basic usage)', included: true, ai: true },
+    { label: 'Zeno (basic usage)', included: true, ai: true },
   ],
 };
 
@@ -107,7 +107,7 @@ export function getPlan(id: PlanId): Plan {
 }
 
 // ---------------------------------------------------------------------------
-// Plan comparison (finch_plan_comparison) — display values, provisional.
+// Plan comparison (coop_plan_comparison) — display values, provisional.
 // ---------------------------------------------------------------------------
 export interface ComparisonRow {
   feature: string;

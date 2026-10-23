@@ -1,6 +1,6 @@
 /**
- * Customers module screen (Stitch finch_customer_catalog_refactored +
- * finch_customers_mobile). UI refactor only — same endpoints, same data
+ * Customers module screen (Stitch coop_customer_catalog_refactored +
+ * coop_customers_mobile). UI refactor only — same endpoints, same data
  * rules (tenant-scoped email uniqueness, soft delete, order history
  * retained).
  *
@@ -227,7 +227,7 @@ const CustomersPage: React.FC = () => {
           <AiNoticeBox
             compact
             title="Up next: engagement analysis"
-            description="Ask Co-op and Live Insights are available now. Automatically flagging customers whose order cadence is changing — with suggested check-ins — is still on the roadmap."
+            description="Ask Zeno and Live Insights are available now. Automatically flagging customers whose order cadence is changing — with suggested check-ins — is still on the roadmap."
           />
 
           {loading ? (
@@ -279,7 +279,7 @@ const CustomersPage: React.FC = () => {
             </div>
           )}
 
-          {/* Mobile FAB (finch_customers_mobile) */}
+          {/* Mobile FAB (coop_customers_mobile) */}
           <button
             type="button"
             onClick={() => setModalOpen(true)}

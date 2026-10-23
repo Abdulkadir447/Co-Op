@@ -1,11 +1,11 @@
 /**
- * Products module screen (Stitch finch_products_catalog_refactored +
- * finch_products_mobile_refactored + finch_product_management_states).
+ * Products module screen (Stitch coop_products_catalog_refactored +
+ * coop_products_mobile_refactored + coop_product_management_states).
  *
  * Presentation refactor only — same endpoints, same business rules:
  *   desktop : catalog table (SKU · Product · Category · Prices · Stock ·
  *             Status) with the All/Low/Out tabs (backend `stock` filter)
- *   mobile  : card list + gradient FAB (finch_products_mobile)
+ *   mobile  : card list + gradient FAB (coop_products_mobile)
  *   create  : "Create New Product" modal (Pricing Details group, AI
  *             description placeholder)
  *   edit    : "Update Product" modal with the Delete Product action
@@ -409,7 +409,7 @@ const ProductsPage: React.FC = () => {
         )}
       </CoopCard>
 
-      {/* Mobile FAB (finch_products_mobile) */}
+      {/* Mobile FAB (coop_products_mobile) */}
       {isMobile && (
         <button
           type="button"

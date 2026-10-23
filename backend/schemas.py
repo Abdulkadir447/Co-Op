@@ -366,6 +366,10 @@ class BusinessSettingsOut(BaseModel):
     tax_id: Optional[str] = None
     website: Optional[str] = None
     timezone: Optional[str] = None
+    # Set only by POST /business/logo (a Storage upload), never by PATCH —
+    # letting a caller write an arbitrary URL here would let them point the
+    # logo at any external host.
+    logo_url: Optional[str] = None
     ai_response_style: str = "standard"
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -436,3 +440,76 @@ class TeamRoleUpdate(BaseModel):
 class TeamResponse(BaseModel):
     members: List[TeamMemberOut]
     invitations: List[TeamInviteOut]
+
+
+# --- Feedback (periodic in-app product prompt) -----------------------------
+class FeedbackStatusOut(BaseModel):
+    """Whether a feedback prompt is due for the caller's business."""
+    due: bool
+    required: bool                       # first prompt = compulsory
+    due_at: Optional[str] = None         # ISO timestamp of the current window
+    interval_days: int = 21
+    submitted_before: bool = False
+
+
+class FeedbackSubmitIn(BaseModel):
+    """A feedback response. ``overall`` is required for the compulsory first
+    prompt (enforced in the route); the rest are optional."""
+    rating: Optional[int] = Field(None, ge=1, le=5)
+    overall: Optional[str] = Field(None, max_length=4000)
+    likes: Optional[str] = Field(None, max_length=4000)
+    issues: Optional[str] = Field(None, max_length=4000)
+    improvements: Optional[str] = Field(None, max_length=4000)
+
+
+class FeedbackOut(BaseModel):
+    """One stored feedback response (GET /feedback, owner-only)."""
+    id: int
+    rating: Optional[int] = None
+    overall: Optional[str] = None
+    likes: Optional[str] = None
+    issues: Optional[str] = None
+    improvements: Optional[str] = None
+    submitted_by: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+# --- Support: owner-raised issue reports ------------------------------------
+# The mirror image of feedback: Co-op asks for feedback on a cadence, an issue
+# report is raised by the owner whenever something is wrong.
+ISSUE_CATEGORIES = frozenset({
+    "bug", "data", "billing", "performance", "import", "feature", "other",
+})
+ISSUE_SEVERITIES = frozenset({"low", "normal", "high", "critical"})
+
+
+class IssueReportIn(BaseModel):
+    """A problem report from the in-app "Report an issue" page.
+
+    ``subject`` and ``description`` are required — a report we cannot
+    understand cannot be fixed. ``contact_email`` is deliberately a plain
+    string, not ``EmailStr``: it is an optional convenience, and a typo in it
+    must never block someone reporting a critical bug.
+    """
+    category: str = Field("other", max_length=32)
+    severity: str = Field("normal", max_length=16)
+    subject: str = Field(..., min_length=3, max_length=200)
+    description: str = Field(..., min_length=10, max_length=8000)
+    contact_email: Optional[str] = Field(None, max_length=255)
+    app_version: Optional[str] = Field(None, max_length=64)
+    platform: Optional[str] = Field(None, max_length=32)
+
+
+class IssueReportOut(BaseModel):
+    """One stored issue report (GET /support/issues, owner-only)."""
+    id: int
+    category: str = "other"
+    severity: str = "normal"
+    subject: str
+    description: str
+    contact_email: Optional[str] = None
+    app_version: Optional[str] = None
+    platform: Optional[str] = None
+    status: str = "new"
+    submitted_by: Optional[str] = None
+    created_at: Optional[str] = None

@@ -1,6 +1,6 @@
 /**
- * Add/Edit Product modal (Stitch finch_create_product +
- * finch_product_management_states).
+ * Add/Edit Product modal (Stitch coop_create_product +
+ * coop_product_management_states).
  *
  * UI refactor only — same form fields, same validation, same business
  * rules (SKU locked on update; initial stock only on create; stock moves
@@ -250,13 +250,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
           <AiNoticeBox
             compact
             title="Up next: pricing & stock suggestions"
-            description="Ask Co-op is available now. Product-level recommendations — price and stock adjustments based on your sales velocity — are still on the roadmap."
+            description="Ask Zeno is available now. Product-level recommendations — price and stock adjustments based on your sales velocity — are still on the roadmap."
           />
         ) : (
           <AiNoticeBox
             compact
             title="Generate description (coming soon)"
-            description="Auto-generating a description from the title and category is still on the roadmap. Ask Co-op is available now for questions about your catalog."
+            description="Auto-generating a description from the title and category is still on the roadmap. Ask Zeno is available now for questions about your catalog."
           />
         )}
       </Form>

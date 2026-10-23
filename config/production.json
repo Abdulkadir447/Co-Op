@@ -23,7 +23,7 @@
   },
   "ai": {
     "enabled": true,
-    "model": "gpt-4o-mini",
+    "model": "openai/gpt-4o-mini",
     "credits_per_request": 1,
     "free_output_tokens": 500,
     "credits_per_1k_output_tokens": 1,
@@ -80,6 +80,17 @@
       "https://app.coop.example"
     ]
   },
+  "platform": {
+    "_comment": "In-app product-owner console (/platform/*). Overridden by COOP_PLATFORM_ADMINS; email match is case-insensitive. Empty list = console closed.",
+    "admin_emails": [
+      "abdul.24434.kadir0@gmail.com"
+    ]
+  },
+  "licensing": {
+    "_comment": "Signed activation keys (PRD Ch7 \u00a77.19). The signing key lives ONLY in LICENSE_SIGNING_KEY and admin tokens in LICENSE_ADMIN_TOKENS \u2014 neither belongs in this file.",
+    "enabled": true,
+    "default_days": 365
+  },
   "notifications": {
     "smtp": {
       "host": "",
@@ -88,6 +99,42 @@
       "password": "",
       "from": "Co-op <no-reply@coop.app>",
       "tls": true
+    },
+    "resend": {
+      "_comment": "Resend API email (preferred over SMTP). Put the key in RESEND_API_KEY (env), never here. onboarding@resend.dev only delivers to your own account email - use a verified domain address for real sending.",
+      "api_key": "",
+      "from": "CO OP <onboarding@resend.dev>"
+    },
+    "feedback": {
+      "_comment": "Where in-app product feedback is emailed. FEEDBACK_INBOX (env) overrides this. Empty = feedback is stored but not emailed.",
+      "to": ""
+    }
+  },
+  "rate_limits": {
+    "_comment": "Per-tenant limits for the expensive non-AI endpoints. requests <= 0 disables a section.",
+    "imports": {
+      "requests": 20,
+      "window_seconds": 300
+    },
+    "exports": {
+      "requests": 30,
+      "window_seconds": 60
+    }
+  },
+  "paystack": {
+    "_comment": "Paystack. Charges go through the API (POST /transaction/initialize) using prices_kobo, so PAYSTACK_SECRET_KEY is REQUIRED - without it no checkout can start and no webhook can be verified. Amounts are in the currency's minor unit (USD cents): starter $29/mo, $276/yr; professional $99/mo, $948/yr. The annual figures are the UI's displayed monthly-equivalent x 12 (frontend/src/billing/plans.ts, 20% discount rounded to whole dollars) - confirm them before taking real money. Enterprise has no price on purpose: it is Contact Sales. Set paystack.callback_url (or the PAYSTACK_CALLBACK_URL env var) to the absolute URL of the deployed Billing page.",
+    "enabled": true,
+    "currency": "USD",
+    "api_base": "https://api.paystack.co",
+    "timeout_seconds": 15,
+    "secret_key_env": "PAYSTACK_SECRET_KEY",
+    "public_key_env": "PAYSTACK_PUBLIC_KEY",
+    "callback_url": null,
+    "allowed_callback_hosts": [],
+    "payment_pages": {},
+    "prices_kobo": {
+      "starter": { "monthly": 2900, "annual": 27600 },
+      "professional": { "monthly": 9900, "annual": 94800 }
     }
   }
 }

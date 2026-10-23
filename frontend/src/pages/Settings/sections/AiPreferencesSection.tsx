@@ -1,5 +1,5 @@
 /**
- * Settings → AI Preferences. The Ask Co-op answer style — persisted on the
+ * Settings → AI Preferences. The Ask Zeno answer style — persisted on the
  * tenant (backend) and read by the real system prompt, so the preference
  * shapes every AI answer, not just this screen.
  */
@@ -32,7 +32,7 @@ const AiPreferencesSection: React.FC<AiPreferencesSectionProps> = ({ settings, s
   return (
     <CoopCard
       title="AI Preferences"
-      subtitle="How Ask Co-op answers you. Applied to every AI response."
+      subtitle="How Ask Zeno answers you. Applied to every AI response."
     >
       <Radio.Group value={current} onChange={(e) => void handleChange(e.target.value as string)} disabled={saving}>
         <Space direction="vertical" size={14}>

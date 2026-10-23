@@ -9,7 +9,7 @@ import json
 import pytest
 
 from backend.ai import service as ai_service
-from backend.ai.providers.openai import ProviderError, ProviderResult
+from backend.ai.providers.openrouter import ProviderError, ProviderResult
 from backend.models import Business, Customer, Order, OrderItem, OrderStatus, Product
 
 
@@ -56,7 +56,7 @@ def fake_provider(monkeypatch):
             ai_service, "build_provider",
             lambda model, key: FakeProvider(reply=reply, error=error),
         )
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
     return _install
 
 
@@ -128,7 +128,7 @@ async def test_chat_records_credits_for_large_output(api, fake_provider):
     monkeypatch = pytest.MonkeyPatch()
     try:
         monkeypatch.setattr(ai_service, "build_provider", lambda model, key: BigFake())
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
         r = await api.client.post("/ai/chat", json={"question": "Why did sales drop?"})
         assert r.status_code == 200
         assert r.json()["credits_used"] == 3
@@ -139,7 +139,7 @@ async def test_chat_records_credits_for_large_output(api, fake_provider):
 
 
 async def test_chat_503_when_model_unavailable(api, monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
     monkeypatch.setattr(ai_service, "build_provider",
                         lambda model, key: FakeProvider(error=ProviderError("boom")))
     await _seed(api)
@@ -149,7 +149,7 @@ async def test_chat_503_when_model_unavailable(api, monkeypatch):
 
 
 async def test_chat_503_when_not_configured(api, monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     r = await api.client.post("/ai/chat", json={"question": "Hello?"})
     assert r.status_code == 503
 
@@ -185,7 +185,7 @@ async def test_chat_rejects_insufficient_stock(api, fake_provider):
 
 
 async def test_chat_invalid_json_falls_back_to_503(api, monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
     monkeypatch.setattr(ai_service, "build_provider",
                         lambda model, key: FakeProvider(reply="not json at all"))
     await _seed(api)
@@ -206,7 +206,7 @@ async def test_chat_empty_business_gets_honest_clarify(api, fake_provider):
 
 
 async def test_chat_report_context_is_verified_and_attached(api):
-    """'Ask Co-op about this report': the server rebuilds the verified report
+    """'Ask Zeno about this report': the server rebuilds the verified report
     from the FILTERS and attaches it to the model's context — the client
     never supplies the numbers themselves."""
     captured = {}
@@ -220,7 +220,7 @@ async def test_chat_report_context_is_verified_and_attached(api):
     monkeypatch = pytest.MonkeyPatch()
     try:
         monkeypatch.setattr(ai_service, "build_provider", lambda model, key: Cap())
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
         p, c, o = await _seed(api)  # 1 order: 4 x $5 = $20 revenue today
 
         today = dt.date.today()

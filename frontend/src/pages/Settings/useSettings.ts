@@ -17,7 +17,7 @@ export interface BusinessSettings {
   tax_id: string | null;
   website: string | null;
   timezone: string | null;
-  /** Ask Co-op answer style (concise | standard | detailed). */
+  /** Ask Zeno answer style (concise | standard | detailed). */
   ai_response_style: string;
   created_at: string;
   updated_at: string | null;
@@ -26,7 +26,7 @@ export interface BusinessSettings {
 /** Editable subset sent to PATCH /business/settings. */
 export type BusinessSettingsUpdate = Partial<Omit<BusinessSettings, 'created_at' | 'updated_at'>>;
 
-/** Ask Co-op response styles — mirrors the backend allow-list. */
+/** Ask Zeno response styles — mirrors the backend allow-list. */
 export const AI_RESPONSE_STYLE_OPTIONS: { value: string; label: string; blurb: string }[] = [
   { value: 'concise', label: 'Concise', blurb: '1–3 short bullets. Just the answer.' },
   { value: 'standard', label: 'Standard', blurb: 'A short, owner-level explanation.' },

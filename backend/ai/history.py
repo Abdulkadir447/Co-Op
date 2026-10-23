@@ -1,6 +1,6 @@
 """AI history (AI Platform phase — "AI history" deliverable).
 
-The OWNER-VISIBLE record of what Co-op AI answered: one row per completed
+The OWNER-VISIBLE record of what Zeno answered: one row per completed
 /ai/chat turn (question + answered kind/title + short summary + model +
 credits). ``ai_usage`` stays the cost meter; this is the activity ledger
 the UI's "AI activity" panel reads.

@@ -5,7 +5,7 @@ import globals from "globals";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "node_modules/**", "src/electron/**"],
+    ignores: ["dist/**", "node_modules/**", "src/electron/**", "test-build/**", "public/**"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -42,6 +42,16 @@ export default tseslint.config(
       "react-hooks/purity": "off",
       "react-hooks/immutability": "off",
       "react-hooks/scope": "off",
+    },
+  },
+  {
+    // Node-side scripts (e.g. scripts/run-tests.mjs) run outside the browser,
+    // so they get Node globals and none of the React rules.
+    files: ["**/*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
     },
   },
 );

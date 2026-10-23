@@ -28,8 +28,22 @@ async def engine(tmp_path):
     """Per-test isolated database. Postgres when TEST_DATABASE_URL is set,
     otherwise a temp SQLite file (aiosqlite)."""
     url = os.getenv("TEST_DATABASE_URL") or f"sqlite+aiosqlite:///{tmp_path / 'coop_test.db'}"
+    # A plain postgres(ql):// URL makes SQLAlchemy pick the sync psycopg2
+    # driver; the suite is async, so canonicalise to asyncpg (same rule as
+    # backend.config.database_url) — otherwise create_async_engine imports
+    # psycopg2 and dies with ModuleNotFoundError.
+    if url.startswith("postgres://"):
+        url = "postgresql+asyncpg://" + url[len("postgres://"):]
+    elif url.startswith("postgresql://"):
+        url = "postgresql+asyncpg://" + url[len("postgresql://"):]
     eng = create_async_engine(url)
     async with eng.begin() as conn:
+        # Drop-then-create gives every test a clean slate. On the per-test
+        # SQLite temp file this is a no-op (the file is already empty); on a
+        # *shared* Postgres (TEST_DATABASE_URL) it is what stops one test's
+        # rows colliding with the next test's unique constraints (e.g. a
+        # reused SKU/email), since Postgres has no per-test temp file.
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield eng
     await eng.dispose()

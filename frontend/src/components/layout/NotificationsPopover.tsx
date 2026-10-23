@@ -485,7 +485,7 @@ const NotificationsPopover: React.FC = () => {
       trigger={['click']}
       placement="bottomRight"
       arrow={false}
-      overlayInnerStyle={{ padding: 0, borderRadius: radius.lg }}
+      styles={{ body: { padding: 0, borderRadius: radius.lg } }}
       content={
         <div style={{ width: 360 }}>
           <DailySummarySection summary={summary} enabled={summary.enabled} />

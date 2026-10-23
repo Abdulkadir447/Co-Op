@@ -16,10 +16,10 @@ export interface AiNoticeBoxProps {
 }
 
 /**
- * Co-op AI notice box (Stage R1 AI chrome: 2px gradient top border +
+ * Zeno notice box (Stage R1 AI chrome: 2px gradient top border +
  * sparkle mark).
  *
- * Honesty rule: Co-op's AI (Ask Co-op, Live Insights, report explanations)
+ * Honesty rule: Zeno — Ask Zeno, Live Insights and report explanations —
  * is live. These boxes are reserved for a SPECIFIC analysis that is not yet
  * built, so the copy must name that capability as "coming" while making
  * clear the assistant itself is already available — never implying AI is
@@ -34,7 +34,7 @@ const AiNoticeBox: React.FC<AiNoticeBoxProps> = ({
 }) => {
   const { colors } = useCoopTheme();
   const handleAction = () =>
-    onAction ?? (() => message.info('This specific analysis is still on the roadmap — Ask Co-op is available now.'));
+    onAction ?? (() => message.info('This specific analysis is still on the roadmap — Ask Zeno is available now.'));
 
   return (
     <div

@@ -45,6 +45,32 @@ body {
   min-height: 100vh;
 }
 
+/*
+ * App-wide text rhythm: the app ships no CSS reset, so unstyled headings
+ * and paragraphs inherit the browser's UA margins (h1 ≈0.67em top+bottom,
+ * p ≈1em top+bottom) — that reads as oversized blank space above and below
+ * text blocks. Components that style their own margins are unaffected
+ * (inline styles win); this trims the default vertical rhythm only.
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+  margin-bottom: 0.4em;
+}
+p {
+  margin-top: 0;
+  margin-bottom: 0.6em;
+}
+ul,
+ol {
+  margin-top: 0;
+  margin-bottom: 0.6em;
+}
+
 /* Number alignment for monetary/quantitative values. */
 .coop-numeric {
   font-variant-numeric: tabular-nums;
@@ -231,7 +257,7 @@ body .ant-table-thead > tr > td {
 }
 
 /*
- * Auth screens — mobile (finch_sign_in_mobile_refactored): full-bleed card,
+ * Auth screens — mobile (coop_sign_in_mobile_refactored): full-bleed card,
  * tighter vertical rhythm.
  */
 @media (max-width: 640px) {
@@ -268,6 +294,11 @@ body .ant-table-thead > tr > td {
   .coop-main {
     padding: 16px 16px 40px !important;
   }
+  /* The Zeno entry floats bottom-right; below md the module "+" FABs
+     (right:20/bottom:24, 54px) live there, so stack the AI entry above them. */
+  .coop-ai-fab {
+    bottom: 90px !important;
+  }
 }
 
 /* AI identity helpers (Stage R1 "AI Modules"). */
@@ -290,4 +321,55 @@ body .ant-table-thead > tr > td {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* --- Batch UX fixes ------------------------------------------------------ */
+
+/* 1) No hover highlight around modal titles / headers (e.g. "Update Customer"). */
+.ant-modal-title,
+.ant-modal-title *,
+.ant-modal-header,
+.ant-modal-close {
+  background: transparent !important;
+}
+.ant-modal-title:hover,
+.ant-modal-title *:hover,
+.ant-modal-header:hover,
+.ant-modal-close:hover {
+  background: transparent !important;
+}
+
+/* 2) Pagination: clearer spacing between prev / page numbers / next. */
+.ant-pagination .ant-pagination-prev,
+.ant-pagination .ant-pagination-item,
+.ant-pagination .ant-pagination-next {
+  margin-inline-end: 8px !important;
+}
+
+/* 3) Invoices print on white paper even when the on-screen theme is dark. */
+@media print {
+  .coop-invoice-print,
+  .coop-invoice-print * {
+    background: #fff !important;
+    color: #1b1b23 !important;
+    border-color: #e9e6f3 !important;
+  }
+}
+
+/* --- CO OP loader (equalizer bars) --------------------------------------- */
+/* Reusable in-app loader. Color is themed via --loader-color (set by the
+   CoopLoader component); falls back to the brand indigo. */
+.loader {
+  width: 45px;
+  aspect-ratio: 0.75;
+  --c: no-repeat linear-gradient(var(--loader-color, #4143d5) 0 0);
+  background: var(--c) 0% 100%, var(--c) 50% 100%, var(--c) 100% 100%;
+  background-size: 20% 65%;
+  animation: l5 1s infinite linear;
+}
+@keyframes l5 {
+  20% { background-position: 0% 50%, 50% 100%, 100% 100%; }
+  40% { background-position: 0% 0%, 50% 50%, 100% 100%; }
+  60% { background-position: 0% 100%, 50% 0%, 100% 50%; }
+  80% { background-position: 0% 100%, 50% 100%, 100% 0%; }
 }

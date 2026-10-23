@@ -1,5 +1,5 @@
 /**
- * Co-op AI — Ask Co-op engine (Stage 2.2, Layer 2).
+ * Zeno — Ask Zeno engine (Stage 2.2, Layer 2).
  *
  * A deterministic intent router over the real data bundle. This is the
  * pre-LLM form of the assistant: it recognizes a curated set of business
@@ -385,7 +385,7 @@ export function toAssistantAnswer(res: AiChatResult): Answer {
 }
 
 /**
- * Ask Co-op, smart: deterministic engine first; the real assistant (grounded
+ * Ask Zeno, smart: deterministic engine first; the real assistant (grounded
  * in the verified business context on the server) answers what the curated
  * engine can't. Never fails the user — degrades to the honest engine answer.
  */
@@ -411,8 +411,8 @@ export async function askCoopSmart(
     return report
       ? {
           kind: 'clarify',
-          title: 'The assistant is unavailable',
-          body: "Co-op can't narrate this report right now — the AI assistant is unreachable. Every number on the report is still verified by Co-op.",
+          title: 'Zeno is unavailable',
+          body: "Co-op can't narrate this report right now — Zeno is unreachable. Every number on the report is still verified by Co-op.",
         }
       : det;
   }
@@ -436,14 +436,14 @@ export async function askCoopSmart(
     if (report) {
       return {
         kind: 'clarify',
-        title: 'The assistant is unavailable',
-        body: `Co-op couldn't reach the AI assistant, so it can't narrate the ${report.title} just now. Every number on it is still verified by Co-op — try again in a moment.`,
+        title: 'Zeno is unavailable',
+        body: `Co-op couldn't reach Zeno, so it can't narrate the ${report.title} just now. Every number on it is still verified by Co-op — try again in a moment.`,
       };
     }
     // Honest degradation: the engine's capabilities answer, with a note.
     return {
       ...det,
-      body: `${det.body}\n\n(The AI assistant is unavailable right now — answers above come from Co-op's verified data engine.)`,
+      body: `${det.body}\n\n(Zeno is unavailable right now — answers above come from Co-op's verified data engine.)`,
     };
   }
 }

@@ -1,5 +1,5 @@
 /**
- * Co-op AI — proactive insights engine (Stage 2.2, Layer 1).
+ * Zeno — proactive insights engine (Stage 2.2, Layer 1).
  *
  * Rule-based analysis over the real data bundle. Every insight is grounded:
  * it states the evidence it used and where to look at it in Co-op.

@@ -34,7 +34,7 @@ def _load_dotenv_once() -> None:
     ALWAYS win — ``.env`` only fills gaps, so it can never override a
     deployment's settings. The file is gitignored; only non-secret
     placeholders (``.env.example``) are committed. This is what makes a
-    local ``OPENAI_API_KEY`` in ``.env`` work without extra tooling.
+    local ``OPENROUTER_API_KEY`` in ``.env`` work without extra tooling.
     """
     if getattr(_load_dotenv_once, "_done", False):
         return
@@ -63,9 +63,9 @@ _load_dotenv_once()
 
 
 def _resolve_env() -> str:
+    # COOP_ENV is the current name. FINCH_ENV (the pre-rename project name) is
+    # still honoured so an existing .env keeps working after the rename.
     env = os.getenv("COOP_ENV") or os.getenv("FINCH_ENV") or os.getenv("APP_ENV") or DEFAULT_ENV
-    # COOP_ENV is the renamed variable; FINCH_ENV is kept as a compatibility fallback for existing
-    # .env files.
     return env if env in VALID_ENVS else DEFAULT_ENV
 
 

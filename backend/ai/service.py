@@ -23,7 +23,7 @@ from ..models import Business
 from .actions import validate_actions, validate_links
 from .context import build_context
 from .history import record_turn
-from .providers.openai import ProviderError, build_provider
+from .providers.openrouter import ProviderError, build_provider
 from .prompts import REPAIR_PROMPT, build_system_prompt, user_prompt
 from .schemas import AiChatResponse
 from .usage import month_usage, record_usage
@@ -48,11 +48,15 @@ def ai_enabled() -> bool:
     cfg = _ai_config()
     if not cfg.get("enabled", True):
         return False
-    return bool(secret("OPENAI_API_KEY"))
+    return bool(secret("OPENROUTER_API_KEY"))
 
 
 def _default_model() -> str:
-    return secret("OPENAI_MODEL") or _ai_config().get("model") or "gpt-4o-mini"
+    return (
+        secret("OPENROUTER_MODEL")
+        or _ai_config().get("model")
+        or "openai/gpt-4o-mini"
+    )
 
 
 def _report_key(report: Optional[dict[str, Any]]) -> Optional[str]:
@@ -154,7 +158,7 @@ async def handle_chat(
 
     # --- Model call (JSON mode, one repair retry) ----------------------------
     model = _default_model()
-    api_key = secret("OPENAI_API_KEY") or ""
+    api_key = secret("OPENROUTER_API_KEY") or ""
     try:
         provider = build_provider(model, api_key)
         style = getattr(business, "ai_response_style", None) or "standard"

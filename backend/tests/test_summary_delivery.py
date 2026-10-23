@@ -154,3 +154,35 @@ async def test_render_summary_text_covers_empty_business(api):
     text = delivery_mod.render_summary_text(DailySummary(**summary))
     assert "daily summary" in text.lower() or "Co-op" in text
     assert text.strip()
+
+
+@pytest.mark.asyncio
+async def test_send_uses_resend_when_configured(api, monkeypatch):
+    """With RESEND_API_KEY set, the summary goes out via the Resend API."""
+    monkeypatch.setenv("RESEND_API_KEY", "re_test_123")
+    monkeypatch.setenv("RESEND_FROM", "CO OP <hello@verified.com>")
+    monkeypatch.delenv("SMTP_HOST", raising=False)
+    api.set_user("owner-mail", email="owner@example.com")
+    await _seed_data(api)
+
+    captured: dict = {}
+
+    class FakeResp:
+        status_code = 200
+        text = "{}"
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        captured.update(url=url, json=json, headers=headers)
+        return FakeResp()
+
+    monkeypatch.setattr(delivery_mod.httpx, "post", fake_post)
+
+    resp = await api.client.post(
+        "/notifications/summary/send", json={"email": "boss@example.com"}
+    )
+    assert resp.status_code == 200, resp.text
+    assert captured["url"] == "https://api.resend.com/emails"
+    assert captured["json"]["to"] == ["boss@example.com"]
+    assert captured["json"]["from"] == "CO OP <hello@verified.com>"
+    assert captured["headers"]["Authorization"] == "Bearer re_test_123"
+    assert "daily summary" in captured["json"]["subject"].lower()

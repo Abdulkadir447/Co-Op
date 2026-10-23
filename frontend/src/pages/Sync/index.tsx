@@ -11,6 +11,7 @@
  * In a plain browser (no local data layer) it says so, honestly.
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CloudSyncOutlined, InboxOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { radius, spacing, type } from '../../theme';
@@ -36,6 +37,7 @@ const ENTITY_LABEL: Record<string, string> = {
 };
 
 const SyncPage: React.FC = () => {
+  const navigate = useNavigate();
   const { colors } = useCoopTheme();
   const status = useSyncStatus();
   const [conflicts, setConflicts] = useState<ParkedConflict[] | null>(null);
@@ -72,11 +74,11 @@ const SyncPage: React.FC = () => {
   if (!local) {
     return (
       <div>
-        <PageHeader title="Sync" subtitle="Offline sync runs in the Co-op desktop app." />
+        <PageHeader title="Sync" subtitle="Offline sync runs in the CO OP desktop app." onBack={() => navigate(-1)} backLabel="Back" />
         <CoopCard>
           <CoopEmptyState
             title="Sync is a desktop-app feature"
-            description="The local mirror, the sync queue and conflict resolution live in the Co-op desktop app (Electron). In the browser, everything syncs directly with the cloud."
+            description="The local mirror, the sync queue and conflict resolution live in the CO OP desktop app (Electron). In the browser, everything syncs directly with the cloud."
           />
         </CoopCard>
       </div>
@@ -89,6 +91,8 @@ const SyncPage: React.FC = () => {
   return (
     <div>
       <PageHeader
+        onBack={() => navigate(-1)}
+        backLabel="Back"
         title="Sync"
         subtitle="Your device, the cloud, and anything that needs your decision."
         actions={

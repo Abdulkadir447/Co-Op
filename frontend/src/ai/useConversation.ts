@@ -1,5 +1,5 @@
 /**
- * Co-op AI — conversation state + history (Stage 2.2, AI Platform phase).
+ * Zeno — conversation state + history (Stage 2.2, AI Platform phase).
  *
  * Conversations persist locally (localStorage) so history survives reloads
  * — the assistant itself stays stateless and data-driven. `ask` runs the

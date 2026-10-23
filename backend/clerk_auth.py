@@ -139,7 +139,14 @@ async def verify_clerk_token(
             raise RuntimeError("COOP_TEST_AUTH_USER is forbidden in production")
         if credentials is None or credentials.scheme.lower() != "bearer":
             raise _auth_error("Missing bearer token")
-        return ClerkUser(user_id=test_user, session_id="e2e-session", azp=None)
+        return ClerkUser(
+            user_id=test_user,
+            session_id="e2e-session",
+            azp=None,
+            # Optional dev-only email so email-gated features (e.g. the
+            # platform-admin console) are exercisable without a live Clerk.
+            email=os.getenv("COOP_TEST_AUTH_EMAIL"),
+        )
 
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise _auth_error("Missing bearer token")
@@ -179,7 +186,11 @@ async def verify_clerk_token(
         user_id=user_id,
         session_id=payload.get("session_id") or payload.get("sid"),
         azp=azp,
-        email=payload.get("email"),
+        # Clerk's DEFAULT session token has no email claim; it appears only if
+        # the instance adds it (Dashboard -> Sessions -> Customize session
+        # token). Accept both shapes so email-gated features work when it is
+        # present, and fall back to user_id gating when it is not.
+        email=payload.get("email") or payload.get("primary_email_address"),
     )
 
 

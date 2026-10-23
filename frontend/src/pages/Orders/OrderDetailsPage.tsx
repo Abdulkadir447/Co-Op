@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Select, message } from 'antd';
 import {
+  ArrowLeftOutlined,
   CheckCircleFilled,
   DeleteOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
   MailOutlined,
   PrinterOutlined,
+  FileDoneOutlined,
   ShoppingCartOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -37,11 +39,11 @@ import {
 } from '../../components/ui';
 
 /**
- * Order Details (Stitch finch_order_details_refactored):
+ * Order Details (Stitch coop_order_details_refactored):
  *
  *   Order #ORD-XXXX [status pill] · placed-on line
  *   Items Ordered card (real line items + totals)
- *   Co-op AI Insights (honest placeholder)
+ *   Zeno Insights (honest placeholder)
  *   Update Status card — the backend-published legal transitions
  *   Customer Details card — links to the customer profile
  *   Timeline — derived from real timestamps + status position
@@ -288,22 +290,42 @@ const OrderDetailsPage: React.FC = () => {
         }}
       >
         <div>
-          <button
-            type="button"
-            onClick={() => navigate('/orders')}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              color: colors.outline,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: 0,
-              marginBottom: 6,
-            }}
-          >
-            Orders
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <button
+              type="button"
+              onClick={() => navigate('/orders')}
+              aria-label="Back to Orders"
+              title="Back to Orders"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                display: 'grid',
+                placeItems: 'center',
+                border: `1px solid ${colors.borderSubtle}`,
+                background: colors.surfaceContainer,
+                color: colors.onSurface,
+                cursor: 'pointer',
+              }}
+            >
+              <ArrowLeftOutlined />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/orders')}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: colors.outline,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              Orders
+            </button>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0, ...type.pageTitle, fontSize: 30, lineHeight: '38px', color: colors.onBackground, letterSpacing: '-0.02em' }}>
               {orderNumber(order.id)}
@@ -385,7 +407,7 @@ const OrderDetailsPage: React.FC = () => {
           {/* AI insights (honest placeholder) */}
           <AiNoticeBox
             title="Up next: order-level analysis"
-            description="Ask Co-op is available now. Order-level analysis — delivery risk, customer LTV and fulfillment route — is still on the roadmap."
+            description="Ask Zeno is available now. Order-level analysis — delivery risk, customer LTV and fulfillment route — is still on the roadmap."
           />
         </div>
 
@@ -612,6 +634,32 @@ interface InvoiceModalProps {
 }
 
 const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, business }) => {
+  const api = useApiClient();
+  const { colors } = useCoopTheme();
+  const navigate = useNavigate();
+  const [savingInvoice, setSavingInvoice] = useState(false);
+
+  /**
+   * Save this printable invoice as a numbered, tracked document (POST /invoices,
+   * team-only). Amounts are not sent — the server reads them off the order — so
+   * the record cannot drift from what was printed.
+   */
+  const saveAsInvoice = useCallback(async () => {
+    setSavingInvoice(true);
+    try {
+      const { data } = await api.post<{ number: string }>('/invoices', { order_id: order.id });
+      message.success(`Saved as ${data.number}`);
+      onClose();
+      navigate('/invoices');
+    } catch (e) {
+      // The api client already lifts `detail.message` onto ApiError.message,
+      // so "This order is already invoiced as INV-0001." arrives as-is.
+      message.error(e instanceof Error ? e.message : 'Could not save the invoice.');
+    } finally {
+      setSavingInvoice(false);
+    }
+  }, [api, navigate, onClose, order.id]);
+
   if (!open) return null;
 
   return (
@@ -624,8 +672,8 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
         className="coop-invoice-print"
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#ffffff',
-          color: '#1b1b23',
+          background: colors.surfaceContainerLowest,
+          color: colors.onSurface,
           borderRadius: radius.xl,
           width: '100%',
           maxWidth: 680,
@@ -637,32 +685,32 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 32 }}>
           <div>
-            <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: '#4143d5' }}>
+            <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: colors.primary }}>
               {business?.name ?? 'Co-op Business'}
             </div>
-            {business?.address && <div style={{ fontSize: 13, color: '#464555', marginTop: 6, whiteSpace: 'pre-line' }}>{business.address}</div>}
-            {business?.phone && <div style={{ fontSize: 13, color: '#464555', marginTop: 2 }}>{business.phone}</div>}
+            {business?.address && <div style={{ fontSize: 13, color: colors.onSurfaceVariant, marginTop: 6, whiteSpace: 'pre-line' }}>{business.address}</div>}
+            {business?.phone && <div style={{ fontSize: 13, color: colors.onSurfaceVariant, marginTop: 2 }}>{business.phone}</div>}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#1b1b23' }}>Invoice</div>
-            <div style={{ fontSize: 13.5, color: '#464555', marginTop: 8 }}>{orderNumber(order.id)}</div>
-            <div style={{ fontSize: 13, color: '#767586', marginTop: 2 }}>{dayjs(order.order_date).format('MMM D, YYYY')}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.onSurface }}>Invoice</div>
+            <div style={{ fontSize: 13.5, color: colors.onSurfaceVariant, marginTop: 8 }}>{orderNumber(order.id)}</div>
+            <div style={{ fontSize: 13, color: colors.outline, marginTop: 2 }}>{dayjs(order.order_date).format('MMM D, YYYY')}</div>
           </div>
         </div>
 
         {/* Bill to */}
-        <div style={{ marginBottom: 28, padding: '14px 16px', borderRadius: radius.lg, background: '#f5f2fe' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#767586', marginBottom: 6 }}>
+        <div style={{ marginBottom: 28, padding: '14px 16px', borderRadius: radius.lg, background: colors.surfaceContainerLow }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: colors.outline, marginBottom: 6 }}>
             Bill To
           </div>
           <div style={{ fontSize: 14.5, fontWeight: 600 }}>{order.customer?.full_name ?? 'Customer'}</div>
-          <div style={{ fontSize: 13, color: '#464555', marginTop: 2 }}>Status: {ORDER_STATUS_LABEL[order.status]}</div>
+          <div style={{ fontSize: 13, color: colors.onSurfaceVariant, marginTop: 2 }}>Status: {ORDER_STATUS_LABEL[order.status]}</div>
         </div>
 
         {/* Lines */}
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
           <thead>
-            <tr style={{ background: '#f5f2fe' }}>
+            <tr style={{ background: colors.surfaceContainerLow }}>
               {['Product', 'Qty', 'Unit Price', 'Total'].map((h, i) => (
                 <th
                   key={h}
@@ -672,7 +720,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
                     fontWeight: 700,
                     letterSpacing: '0.05em',
                     textTransform: 'uppercase',
-                    color: '#767586',
+                    color: colors.outline,
                     textAlign: i === 0 ? 'left' : 'right',
                   }}
                 >
@@ -683,7 +731,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
           </thead>
           <tbody>
             {order.items.map((item) => (
-              <tr key={item.id} style={{ borderBottom: '1px solid #e9e6f3' }}>
+              <tr key={item.id} style={{ borderBottom: `1px solid ${colors.borderSubtle}` }}>
                 <td style={{ padding: '10px 12px', fontSize: 13.5, fontWeight: 500 }}>{item.product_name ?? `Product #${item.product_id}`}</td>
                 <td style={{ padding: '10px 12px', fontSize: 13.5, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{item.quantity}</td>
                 <td style={{ padding: '10px 12px', fontSize: 13.5, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
@@ -700,19 +748,29 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
         {/* Total */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 28 }}>
           <div style={{ display: 'flex', gap: 40, alignItems: 'baseline' }}>
-            <span style={{ fontSize: 14, color: '#464555' }}>Total</span>
+            <span style={{ fontSize: 14, color: colors.onSurfaceVariant }}>Total</span>
             <span style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
               {formatCurrency(order.total_amount, business?.currency)}
             </span>
           </div>
         </div>
 
-        <div style={{ borderTop: '1px solid #e9e6f3', paddingTop: 16, textAlign: 'center', fontSize: 12, color: '#767586' }}>
+        <div style={{ borderTop: `1px solid ${colors.borderSubtle}`, paddingTop: 16, textAlign: 'center', fontSize: 12, color: colors.outline }}>
           Thank you for your business — {business?.name ?? 'Co-op'}
         </div>
 
         {/* Actions (hidden in print) */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }} className="coop-invoice-actions">
+          {!isLocalModeActive && (
+            <CoopButton
+              variant="secondary"
+              icon={<FileDoneOutlined />}
+              loading={savingInvoice}
+              onClick={() => void saveAsInvoice()}
+            >
+              Save as invoice
+            </CoopButton>
+          )}
           <CoopButton variant="secondary" onClick={onClose}>
             Close
           </CoopButton>

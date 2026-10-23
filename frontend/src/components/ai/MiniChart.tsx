@@ -12,7 +12,7 @@ export interface MiniChartProps {
 }
 
 /**
- * Small area chart for Ask Co-op answers (revenue trend). Reuses the
+ * Small area chart for Ask Zeno answers (revenue trend). Reuses the
  * dashboard's tree-shaken ApexCharts bootstrap.
  */
 const MiniChart: React.FC<MiniChartProps> = ({ labels, data, height = 160, money = false }) => {

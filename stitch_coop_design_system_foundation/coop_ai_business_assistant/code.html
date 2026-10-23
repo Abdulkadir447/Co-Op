@@ -1,0 +1,351 @@
+<!DOCTYPE html><html class="h-full" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Co-op AI - Workspace</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#e4e1ed",
+                        "on-surface-variant": "#464555",
+                        "surface-tint": "#474adb",
+                        "on-tertiary-fixed": "#311300",
+                        "on-error-container": "#93000a",
+                        "surface": "#fcf8ff",
+                        "inverse-primary": "#c0c1ff",
+                        "primary-fixed": "#e1e0ff",
+                        "surface-container-high": "#e9e6f3",
+                        "on-tertiary-fixed-variant": "#733500",
+                        "outline-variant": "#c6c5d7",
+                        "on-background": "#1b1b23",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#ffdbc8",
+                        "surface-container-low": "#f5f2fe",
+                        "surface-variant": "#e4e1ed",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#b55700",
+                        "outline": "#767586",
+                        "on-surface": "#1b1b23",
+                        "secondary-fixed": "#eaddff",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb689",
+                        "on-primary-fixed-variant": "#2c2cc3",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "inverse-surface": "#303039",
+                        "secondary-fixed-dim": "#d2bbff",
+                        "tertiary": "#904400",
+                        "on-secondary-container": "#fffbff",
+                        "on-secondary-fixed": "#25005a",
+                        "on-primary-container": "#f9f6ff",
+                        "secondary-container": "#8a4cfc",
+                        "on-secondary-fixed-variant": "#5a00c6",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed": "#05006c",
+                        "on-tertiary-container": "#fff6f2",
+                        "primary-container": "#5b5fef",
+                        "primary": "#4143d5",
+                        "surface-container": "#efecf9",
+                        "surface-bright": "#fcf8ff",
+                        "background": "#fcf8ff",
+                        "surface-dim": "#dbd8e5",
+                        "inverse-on-surface": "#f2effc",
+                        "secondary": "#712ae2",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "3xl": "64px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "2xl": "48px",
+                        "md": "16px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-compact": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "section-heading": ["Inter"],
+                        "page-title": ["Inter"],
+                        "body-default": ["Inter"],
+                        "page-title-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-compact": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "section-heading": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "page-title": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-default": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "page-title-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .ai-gradient-border {
+            border-top: 2px solid;
+            border-image: linear-gradient(to right, #4143d5, #8a4cfc) 1;
+        }
+        .ai-sparkle-bg {
+            background: linear-gradient(135deg, rgba(65, 67, 213, 0.1) 0%, rgba(138, 76, 252, 0.1) 100%);
+        }
+        .shimmer {
+            background: linear-gradient(90deg, rgba(228, 225, 237, 0) 0%, rgba(228, 225, 237, 0.5) 50%, rgba(228, 225, 237, 0) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-default text-body-default h-full antialiased overflow-hidden flex">
+<!-- SideNavBar (from JSON) -->
+<nav class="h-screen w-64 fixed left-0 top-0 bg-surface-container-low border-r border-outline-variant flex flex-col p-md gap-sm z-50">
+<!-- Header -->
+<div class="flex items-center gap-md mb-xl px-sm">
+<img alt="User Profile" class="w-10 h-10 rounded-full object-cover border border-outline-variant" data-alt="A small, stylized avatar profile picture of a professional business user in a modern office setting. The style is clean, corporate, and minimalist with soft lighting, reflecting a premium SaaS application identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGNGLHhww1WO0l1bemvCZApCFpy-qF0qiKcdZr0h4ggAZYdazwiJKTJSr0NBBx14lZPmoscA5UrHyKyPJpL9aYaafAhXdRGWXfSSPcNPUVlDxZtHFW9IaDlCiZARm-Hfp5Jp0tfS5kC8ojWZTxWFeEVUPELOd8StwloiRiC3ogW34aYS_4yVQZQ86WX_cD9qANBJFGiI8vmc3uolh2B5SGIHH12enGCq4bIupwEs1u8yFcXV9ND-s9qw">
+<div>
+<h1 class="font-page-title text-section-heading font-bold text-primary tracking-tight">Co-op AI</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase">Business Assistant</p>
+</div>
+</div>
+<!-- CTA -->
+<button class="w-full bg-primary text-on-primary py-md px-lg rounded-xl font-body-default text-body-default font-semibold flex items-center justify-center gap-sm mb-lg hover:bg-primary-container hover:text-on-primary-container transition-colors duration-200">
+<span class="material-symbols-outlined">add</span>
+            New Chat
+        </button>
+<!-- Main Navigation Tabs -->
+<div class="flex-1 flex flex-col gap-xs">
+<!-- Active Tab: Workspace -->
+<a class="flex items-center gap-md p-sm text-primary font-bold bg-primary-fixed rounded-lg transition-transform duration-200 active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+                Workspace
+            </a>
+<!-- Inactive Tabs -->
+<a class="flex items-center gap-md p-sm text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors duration-200 hover:text-primary" href="#">
+<span class="material-symbols-outlined">analytics</span>
+                Analytics
+            </a>
+<a class="flex items-center gap-md p-sm text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors duration-200 hover:text-primary" href="#">
+<span class="material-symbols-outlined">description</span>
+                Documents
+            </a>
+<a class="flex items-center gap-md p-sm text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors duration-200 hover:text-primary" href="#">
+<span class="material-symbols-outlined">group</span>
+                Team
+            </a>
+<a class="flex items-center gap-md p-sm text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors duration-200 hover:text-primary" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+</div>
+<!-- Footer Tabs -->
+<div class="mt-auto flex flex-col gap-xs border-t border-outline-variant pt-md">
+<a class="flex items-center gap-md p-sm text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">help</span>
+                Help
+            </a>
+<a class="flex items-center gap-md p-sm text-on-surface-variant hover:bg-surface-variant rounded-lg transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">shield</span>
+                Privacy
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="ml-64 flex-1 flex h-full bg-surface">
+<!-- Chat History Sidebar (Left-of-center pane) -->
+<aside class="w-72 bg-surface-bright border-r border-outline-variant flex flex-col h-full z-10 hidden lg:flex">
+<div class="p-lg border-b border-outline-variant flex justify-between items-center bg-surface/80 backdrop-blur-md">
+<h2 class="font-section-heading text-section-heading text-on-background">History</h2>
+<div class="flex gap-sm">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors p-xs rounded-full hover:bg-surface-variant">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+</button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-md space-y-sm">
+<!-- Today Group -->
+<div class="mb-md">
+<h3 class="font-label-caps text-label-caps text-outline mb-sm px-sm">Today</h3>
+<button class="w-full text-left p-sm rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors text-on-background font-body-compact text-body-compact truncate mb-xs border border-outline-variant/50">
+                        Q3 Revenue Projections vs Actuals
+                    </button>
+<button class="w-full text-left p-sm rounded-lg hover:bg-surface-variant transition-colors text-on-surface-variant font-body-compact text-body-compact truncate mb-xs">
+                        Best-selling products this month
+                    </button>
+</div>
+<!-- Yesterday Group -->
+<div>
+<h3 class="font-label-caps text-label-caps text-outline mb-sm px-sm">Yesterday</h3>
+<button class="w-full text-left p-sm rounded-lg hover:bg-surface-variant transition-colors text-on-surface-variant font-body-compact text-body-compact truncate mb-xs">
+                        Draft marketing email for ErgoPro
+                    </button>
+<button class="w-full text-left p-sm rounded-lg hover:bg-surface-variant transition-colors text-on-surface-variant font-body-compact text-body-compact truncate mb-xs">
+                        Summarize weekly team meeting notes
+                    </button>
+</div>
+</div>
+</aside>
+<!-- Primary Conversational Workspace -->
+<section class="flex-1 flex flex-col h-full relative">
+<!-- Workspace Header -->
+<header class="h-16 border-b border-outline-variant bg-surface/80 backdrop-blur-md flex justify-between items-center px-lg flex-shrink-0 z-20">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary text-[24px]">forum</span>
+<h2 class="font-section-heading text-section-heading text-on-background">Sales Analysis</h2>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-sm rounded-full hover:bg-surface-variant flex items-center gap-xs font-body-compact text-body-compact">
+<span class="material-symbols-outlined text-[20px]">ios_share</span>
+                        Export
+                    </button>
+<button class="text-on-surface-variant hover:text-error transition-colors p-sm rounded-full hover:bg-error-container">
+<span class="material-symbols-outlined text-[20px]">delete_sweep</span>
+</button>
+</div>
+</header>
+<!-- Conversation Area -->
+<div class="flex-1 overflow-y-auto p-xl flex flex-col gap-xl pb-[180px]"> <!-- padding bottom for input -->
+<!-- Date Divider -->
+<div class="flex justify-center">
+<span class="bg-surface-container-high text-on-surface-variant font-label-caps text-label-caps px-md py-xs rounded-full">Today, 10:42 AM</span>
+</div>
+<!-- User Message -->
+<div class="flex justify-end w-full">
+<div class="max-w-[70%] bg-surface-container text-on-background p-lg rounded-xl rounded-tr-sm border border-outline-variant shadow-sm relative">
+<p class="font-body-default text-body-default">What are my best-selling products this month?</p>
+</div>
+</div>
+<!-- AI Response -->
+<div class="flex justify-start w-full gap-md">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0 shadow-sm border border-primary/20">
+<span class="material-symbols-outlined text-primary text-[20px]">auto_awesome</span>
+</div>
+<div class="max-w-[80%]">
+<div class="bg-surface-bright text-on-background p-lg rounded-xl rounded-tl-sm border border-outline-variant shadow-sm ai-gradient-border mb-sm">
+<p class="font-body-default text-body-default mb-md">Here are your top 3 best-selling products for the current month, based on finalized transactions:</p>
+<!-- Rich Data Card -->
+<div class="bg-surface-container-low border border-outline-variant rounded-lg overflow-hidden">
+<div class="grid grid-cols-12 gap-sm p-sm bg-surface-container-high border-b border-outline-variant font-label-caps text-label-caps text-on-surface-variant uppercase">
+<div class="col-span-6">Product</div>
+<div class="col-span-3 text-right">Units Sold</div>
+<div class="col-span-3 text-right">Revenue</div>
+</div>
+<!-- Row 1 -->
+<div class="grid grid-cols-12 gap-sm p-md items-center border-b border-outline-variant/50 hover:bg-surface-variant transition-colors">
+<div class="col-span-6 flex items-center gap-sm">
+<div class="w-8 h-8 rounded bg-tertiary-container text-on-tertiary flex items-center justify-center font-bold text-[12px]">#1</div>
+<span class="font-body-compact text-body-compact font-semibold text-on-background">ErgoPro Chair</span>
+</div>
+<div class="col-span-3 text-right font-body-compact text-body-compact">428</div>
+<div class="col-span-3 text-right font-body-compact text-body-compact text-primary font-semibold">$149,372</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-12 gap-sm p-md items-center border-b border-outline-variant/50 hover:bg-surface-variant transition-colors">
+<div class="col-span-6 flex items-center gap-sm">
+<div class="w-8 h-8 rounded bg-surface-dim text-on-surface-variant flex items-center justify-center font-bold text-[12px]">#2</div>
+<span class="font-body-compact text-body-compact font-semibold text-on-background">UltraWide Monitor</span>
+</div>
+<div class="col-span-3 text-right font-body-compact text-body-compact">315</div>
+<div class="col-span-3 text-right font-body-compact text-body-compact text-primary font-semibold">$283,185</div>
+</div>
+<!-- Row 3 -->
+<div class="grid grid-cols-12 gap-sm p-md items-center hover:bg-surface-variant transition-colors">
+<div class="col-span-6 flex items-center gap-sm">
+<div class="w-8 h-8 rounded bg-surface-dim text-on-surface-variant flex items-center justify-center font-bold text-[12px]">#3</div>
+<span class="font-body-compact text-body-compact font-semibold text-on-background">Wireless Pods</span>
+</div>
+<div class="col-span-3 text-right font-body-compact text-body-compact">892</div>
+<div class="col-span-3 text-right font-body-compact text-body-compact text-primary font-semibold">$132,908</div>
+</div>
+</div>
+<div class="mt-md flex justify-end">
+<a class="text-primary font-body-compact text-body-compact font-semibold hover:underline flex items-center gap-xs" href="#">
+                                    View Detailed Report
+                                    <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Actions below AI bubble -->
+<div class="flex gap-sm">
+<button class="text-on-surface-variant hover:text-primary hover:bg-surface-variant p-xs rounded transition-colors" title="Copy">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary hover:bg-surface-variant p-xs rounded transition-colors" title="Good response">
+<span class="material-symbols-outlined text-[18px]">thumb_up</span>
+</button>
+<button class="text-on-surface-variant hover:text-error hover:bg-error-container p-xs rounded transition-colors" title="Bad response">
+<span class="material-symbols-outlined text-[18px]">thumb_down</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Thinking State -->
+<div class="flex justify-start w-full gap-md">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center flex-shrink-0 border border-outline-variant">
+<span class="material-symbols-outlined text-outline text-[20px] animate-pulse">auto_awesome</span>
+</div>
+<div class="bg-surface-bright p-md rounded-xl rounded-tl-sm border border-outline-variant shadow-sm flex items-center gap-md max-w-[200px] w-full">
+<div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full shimmer w-full"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Input Area (Floating) -->
+<div class="absolute bottom-0 left-0 w-full p-lg bg-gradient-to-t from-surface via-surface to-transparent pt-xl pointer-events-none">
+<div class="max-w-4xl mx-auto pointer-events-auto">
+<!-- Suggested Questions -->
+<div class="flex gap-sm mb-sm overflow-x-auto pb-xs scrollbar-hide">
+<button class="whitespace-nowrap px-md py-xs rounded-full border border-primary/30 bg-primary-container text-primary font-body-compact text-body-compact hover:bg-primary hover:text-on-primary transition-colors shadow-sm">
+                            Monthly sales overview?
+                        </button>
+<button class="whitespace-nowrap px-md py-xs rounded-full border border-outline-variant bg-surface text-on-surface-variant font-body-compact text-body-compact hover:bg-surface-variant hover:text-on-background transition-colors shadow-sm">
+                            Low stock alerts?
+                        </button>
+<button class="whitespace-nowrap px-md py-xs rounded-full border border-outline-variant bg-surface text-on-surface-variant font-body-compact text-body-compact hover:bg-surface-variant hover:text-on-background transition-colors shadow-sm">
+                            Top customers?
+                        </button>
+<button class="whitespace-nowrap px-md py-xs rounded-full border border-outline-variant bg-surface text-on-surface-variant font-body-compact text-body-compact hover:bg-surface-variant hover:text-on-background transition-colors shadow-sm">
+                            Focus areas today?
+                        </button>
+</div>
+<!-- Input Box -->
+<div class="relative bg-surface border border-outline-variant rounded-xl shadow-[0_4px_24px_rgba(91,95,239,0.08)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all duration-200">
+<textarea class="w-full bg-transparent border-none rounded-xl p-lg pr-[120px] resize-none font-body-default text-body-default text-on-background placeholder-outline focus:ring-0" placeholder="Ask Co-op..." rows="2"></textarea>
+<div class="absolute right-sm bottom-sm flex items-center gap-xs">
+<button class="p-sm text-on-surface-variant hover:text-primary hover:bg-surface-variant rounded-lg transition-colors">
+<span class="material-symbols-outlined">attach_file</span>
+</button>
+<button class="p-sm bg-primary text-on-primary rounded-lg shadow-sm hover:bg-primary-container hover:text-primary-fixed transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined">send</span>
+</button>
+</div>
+</div>
+<div class="text-center mt-xs">
+<span class="font-label-caps text-label-caps text-outline">Co-op AI can make mistakes. Consider verifying important information.</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>

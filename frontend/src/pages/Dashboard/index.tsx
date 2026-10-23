@@ -18,7 +18,7 @@ import { useCoopTheme } from '../../theme-provider';
 import { CoopErrorState } from '../../components/ui';
 
 /**
- * Co-op Dashboard — Stitch presentation (finch_business_dashboard_qa_polished)
+ * Co-op Dashboard — Stitch presentation (coop_business_dashboard_qa_polished)
  * over the EXISTING data architecture:
  *
  *   useDashboardData (unchanged loader)
@@ -29,8 +29,8 @@ import { CoopErrorState } from '../../components/ui';
  *   1. Briefing banner — Day 1 Briefing headline (dismissable)
  *   2. Header          — business identity + live "last updated"
  *   3. KPI row         — 4 stat cards (Revenue • Orders • Inventory • Products)
- *   4. AI insights     — Co-op AI · Live Insights (real rule-based
- *                        observations from the live data bundle + Ask Co-op)
+ *   4. AI insights     — Zeno · Live Insights (real rule-based
+ *                        observations from the live data bundle + Ask Zeno)
  *   5. Charts row      — Revenue (Monthly/Weekly) + Inventory breakdown donut
  *   6. Bottom row      — Recent Orders + Quick Actions / Top Products
  *
@@ -191,8 +191,8 @@ const DashboardPage: React.FC = () => {
         </Row>
       </section>
 
-      {/* Co-op AI live insights (Stage 2.2 Layer 1 — proactive) */}
-      <section aria-label="Co-op AI insights">
+      {/* Zeno live insights (Stage 2.2 Layer 1 — proactive) */}
+      <section aria-label="Zeno insights">
         <AiInsightsCard />
       </section>
 

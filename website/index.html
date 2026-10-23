@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CO OP — the operating system for small businesses</title>
+    <meta name="description" content="Co-op is an offline-first inventory, orders, customers and AI assistant for small businesses. Start your free trial." />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <meta name="theme-color" content="#4143d5" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* Boot loader: shown until React mounts. Animation per the approved design. */
+      .boot { position: fixed; inset: 0; display: grid; place-items: center; background: #fcf8ff; }
+      .loader {
+        width: 45px;
+        aspect-ratio: .75;
+        --c: no-repeat linear-gradient(#4143d5 0 0);
+        background:
+          var(--c) 0%   100%,
+          var(--c) 50%  100%,
+          var(--c) 100% 100%;
+        background-size: 20% 65%;
+        animation: l5 1s infinite linear;
+      }
+      @keyframes l5 {
+        20% {background-position: 0% 50% ,50% 100%,100% 100%}
+        40% {background-position: 0% 0%  ,50% 50% ,100% 100%}
+        60% {background-position: 0% 100%,50% 0%  ,100% 50% }
+        80% {background-position: 0% 100%,50% 100%,100% 0%  }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"><div class="boot"><div class="loader"></div></div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

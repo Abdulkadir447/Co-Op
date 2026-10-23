@@ -16,3 +16,5 @@ build/
 # Misc
 .DS_Store
 Thumbs.db
+# Compiled test output (npm test)
+test-build/

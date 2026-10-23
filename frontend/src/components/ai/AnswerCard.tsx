@@ -49,7 +49,7 @@ const TONE_STYLE: Record<string, { bg: (c: TonePalette) => string; fg: (c: ToneP
 };
 
 /**
- * Ask Co-op answer bubble — renders the grounded answer with its kind badge,
+ * Ask Zeno answer bubble — renders the grounded answer with its kind badge,
  * basis note, optional chart/table, follow-ups, and (for drafts) the review
  * card. Facts, calculations, forecasts and suggestions are visually distinct
  * by design.

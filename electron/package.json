@@ -4,22 +4,33 @@
   "description": "Electron wrapper for the Co-op frontend",
   "main": "main.js",
   "scripts": {
+    "preinstall": "node scripts/check-node.js",
+    "ci:nobuild": "npm ci --ignore-scripts",
     "start": "npm run electron",
     "electron": "electron .",
     "test": "node --test \"test/*.test.js\"",
     "build:renderer": "npm --prefix ../frontend run build && node scripts/copy-renderer.js",
     "pack": "npm run build:renderer && electron-builder --dir",
-    "dist": "npm run build:renderer && electron-builder"
+    "dist": "npm run build:renderer && electron-builder --publish never",
+    "release": "npm run build:renderer && electron-builder --publish always"
   },
   "devDependencies": {
-    "electron": "^33.4.11",
-    "electron-builder": "^24.13.3"
+    "electron": "33.4.11",
+    "electron-builder": "24.13.3"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^11.10.0",
+    "electron-updater": "^6.3.9"
   },
   "build": {
     "appId": "app.coop.desktop",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Abdulkadir447",
+        "repo": "Co-Op"
+      }
+    ],
     "productName": "Co-op",
     "directories": {
       "output": "dist"
@@ -27,8 +38,13 @@
     "files": [
       "main.js",
       "preload.js",
+      "updater.js",
       "dataLayerApp.js",
       "sync.js",
+      "platform.js",
+      "security.js",
+      "apiOrigin.js",
+      "api-origin.json",
       "db/**/*",
       "renderer-dist/**/*",
       "coop-icon.png",
@@ -49,12 +65,33 @@
     },
     "win": {
       "target": [
-        "nsis"
-      ]
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "coop-icon.png",
+      "artifactName": "${productName}-${version}-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Co-op",
+      "uninstallDisplayName": "Co-op",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     }
   },
   "author": "Co-op",
   "allowScripts": {
     "electron@33.4.11": true
+  },
+  "engines": {
+    "node": ">=18 <24"
   }
 }

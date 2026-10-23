@@ -19,6 +19,17 @@ class FilterError(ValueError):
     """Raised when query filters are invalid (route turns this into 422)."""
 
 
+def fmt_short_date(d: dt.date) -> str:
+    """'Sep 2' — built from components because '%b %-d' is not portable:
+    Windows raises ValueError on the '%-d' (no zero padding) directive."""
+    return f"{d:%b} {d.day}"
+
+
+def fmt_full_date(d: dt.date) -> str:
+    """'Sep 2, 2026' — portable equivalent of '%b %-d, %Y' (see above)."""
+    return f"{d:%b} {d.day}, {d.year}"
+
+
 COMPARE_NONE = "none"
 COMPARE_PREVIOUS_PERIOD = "previous_period"  # equal-length window ending the day before `from`
 COMPARE_PREVIOUS_MONTH = "previous_month"    # previous calendar month (for "this month" ranges)
@@ -112,11 +123,7 @@ class ReportFilters:
 
     @property
     def period_label(self) -> str:
-        fmt = "%b %-d, %Y"
-        try:
-            return f"{self.from_date.strftime(fmt)} – {self.to_date.strftime(fmt)}"
-        except ValueError:  # %-d not supported everywhere
-            return f"{self.from_date.isoformat()} – {self.to_date.isoformat()}"
+        return f"{fmt_full_date(self.from_date)} – {fmt_full_date(self.to_date)}"
 
     def to_query_dict(self) -> dict:
         """Compact, AI/URL-safe representation of the applied filters."""

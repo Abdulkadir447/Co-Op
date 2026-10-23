@@ -5,7 +5,7 @@ Revises: 0008_audit_business_id
 Create Date: 2026-08-31
 
 Adds ``ai_response_style`` to ``businesses`` (concise | standard | detailed,
-default standard). The Ask Co-op system prompt reads it, so the owner's
+default standard). The Ask Zeno system prompt reads it, so the owner's
 preference shapes every AI answer. Idempotent (guarded DDL), additive.
 """
 

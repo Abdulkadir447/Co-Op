@@ -1,0 +1,193 @@
+name: Desktop installer (Windows)
+
+# Builds the Co-op Windows installer on GitHub's runners, so the ~100MB of
+# Electron / NSIS / winCodeSign binaries are fetched at datacenter speed instead
+# of over a local connection to GitHub. This is the answer to a local
+# `electron-builder` that appears to hang: it is not hung, it is downloading.
+#
+# Two ways to run it:
+#
+#   * Actions tab -> "Desktop installer (Windows)" -> Run workflow, and type the
+#     backend URL. Use this for a one-off build; download the .exe from the run.
+#   * Push a tag (v1.2.3). Same build, but it also publishes a GitHub Release
+#     with the .exe + latest.yml + .blockmap, which is what the in-app
+#     auto-updater (electron/updater.js) reads. The backend URL then comes from
+#     the repository variable COOP_API_URL (Settings -> Secrets and variables ->
+#     Actions -> Variables).
+#
+# VITE_API_URL is baked in deliberately: a packaged app has no Vite dev-server
+# proxy, so without it the renderer calls the relative /api and cannot reach
+# any backend. It goes into the renderer here, and scripts/copy-renderer.js
+# bakes the same origin into api-origin.json so the main process CSP allows it
+# (see electron/apiOrigin.js). Leaving it blank produces a labelled
+# -UNCONFIGURED artifact rather than a hard failure.
+#
+# VITE_CLERK_PUBLISHABLE_KEY is a HARD requirement, and the difference matters:
+# frontend/src/main.tsx throws when it is missing, but the throw is runtime, so
+# `vite build` still exits 0. Skipping it therefore yields an installer that
+# dies on launch with no build error to warn you. This workflow refuses to
+# build one. It is the PUBLISHABLE key (pk_...), not the secret (sk_...).
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Backend base URL to bake in, e.g. https://api.yourdomain.com. Leave blank for a pipeline-check build.'
+        required: false
+        default: ''
+        type: string
+      clerk_key:
+        description: 'Clerk PUBLISHABLE key (pk_live_... or pk_test_...). Not a secret, but the app throws on launch without it.'
+        required: false
+        default: ''
+        type: string
+      publish:
+        description: 'Also publish a GitHub Release (required for auto-update)'
+        required: false
+        default: 'artifact-only'
+        type: choice
+        options:
+          - artifact-only
+          - publish-release
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '9'
+
+jobs:
+  build-windows:
+    name: Windows installer
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Electron and the electron-builder helpers (nsis, winCodeSign) are cached
+      # per runner, so a second build does not re-download ~100MB.
+      - name: Cache Electron + electron-builder downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('electron/package-lock.json') }}
+          restore-keys: electron-${{ runner.os }}-
+
+      - name: Install frontend dependencies (pnpm workspace)
+        run: pnpm install --frozen-lockfile
+
+      # electron/ is deliberately NOT a pnpm workspace member (native
+      # better-sqlite3 needs a C++ toolchain), so it installs on its own.
+      - name: Install desktop dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Resolve the backend URL to bake in
+        id: api
+        run: |
+          $url = "${{ inputs.api_url }}"
+          if (-not $url) { $url = "${{ vars.COOP_API_URL }}" }
+          if (-not $url) {
+            # Not fatal. An installer with no baked origin still proves the
+            # whole pipeline builds, which is worth knowing before the backend
+            # exists — but it cannot reach any backend, so it is labelled and
+            # must not be handed to a customer.
+            Write-Host "::warning title=Unconfigured build::No backend URL was given. This installer will open but cannot reach any backend. Re-run with api_url (or set the COOP_API_URL variable) before distributing it."
+            "url=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            "suffix=-UNCONFIGURED" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            exit 0
+          }
+          # A malformed origin is fatal: it would bake a CSP that matches nothing.
+          $uri = $null
+          if (-not [System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uri)) {
+            throw "Not an absolute URL: $url (expected e.g. https://api.yourdomain.com)"
+          }
+          "url=$($uri.Scheme)://$($uri.Authority)$($uri.PathAndQuery.TrimEnd('/'))" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "suffix=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Baking backend URL: $url"
+
+      # frontend/src/main.tsx THROWS at startup when this is missing, and the
+      # build still succeeds because the throw is runtime, not build time — so
+      # omitting it produces an installer that dies on launch with no build
+      # error to warn you. Refuse to build one.
+      - name: Resolve the Clerk publishable key
+        id: clerk
+        run: |
+          $key = "${{ inputs.clerk_key }}"
+          if (-not $key) { $key = "${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}" }
+          if (-not $key) {
+            throw "No Clerk publishable key. Pass the clerk_key input (pk_live_... / pk_test_...) or set the VITE_CLERK_PUBLISHABLE_KEY repository variable. Without it the packaged app throws on launch."
+          }
+          if ($key -notmatch '^pk_(live|test)_') {
+            throw "That does not look like a Clerk publishable key: expected a pk_live_... or pk_test_... prefix. The SECRET key (sk_...) belongs on the backend, never here."
+          }
+          "key=$key" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Baking Clerk publishable key: $($key.Substring(0, 11))..."
+
+      # A tag is the release version; electron-builder reads package.json, so the
+      # two must agree or the auto-updater compares the wrong versions.
+      - name: Align the app version with the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: electron
+        run: |
+          # Via Node, not a PowerShell JSON round-trip, so the rest of
+          # package.json (the electron-builder "build" block) is preserved
+          # exactly as written.
+          $env:RELEASE_VERSION = "${{ github.ref_name }}".TrimStart('v')
+          node -e "const fs=require('fs');const f='package.json';const p=JSON.parse(fs.readFileSync(f,'utf8'));console.log('version '+p.version+' -> '+process.env.RELEASE_VERSION);p.version=process.env.RELEASE_VERSION;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n');"
+
+      - name: Build the renderer bundle (this is where the API origin is baked)
+        working-directory: electron
+        env:
+          VITE_API_URL: ${{ steps.api.outputs.url }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ steps.clerk.outputs.key }}
+        run: npm run build:renderer
+
+      # Publish (tag, or explicitly asked): electron-builder uploads the .exe,
+      # latest.yml and .blockmap to the GitHub Release — the three files the
+      # auto-updater needs. Otherwise just keep them as run artifacts.
+      - name: Package and publish the Release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish == 'publish-release'
+        working-directory: electron
+        env:
+          VITE_API_URL: ${{ steps.api.outputs.url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish always
+
+      - name: Package (artifact only)
+        if: ${{ !(startsWith(github.ref, 'refs/tags/v') || inputs.publish == 'publish-release') }}
+        working-directory: electron
+        run: npx electron-builder --win --publish never
+
+      - name: List what was built
+        working-directory: electron
+        run: Get-ChildItem dist -Recurse -File | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - uses: actions/upload-artifact@v4
+        with:
+          # Suffixed -UNCONFIGURED when no backend URL was baked in, so a
+          # pipeline-check build can never be mistaken for a shippable one.
+          name: coop-windows-installer${{ steps.api.outputs.suffix }}
+          path: |
+            electron/dist/*.exe
+            electron/dist/latest.yml
+            electron/dist/*.blockmap
+          if-no-files-found: error

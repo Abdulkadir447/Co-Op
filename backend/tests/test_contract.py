@@ -18,7 +18,7 @@ _METHODS = ("get", "post", "put", "patch", "delete")
 def _frontend_calls():
     src = pathlib.Path("frontend/src")
     for path in sorted(src.rglob("*.ts*")):
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         for m in re.finditer(r"api\.(get|post|put|patch|delete)", text):
             method = m.group(1).upper()
             i = m.end()
@@ -94,7 +94,7 @@ def test_order_transitions_single_source_of_truth():
     """Regression guard for M4: the frontend must not keep its own copy of the
     allowed order transitions — they come from the backend (OrderOut.allowed_transitions)."""
     src = pathlib.Path("frontend/src/pages/Orders/useOrders.ts")
-    text = src.read_text()
+    text = src.read_text(encoding="utf-8")
     assert "ALLOWED_TRANSITIONS" not in text, (
         "The frontend must not maintain its own transition map; the backend "
         "publishes `allowed_transitions` on each order."

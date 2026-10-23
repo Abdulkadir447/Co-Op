@@ -1,7 +1,7 @@
 /**
- * Reports — "Ask Co-op about this report" (Reports phase, Pass 8).
+ * Reports — "Ask Zeno about this report" (Reports phase, Pass 8).
  *
- * Hands the CURRENT report (its key + exact filters) to the Co-op AI page.
+ * Hands the CURRENT report (its key + exact filters) to the Zeno page.
  * The backend rebuilds the verified report data from those filters, so the
  * assistant explains the same numbers the owner is looking at — it never
  * computes them itself.
@@ -97,7 +97,7 @@ const ReportAiSummary: React.FC<ReportAiSummaryProps> = ({ reportKey, title, fil
         }}
       >
         <SparkleIcon size={15} />
-        Ask Co-op about this report
+        Ask Zeno about this report
       </button>
     </div>
   );

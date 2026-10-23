@@ -1,55 +1,50 @@
 /**
  * Co-op Sidebar (Stitch app-shell, left rail).
  *
- * 240px, white, 1px border-subtle right edge, flat (no shadow). Anatomy:
- *   1. Brand — Co-op mark (two partner tiles + spark) + wordmark
- *      and the "Premium SaaS" label-caps subtitle.
- *   2. Primary nav — Overview / Products / Inventory / Orders / Customers.
- *      Active = surface-container-low fill + primary text + semibold.
- *   3. "Co-op AI" module row with a "New" pill (AI module, later stages).
- *   4. Secondary nav — Settings.
- *   5. Bottom action — "Upgrade Plan" (secondary button).
+ * A fixed 72px icon rail, white, 1px border-subtle right edge, flat (no
+ * shadow). Every entry is an icon and hovering it shows the name in a
+ * tooltip, so there is no expanded (labelled) desktop state and no
+ * collapse/expand control. Anatomy:
+ *   1. Brand — Co-op mark.
+ *   2. Primary nav — Overview / Reports / Products / Inventory / Orders /
+ *      Customers / Import. Active = surface-container-low fill + primary
+ *      icon.
+ *   3. Bottom — Settings (parked here, out of the nav list) and
+ *      "Upgrade Plan" (secondary action).
  *
- * Collapsed state (Stage 2): 72px icon rail with tooltips, toggled from the
- * rail itself; the preference persists (`coop:sidebar-collapsed`).
  * On < md the sidebar is rendered as a slide-in drawer (AppShell controls
- * the open state); on desktop it is fixed.
+ * the open state) with the labels shown inline; on desktop it is fixed.
  */
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from 'antd';
-import { radius, shadow, spacing, transition, type, z } from '../../theme';
+import { radius, shadow, spacing, transition, z } from '../../theme';
 import { useCoopTheme } from '../../theme-provider';
-import { NAV_ITEMS, NAV_SECONDARY } from './nav';
+import { NAV_ITEMS, NAV_SECONDARY, type NavItem } from './nav';
 import { CoopLogo, CoopMark } from '../brand/CoopLogo';
-import { SparkleIcon } from '../ui/icons';
 
-export const SIDEBAR_WIDTH = 240;
-export const SIDEBAR_COLLAPSED_WIDTH = 72;
+/** Width of the fixed desktop rail. Icon-only; names come from tooltips. */
+export const SIDEBAR_WIDTH = 72;
 
 export interface SidebarProps {
-  /** Desktop collapsed state (AppShell-managed, persisted). */
-  collapsed?: boolean;
-  /** Toggles the desktop collapsed state. */
-  onToggleCollapse?: () => void;
   /** Mobile drawer state (AppShell-managed). Ignored on desktop. */
   open?: boolean;
   onClose?: () => void;
 }
 
 interface RailContentProps {
-  collapsed: boolean;
-  onToggleCollapse?: () => void;
+  /** 'rail' = desktop icon rail (tooltips); 'drawer' = mobile drawer (labels). */
+  variant: 'rail' | 'drawer';
   onNavigate?: () => void;
 }
 
-const navItemBase = (active: boolean, collapsed: boolean): React.CSSProperties => ({
+const navItemBase = (active: boolean, rail: boolean): React.CSSProperties => ({
   display: 'flex',
   alignItems: 'center',
   gap: 10,
   width: '100%',
-  padding: collapsed ? '11px 0' : '9px 12px',
-  justifyContent: collapsed ? 'center' : 'flex-start',
+  padding: rail ? '11px 0' : '9px 12px',
+  justifyContent: rail ? 'center' : 'flex-start',
   borderRadius: radius.md,
   border: 'none',
   background: active ? 'var(--coop-nav-active-bg)' : 'transparent',
@@ -62,10 +57,11 @@ const navItemBase = (active: boolean, collapsed: boolean): React.CSSProperties =
   transition: transition('background-color, color'),
 });
 
-const SidebarContent: React.FC<RailContentProps> = ({ collapsed, onToggleCollapse, onNavigate }) => {
+const SidebarContent: React.FC<RailContentProps> = ({ variant, onNavigate }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { colors } = useCoopTheme();
+  const rail = variant === 'rail';
 
   const allItems = NAV_ITEMS.concat(NAV_SECONDARY);
   // Exact match first, then child routes (e.g. /customers/:id keeps the
@@ -79,43 +75,68 @@ const SidebarContent: React.FC<RailContentProps> = ({ collapsed, onToggleCollaps
     onNavigate?.();
   };
 
-
   // CSS variables keep the nav colors in one place per theme.
   const vars = {
-    '--coop-nav-active-bg': collapsed || !activeKey ? colors.surfaceContainerLow : colors.surfaceContainerLow,
+    '--coop-nav-active-bg': colors.surfaceContainerLow,
     '--coop-nav-active-color': colors.primary,
     '--coop-nav-color': colors.onSurfaceVariant,
   } as React.CSSProperties;
 
-  const item = (item: { key: string; label: string; path: string; icon: React.ReactNode }, ai = false) => {
-    const active = activeKey === item.key;
+  const item = (navItem: NavItem) => {
+    const active = activeKey === navItem.key;
     const btn = (
       <button
-        key={item.key}
+        key={navItem.key}
         type="button"
-        style={navItemBase(active, collapsed)}
-        onClick={() => go(item.path)}
+        style={navItemBase(active, rail)}
+        onClick={() => go(navItem.path)}
         aria-current={active ? 'page' : undefined}
-        aria-label={collapsed ? item.label : undefined}
+        aria-label={rail ? navItem.label : undefined}
       >
-        {ai ? (
-          <span style={{ display: 'inline-flex' }}>
-            <SparkleIcon size={19} color={colors.secondaryContainer} />
-          </span>
-        ) : (
-          <span style={{ fontSize: 18, display: 'inline-flex' }}>{item.icon}</span>
-        )}
-        {!collapsed && <span>{item.label}</span>}
+        <span style={{ fontSize: 18, display: 'inline-flex' }}>{navItem.icon}</span>
+        {!rail && <span>{navItem.label}</span>}
       </button>
     );
-    return collapsed ? (
-      <Tooltip key={item.key} title={item.label} placement="right" mouseEnterDelay={0.35}>
+    return rail ? (
+      <Tooltip key={navItem.key} title={navItem.label} placement="right" mouseEnterDelay={0.35}>
         {btn}
       </Tooltip>
     ) : (
       btn
     );
   };
+
+  const upgradeBtn = (
+    <button
+      type="button"
+      onClick={() => go('/billing')}
+      aria-label="Upgrade Plan"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: rail ? 'center' : 'flex-start',
+        gap: 8,
+        width: '100%',
+        height: 40,
+        padding: rail ? 0 : '0 12px',
+        borderRadius: radius.lg,
+        border: `1px solid ${colors.outlineVariant}`,
+        background: colors.surfaceContainerLowest,
+        color: colors.primary,
+        fontWeight: 600,
+        fontSize: 13,
+        cursor: 'pointer',
+        transition: transition('background-color, box-shadow'),
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = colors.surfaceContainerLow)}
+      onMouseLeave={(e) => (e.currentTarget.style.background = colors.surfaceContainerLowest)}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {!rail && 'Upgrade Plan'}
+    </button>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', ...vars }}>
@@ -124,11 +145,11 @@ const SidebarContent: React.FC<RailContentProps> = ({ collapsed, onToggleCollaps
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          padding: `0 ${collapsed ? 0 : spacing.sm}px ${spacing.xl}px`,
+          justifyContent: rail ? 'center' : 'flex-start',
+          padding: `0 ${rail ? 0 : spacing.sm}px ${spacing.xl}px`,
         }}
       >
-        {collapsed ? <CoopMark size={40} title="Co-op" /> : <CoopLogo size={40} subtitle="Premium SaaS" />}
+        {rail ? <CoopMark size={40} title="CO OP" /> : <CoopLogo size={40} subtitle="Premium SaaS" />}
       </div>
 
       {/* Primary nav */}
@@ -137,159 +158,55 @@ const SidebarContent: React.FC<RailContentProps> = ({ collapsed, onToggleCollaps
         aria-label="Primary"
       >
         {NAV_ITEMS.map((i) => item(i))}
-
-        <div
-          aria-hidden
-          style={{ height: 1, background: colors.borderSubtle, margin: `${spacing.md}px ${collapsed ? 0 : spacing.sm}px` }}
-        />
-
-        {/* Co-op AI assistant (Stage 2.2) */}
-        {(() => {
-          const btn = (
-            <button
-              type="button"
-              style={navItemBase(false, collapsed)}
-              onClick={() => go('/coop-ai')}
-              aria-label="Co-op AI"
-            >
-              <span style={{ display: 'inline-flex' }}>
-                <SparkleIcon size={19} color={colors.secondaryContainer} />
-              </span>
-              {!collapsed && (
-                <>
-                  <span style={{ flex: 1 }}>Co-op AI</span>
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: radius.full,
-                      background: colors.primaryFixed,
-                      color: colors.onPrimaryFixedVariant,
-                      ...type.labelCaps,
-                      fontSize: 10,
-                    }}
-                  >
-                    New
-                  </span>
-                </>
-              )}
-            </button>
-          );
-          return collapsed ? (
-            <Tooltip title="Co-op AI" placement="right" mouseEnterDelay={0.35}>
-              {btn}
-            </Tooltip>
-          ) : (
-            btn
-          );
-        })()}
-
-        <div
-          aria-hidden
-          style={{ height: 1, background: colors.borderSubtle, margin: `${spacing.md}px ${collapsed ? 0 : spacing.sm}px` }}
-        />
-
-        {/* Secondary nav */}
-        {NAV_SECONDARY.map((i) => item(i))}
       </nav>
 
-      {/* Bottom: collapse toggle + upgrade action */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: `${spacing.md}px ${collapsed ? 0 : spacing.sm}px 0` }}>
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            width: '100%',
-            height: 36,
-            borderRadius: radius.md,
-            border: 'none',
-            background: 'transparent',
-            color: colors.outline,
-            cursor: 'pointer',
-            transition: transition('background-color, color'),
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = colors.surfaceContainerLow)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden
-            style={{
-              transition: 'transform 300ms cubic-bezier(0.16, 1, 0.3, 1)',
-              transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-            }}
-          >
-            <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {!collapsed && <span style={{ fontSize: 13, fontWeight: 500 }}>Collapse</span>}
-        </button>
+      {/* Bottom: Settings + upgrade action */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          padding: `${spacing.md}px ${rail ? 0 : spacing.sm}px 0`,
+        }}
+      >
+        <div aria-hidden style={{ height: 1, background: colors.borderSubtle }} />
 
-        <button
-          type="button"
-          onClick={() => go('/billing')}
-          aria-label="Upgrade Plan"
-          title="Upgrade Plan"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: 8,
-            width: '100%',
-            height: 40,
-            padding: collapsed ? 0 : '0 12px',
-            borderRadius: radius.lg,
-            border: `1px solid ${colors.outlineVariant}`,
-            background: colors.surfaceContainerLowest,
-            color: colors.primary,
-            fontWeight: 600,
-            fontSize: 13,
-            cursor: 'pointer',
-            transition: transition('background-color, box-shadow'),
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = colors.surfaceContainerLow)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = colors.surfaceContainerLowest)}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {!collapsed && 'Upgrade Plan'}
-        </button>
+        {NAV_SECONDARY.map((i) => item(i))}
+
+        {rail ? (
+          <Tooltip title="Upgrade Plan" placement="right" mouseEnterDelay={0.35}>
+            {upgradeBtn}
+          </Tooltip>
+        ) : (
+          upgradeBtn
+        )}
       </div>
     </div>
   );
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCollapse, open = false, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
   const { colors } = useCoopTheme();
-  const width = collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH;
 
   return (
     <>
-      {/* Desktop rail (fixed) */}
+      {/* Desktop rail (fixed, icon-only) */}
       <aside
         style={{
           position: 'fixed',
           inset: `0 auto 0 0`,
-          width,
+          width: SIDEBAR_WIDTH,
           zIndex: z.sidebar,
           background: colors.surfaceContainerLowest,
           borderRight: `1px solid ${colors.borderSubtle}`,
-          padding: `${spacing.lg}px ${collapsed ? spacing.sm : spacing.md}px`,
+          padding: `${spacing.lg}px ${spacing.sm}px`,
           display: 'block',
-          transition: `width 300ms cubic-bezier(0.16, 1, 0.3, 1), background-color 300ms, border-color 300ms`,
+          transition: transition('background-color, border-color'),
         }}
         className="coop-sidebar-desktop"
         aria-label="Sidebar"
       >
-        <SidebarContent collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
+        <SidebarContent variant="rail" />
       </aside>
 
       {/* Mobile drawer overlay */}
@@ -326,7 +243,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCollapse, 
         className="coop-sidebar-drawer"
         aria-label="Mobile sidebar"
       >
-        <SidebarContent collapsed={false} onNavigate={onClose} />
+        <SidebarContent variant="drawer" onNavigate={onClose} />
       </aside>
     </>
   );

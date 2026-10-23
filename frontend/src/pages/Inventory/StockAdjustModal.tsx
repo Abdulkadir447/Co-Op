@@ -1,5 +1,5 @@
 /**
- * Adjust Stock dialog (Stitch finch_adjust_stock_workflow).
+ * Adjust Stock dialog (Stitch coop_adjust_stock_workflow).
  *
  * UI refactor only — same endpoint (POST /products/{id}/adjust), same
  * server-side validation (409 when the result would go negative).
@@ -94,7 +94,7 @@ const StockAdjustModal: React.FC<StockAdjustModalProps> = ({
       cancelText="Cancel"
       confirmLoading={submitting}
       okButtonProps={{ disabled: !product || wouldGoNegative }}
-      destroyOnClose
+      destroyOnHidden
       width={520}
     >
       {product && (

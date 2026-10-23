@@ -62,7 +62,9 @@ const baseTokens = {
   fontFamily,
   // Default UI size is body-compact (14); paragraphs use body-default (16).
   fontSize: type.bodyCompact.fontSize,
-  lineHeight: type.bodyCompact.lineHeight / type.bodyCompact.fontSize,
+  // antd expects a unitless ratio here (lineHeight × fontSize); the token
+  // itself is a px string ('20px'), so parse it back to a number.
+  lineHeight: parseFloat(type.bodyCompact.lineHeight) / type.bodyCompact.fontSize,
   colorText: colors.onSurface,
   colorTextSecondary: colors.onSurfaceVariant,
   colorTextTertiary: colors.outline,
@@ -116,7 +118,7 @@ const baseComponents: ThemeConfig['components'] = {
   Card: {
     borderRadiusLG: radius.lg,
     colorBorderSecondary: colors.borderSubtle,
-    paddingLG: 20,
+    paddingLG: 16,
     headerFontSize: type.titleMd.fontSize,
     headerBg: 'transparent',
   },
@@ -126,8 +128,8 @@ const baseComponents: ThemeConfig['components'] = {
     headerSplitColor: 'transparent',
     borderColor: colors.borderSubtle,
     rowHoverBg: colors.surfaceContainerLow,
-    cellPaddingBlock: 14,
-    cellPaddingBlockMD: 12,
+    cellPaddingBlock: 12,
+    cellPaddingBlockMD: 10,
     headerBorderRadius: 0,
     fontSize: 14,
   },
@@ -308,6 +310,30 @@ export const dark: ThemeConfig = {
     },
     Modal: {
       contentBg: darkColors.surfaceContainerLowest,
+    },
+    // baseComponents carries LIGHT-palette values, so anything not re-declared
+    // here keeps them. Select was the visible casualty: the dropdown panel is
+    // surfaceContainerLow, but optionSelectedBg stayed the light-palette
+    // surfaceContainerLow too — a near-white label on a near-white fill, i.e.
+    // the selected row was unreadable. Give selected/hover their own steps
+    // above the panel background and pin the label colour explicitly.
+    Select: {
+      colorBgElevated: darkColors.surfaceContainerLow,
+      optionActiveBg: darkColors.surfaceContainer,
+      optionSelectedBg: darkColors.surfaceContainerHigh,
+      optionSelectedColor: darkColors.onSurface,
+      optionSelectedFontWeight: 600,
+    },
+    Input: {
+      activeBorderColor: darkColors.primary,
+      hoverBorderColor: darkColors.primaryContainer,
+      activeShadow: `0 0 0 3px ${tint(darkColors.primary, 0.28)}`,
+    },
+    Pagination: {
+      colorPrimary: darkColors.primary,
+    },
+    Spin: {
+      colorPrimary: darkColors.primary,
     },
     Segmented: {
       itemSelectedBg: darkColors.surfaceContainerLowest,

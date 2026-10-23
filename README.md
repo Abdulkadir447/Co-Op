@@ -49,7 +49,7 @@ INGEST → UNDERSTAND → OPERATE → REPORT → EXPLAIN → DRAFT → CONFIRM �
   Profit & Loss, Inventory, Customers) with shared filters and comparison
   periods, powering the Reports UI and CSV / Excel / PDF exports of exactly
   what's on screen.
-- **Co-op AI (real model, verified context)** — Ask Co-op answers from a
+- **Zeno (real model, verified context)** — Ask Zeno answers from a
   verified business context the backend rebuilds per request: the model
   never queries the database and never invents numbers. It can explain any
   report you're looking at and propose *drafts* from a fixed, validated
@@ -71,6 +71,15 @@ INGEST → UNDERSTAND → OPERATE → REPORT → EXPLAIN → DRAFT → CONFIRM �
   downgrade job to fail. Trial length lives in `config/<env>.json`
   (`billing.trial`). Payment collection is the one deliberately unplugged
   part — the UI says so.
+- **Licensing** — a licence is a self-contained HMAC-SHA256 signed activation
+  string binding a business id + plan + seats + expiry (`COOP-XXXXX-…`, 66
+  characters). The team mints keys offline with `tools/generate_license.py`
+  (no database needed) or via the team-only `/admin/generate-license` route;
+  the owner pastes one into Settings → Licence, the signature is verified,
+  and the plan is granted as a *window* on the subscription — never an
+  overwrite of the owned plan — so expiry needs no scheduler and revocation
+  withdraws the grant immediately. The server stores only the key's SHA-256
+  fingerprint, never the key.
 - **Audit log** — every mutation (create/update/delete, stock adjustments,
   order status changes, imports, plan changes, restores, and offline-synced
   operations) writes an append-only, tenant-scoped audit row; Settings →
@@ -129,7 +138,7 @@ Documents/  Product documentation (PRD, TRD, BSD, AFD, IPD, UXDS chapters)
   for the backend)
 - A Supabase/Postgres database
 - (Optional) an OpenAI API key for the real AI assistant — without it,
-  Ask Co-op gracefully falls back to the deterministic data engine
+  Ask Zeno gracefully falls back to the deterministic data engine
 
 ## Environment variables
 
@@ -143,9 +152,15 @@ Copy `.env.example` to `.env` and fill in real values. The important ones:
 | `CLERK_ALLOWED_ORIGINS` | optional | Comma-separated `azp` allow-list |
 | `CORS_ORIGINS` | required in prod | Comma-separated CORS allow-list. Development/testing default to `*`; **production refuses to start** if neither this nor `cors.origins` in `config/production.json` is set |
 | `COOP_ENV` | optional | `development` (default) \| `testing` \| `production` |
-| `OPENAI_API_KEY` | optional | Enables the real AI assistant |
-| `OPENAI_MODEL` | optional | Model override (default from `config/*.json`) |
+| `OPENROUTER_API_KEY` | optional | Enables the real AI assistant (OpenRouter — one key for OpenAI/Anthropic/Google/Meta) |
+| `OPENROUTER_MODEL` | optional | Namespaced `vendor/model`, e.g. `openai/gpt-4o-mini` (default from `config/*.json`). Must support JSON mode |
+| `SUPABASE_URL` | optional | Supabase project URL. With the key below, enables Storage (business logos); unset = that endpoint returns 503 |
+| `SUPABASE_SERVICE_ROLE_KEY` | optional | **Bypasses RLS — server-side only, never in the frontend.** Create the bucket first: `supabase/migrations/20261022010000_storage_bucket.sql` |
 | `TEST_DATABASE_URL` | tests | Postgres URL to enable true-concurrency tests |
+| `RESEND_API_KEY` | optional | Enables outbound email (Resend). Unset = email features no-op, nothing is hardcoded |
+| `RESEND_FROM` | optional | Verified sender address for Resend |
+| `FEEDBACK_INBOX` | optional | Where the periodic product-feedback prompt is emailed |
+| `SUPPORT_INBOX` | optional | Where "Report an issue" reports are emailed. Falls back to `FEEDBACK_INBOX` so both can share one inbox |
 
 > SQLite is used **only** when `COOP_ENV=testing` (or by the test suite).
 > There is no silent fallback in production/development.
@@ -175,13 +190,32 @@ npm run dev
 Desktop wrapper (optional): `npm run start` from the repo root.
 
 Packaged desktop builds (electron-builder, produces AppImage / NSIS / DMG
-per platform):
+per platform).
+
+**Recommended — build on GitHub Actions** (`.github/workflows/desktop.yml`).
+electron-builder downloads ~100MB of Electron/NSIS/winCodeSign binaries on a
+first build, which on a slow connection looks like a hang. The workflow does it
+on a GitHub Windows runner and hands you the installer:
+
+1. Actions → **Desktop installer (Windows)** → *Run workflow*.
+2. Enter the backend base URL (baked into the app as `VITE_API_URL`).
+3. Download `coop-windows-installer` from the run's artifacts.
+
+Push a `v*` tag instead to also publish a GitHub Release (`.exe` + `latest.yml`
++ `.blockmap`), which is what the in-app auto-updater reads; the URL then comes
+from the `COOP_API_URL` repository variable.
+
+Locally, if you would rather build on your own machine:
 
 ```bash
 cd electron
 npm install
-npm run dist      # or `npm run pack` for an unpacked build
+VITE_API_URL=https://<your-api> npm run dist   # `npm run pack` for an unpacked build
 ```
+
+`VITE_API_URL` is required for a distributable build: a packaged app has no
+dev-server proxy, and the origin is also baked into `api-origin.json` so the
+main-process CSP allows it.
 
 ## Key API surface
 
@@ -198,6 +232,13 @@ AI          POST /ai/chat   (verified context, structured answer, 402 when out
             GET /ai/usage
 Billing     GET /billing/summary   POST /billing/plan
             POST /billing/trial (start the one 10-day free trial; 409 if used)
+Licensing   GET /licenses          POST /licenses/activate
+            (the owner pastes the signed key the team sent; the plan is
+            granted as a window, so expiry needs no scheduler)
+Admin       POST /admin/generate-license   GET /admin/licenses
+            POST /admin/licenses/revoke
+            (team only — X-Admin-Token, not Clerk; or mint keys offline with
+            tools/generate_license.py)
 Backup      GET /backups/export (download JSON snapshot)
             POST /backups/restore (into an EMPTY business only — 409 otherwise)
 Audit       GET /audit   (append-only activity trail, tenant-scoped)
@@ -232,8 +273,14 @@ business data.
 # Backend (requires a venv with backend/requirements.txt + pytest + pytest-asyncio)
 .venv/bin/python -m pytest
 
-# Frontend type check + production build
-cd frontend && npx tsc --noEmit -p tsconfig.json && npm run build
+# Frontend — the same four commands CI runs
+pnpm --filter ./frontend lint
+pnpm --filter ./frontend typecheck
+pnpm --filter ./frontend test
+pnpm --filter ./frontend build
+
+# Desktop (Electron) data-layer, sync, backup and Windows suites
+cd electron && npm test
 ```
 
 The suite includes a **contract test** that scans every frontend API call
@@ -241,8 +288,24 @@ and asserts a matching backend route exists — the guard that makes a
 frontend/backend endpoint mismatch impossible. Set `TEST_DATABASE_URL` to a
 Postgres URL to additionally run the true-concurrency stock test.
 
+### Sample import files
+
+`samples/imports/` holds ready-to-upload CSV/XLSX files — one wholesaler's
+catalogue, customer list and sales history — for trying the Import flow
+locally, plus deliberately broken files that exercise the row-by-row
+validation report. `samples/imports/README.md` says what each file should
+produce, and `backend/tests/test_import_fixtures.py` drives the real
+preview → map → validate → commit pipeline to assert exactly that.
+
 ## Documentation
 
 Product documentation (PRD, TRD, BSD, AFD, IPD, UXDS) lives in
 `Documents/`; engineering docs (branch protection, ADRs, coding standards)
 in `docs/`; current readiness status in `docs/PRODUCT_READINESS.md`.
+
+## Licence
+
+Proprietary — All Rights Reserved. See [LICENSE](LICENSE): the codebase is
+not open source, and access is granted per business through an activation
+key (`tools/generate_license.py` → Settings → Licence). Third-party libraries
+keep their own licences.

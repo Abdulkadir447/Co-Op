@@ -1,0 +1,216 @@
+<!DOCTYPE html><html class="h-full" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Sign In - Co-op</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "outline": "#767586",
+                      "outline-variant": "#c6c5d7",
+                      "inverse-on-surface": "#f2effc",
+                      "on-secondary-fixed": "#25005a",
+                      "surface-container-high": "#e9e6f3",
+                      "on-tertiary": "#ffffff",
+                      "primary-container": "#5b5fef",
+                      "tertiary": "#904400",
+                      "on-primary": "#ffffff",
+                      "inverse-primary": "#c0c1ff",
+                      "on-tertiary-fixed-variant": "#733500",
+                      "on-secondary-fixed-variant": "#5a00c6",
+                      "inverse-surface": "#303039",
+                      "on-tertiary-fixed": "#311300",
+                      "primary-fixed-dim": "#c0c1ff",
+                      "tertiary-fixed-dim": "#ffb689",
+                      "secondary": "#712ae2",
+                      "on-primary-container": "#f9f6ff",
+                      "on-secondary": "#ffffff",
+                      "secondary-fixed-dim": "#d2bbff",
+                      "surface-dim": "#dbd8e5",
+                      "primary": "#4143d5",
+                      "primary-fixed": "#e1e0ff",
+                      "surface-bright": "#fcf8ff",
+                      "on-primary-fixed": "#05006c",
+                      "error-container": "#ffdad6",
+                      "on-tertiary-container": "#fff6f2",
+                      "on-error": "#ffffff",
+                      "surface-variant": "#e4e1ed",
+                      "tertiary-container": "#b55700",
+                      "tertiary-fixed": "#ffdbc8",
+                      "on-secondary-container": "#fffbff",
+                      "on-background": "#1b1b23",
+                      "secondary-fixed": "#eaddff",
+                      "on-surface-variant": "#464555",
+                      "surface-container-highest": "#e4e1ed",
+                      "surface": "#fcf8ff",
+                      "surface-container": "#efecf9",
+                      "on-primary-fixed-variant": "#2c2cc3",
+                      "secondary-container": "#8a4cfc",
+                      "surface-container-low": "#f5f2fe",
+                      "background": "#fcf8ff",
+                      "on-error-container": "#93000a",
+                      "surface-tint": "#474adb",
+                      "on-surface": "#1b1b23",
+                      "error": "#ba1a1a",
+                      "surface-container-lowest": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "3xl": "64px",
+                      "2xl": "48px",
+                      "lg": "24px",
+                      "xl": "32px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "md": "16px"
+              },
+              "fontFamily": {
+                      "section-heading": [
+                              "Inter"
+                      ],
+                      "page-title-mobile": [
+                              "Inter"
+                      ],
+                      "page-title": [
+                              "Inter"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ],
+                      "body-compact": [
+                              "Inter"
+                      ],
+                      "body-default": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "section-heading": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "page-title-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "page-title": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-compact": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-default": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-background h-full font-body-default flex flex-col items-center justify-center p-md">
+<!-- Suppressed Navigation Shells because this is a linear/transactional screen -->
+<main class="w-full max-w-md bg-surface-container-lowest border border-outline-variant rounded-xl p-lg shadow-sm flex flex-col gap-lg">
+<!-- Header -->
+<div class="text-center flex flex-col gap-sm">
+<div class="mx-auto bg-surface-container flex items-center justify-center w-12 h-12 rounded-lg text-primary mb-sm">
+<span class="material-symbols-outlined text-[32px]" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<h1 class="font-page-title text-page-title text-on-surface">Welcome back</h1>
+<p class="font-body-default text-body-default text-on-surface-variant">Please enter your details to sign in.</p>
+</div>
+<!-- Form -->
+<form class="flex flex-col gap-md">
+<div class="flex flex-col gap-xs">
+<label class="font-label-caps text-label-caps text-on-surface uppercase" for="email">Email Address</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[20px]">mail</span>
+</div>
+<input class="w-full pl-10 pr-sm py-sm border border-outline-variant rounded-lg bg-surface text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed/50 transition-all font-body-default text-body-default placeholder:text-outline-variant" id="email" name="email" placeholder="you@example.com" required="" type="email">
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-caps text-label-caps text-on-surface uppercase" for="password">Password</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+</div>
+<input class="w-full pl-10 pr-sm py-sm border border-outline-variant rounded-lg bg-surface text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-fixed/50 transition-all font-body-default text-body-default placeholder:text-outline-variant" id="password" name="password" placeholder="••••••••" required="" type="password">
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary bg-surface cursor-pointer" id="remember" name="remember" type="checkbox">
+<label class="font-body-compact text-body-compact text-on-surface-variant cursor-pointer" for="remember">Remember me</label>
+</div>
+<a class="font-label-caps text-label-caps text-primary hover:text-primary-container transition-colors" href="#">Forgot password?</a>
+</div>
+<button class="w-full bg-primary text-on-primary h-[48px] px-lg rounded-xl font-label-caps text-label-caps hover:bg-primary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 mt-sm flex items-center justify-center gap-2 active:scale-95 duration-200 shadow-sm" type="submit">
+                Sign In
+                <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</form>
+<div class="flex items-center gap-4">
+<hr class="flex-1 border-outline-variant">
+<span class="font-label-caps text-label-caps text-on-surface-variant">OR CONTINUE WITH</span>
+<hr class="flex-1 border-outline-variant">
+</div>
+<!-- Social Logins -->
+<div class="flex flex-col sm:flex-row gap-md">
+<button class="flex-1 flex items-center justify-center gap-2 px-lg py-sm border border-outline-variant rounded-xl bg-transparent hover:bg-primary-fixed/10 transition-all active:scale-95 duration-200 font-label-caps text-label-caps text-on-surface">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">public</span>
+                Google
+            </button>
+<button class="flex-1 flex items-center justify-center gap-2 px-lg py-sm border border-outline-variant rounded-xl bg-transparent hover:bg-primary-fixed/10 transition-all active:scale-95 duration-200 font-label-caps text-label-caps text-on-surface">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">code</span>
+                GitHub
+            </button>
+</div>
+<p class="text-center font-body-compact text-body-compact text-on-surface-variant mt-sm">
+            Don't have an account? 
+            <a class="text-primary font-section-heading text-[14px] hover:text-primary-container transition-colors ml-1" href="#">Create an account</a>
+</p>
+</main>
+<footer class="mt-xl text-center">
+<p class="font-body-compact text-body-compact text-on-surface-variant opacity-70">© 2024 Co-op SaaS. All rights reserved.</p>
+</footer>
+</body></html>

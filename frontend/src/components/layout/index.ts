@@ -1,7 +1,7 @@
 /** Co-op layout primitives (Stage 2) — the app chrome. */
 export { default as AppShell } from './AppShell';
 export type { AppShellProps } from './AppShell';
-export { default as Sidebar, SIDEBAR_WIDTH, SIDEBAR_COLLAPSED_WIDTH } from './Sidebar';
+export { default as Sidebar, SIDEBAR_WIDTH } from './Sidebar';
 export type { SidebarProps } from './Sidebar';
 export { default as TopBar } from './TopBar';
 export type { TopBarProps, TopBarUser } from './TopBar';

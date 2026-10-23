@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
-import { Spin, message } from 'antd';
+import { message } from 'antd';
+import CoopLoader from './components/ui/CoopLoader';
 import { InfoCircleFilled } from '@ant-design/icons';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -30,6 +31,7 @@ const InventoryPage = lazy(() => import('./pages/Inventory'));
 const CustomersPage = lazy(() => import('./pages/Customers'));
 const CustomerProfilePage = lazy(() => import('./pages/Customers/CustomerProfilePage'));
 const OrdersPage = lazy(() => import('./pages/Orders'));
+const InvoicesPage = lazy(() => import('./pages/Invoices'));
 const CreateOrderPage = lazy(() => import('./pages/Orders/CreateOrderPage'));
 const OrderDetailsPage = lazy(() => import('./pages/Orders/OrderDetailsPage'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
@@ -40,10 +42,12 @@ const NotFoundPage = lazy(() => import('./pages/NotFound'));
 const CoopAiPage = lazy(() => import('./pages/CoopAi'));
 const BillingPage = lazy(() => import('./pages/Billing'));
 const SyncPage = lazy(() => import('./pages/Sync'));
+const AdminPage = lazy(() => import('./pages/Admin'));
+const SupportPage = lazy(() => import('./pages/Support'));
 
 const RouteFallback = () => (
   <div style={{ minHeight: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <Spin size="large" />
+    <CoopLoader />
   </div>
 );
 import { setCurrency } from './services/currency';
@@ -67,14 +71,14 @@ const SplashScreen: React.FC = () => {
       transition: 'background-color 300ms',
     }}
   >
-    <CoopMark size={64} title="Co-op" />
+    <CoopMark size={64} title="CO OP" />
     <div style={{ textAlign: 'center' }}>
-      <div style={{ ...type.sectionHeading, color: colors.primary, fontSize: 26, lineHeight: 34 }}>Co-op</div>
+      <div style={{ ...type.sectionHeading, color: colors.primary, fontSize: 26, lineHeight: '34px' }}>CO OP</div>
       <div style={{ ...type.labelCaps, color: colors.onSurfaceVariant, marginTop: 2, letterSpacing: '0.1em' }}>
         Better business, together.
       </div>
     </div>
-    <Spin size="large" />
+    <CoopLoader />
   </div>
   );
 };
@@ -96,7 +100,7 @@ const AuthLoadingScreen: React.FC = () => {
         background: colors.surface,
       }}
     >
-      <Spin size="large" />
+      <CoopLoader />
     </div>
   );
 };
@@ -142,7 +146,7 @@ const AuthPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {children}
       </div>
       <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.outline }}>
-        © {year} Co-op SaaS. All rights reserved.
+        © {year} CO OP SaaS. All rights reserved.
       </div>
     </div>
   );
@@ -179,8 +183,8 @@ const SESSION_EXPIRED_KEY = 'coop:session-expired';
  *
  * Logic is untouched — Clerk's hosted SignIn (email code, password, SSO,
  * account recovery, inline errors, loading) — only the `appearance` prop
- * applies the Co-op design (finch_sign_in_refactored /
- * finch_recover_account_refactored / mobile). Page-level states added here:
+ * applies the Co-op design (coop_sign_in_refactored /
+ * coop_recover_account_refactored / mobile). Page-level states added here:
  * offline banner + one-shot "session expired" notice.
  */
 const SignInPage = () => {
@@ -296,6 +300,18 @@ const RootGate: React.FC = () => {
   const [identityResolved, setIdentityResolved] = useState(false);
   const [hasData, setHasData] = useState<boolean | null>(null);
 
+  // The owner can explicitly choose "Start from scratch" on /welcome —
+  // respect that choice instead of re-routing them to /welcome on every "/"
+  // visit while the business is still empty (the empty dashboard renders
+  // real zeros and native no-data states).
+  const startedManual = () => {
+    try {
+      return window.localStorage.getItem('coop:started-manual') === '1';
+    } catch {
+      return false;
+    }
+  };
+
   // Identity first: a pending invitation takes over the gate — the invitee
   // has no business yet and must not touch business endpoints (they 409).
   useEffect(() => {
@@ -338,7 +354,7 @@ const RootGate: React.FC = () => {
       />
     );
   }
-  if (!hasData) return <Navigate to="/welcome" replace />;
+  if (!hasData && !startedManual()) return <Navigate to="/welcome" replace />;
   return <DashboardPage />;
 };
 
@@ -426,12 +442,15 @@ const App: React.FC = () => {
                         <Route path="/orders" element={<OrdersPage />} />
                         <Route path="/orders/new" element={<CreateOrderPage />} />
                         <Route path="/orders/:id" element={<OrderDetailsPage />} />
+                        <Route path="/invoices" element={<InvoicesPage />} />
               <Route path="/coop-ai" element={<CoopAiPage />} />
               <Route path="/billing" element={<BillingPage />} />
               <Route path="/sync" element={<SyncPage />} />
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/briefing" element={<BriefingPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/support" element={<SupportPage />} />
+                        <Route path="/admin" element={<AdminPage />} />
                         <Route path="*" element={<NotFoundPage />} />
                       </Routes>
                     </Suspense>

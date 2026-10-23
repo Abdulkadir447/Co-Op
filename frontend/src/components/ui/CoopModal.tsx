@@ -62,7 +62,7 @@ const CoopModal: React.FC<CoopModalProps> = ({
       onCancel={onCancel}
       width={width}
       centered
-      destroyOnClose
+      destroyOnHidden
       maskClosable={false}
       styles={{
         content: {

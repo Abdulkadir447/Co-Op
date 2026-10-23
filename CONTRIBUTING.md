@@ -15,7 +15,7 @@ how to work on this project.
 ## Development setup
 
 ```bash
-git clone <repo-url> && cd Finch
+git clone <repo-url> && cd Co-op
 
 # Backend
 python3 -m venv .venv

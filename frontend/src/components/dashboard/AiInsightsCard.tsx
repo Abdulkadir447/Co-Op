@@ -61,10 +61,10 @@ const AiInsightsCard: React.FC = () => {
           padding: '16px 20px 0',
         }}
       >
-        <CoopMark size={30} title="Co-op AI" />
+        <CoopMark size={30} title="Zeno" />
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ ...type.labelCaps, textTransform: 'uppercase', letterSpacing: '0.08em', color: colors.outline }}>
-            Co-op AI · Live Insights
+            Zeno · Live Insights
           </span>
         </div>
         <button
@@ -81,7 +81,7 @@ const AiInsightsCard: React.FC = () => {
             borderRadius: radius.md,
           }}
         >
-          Ask Co-op →
+          Ask Zeno →
         </button>
       </div>
 

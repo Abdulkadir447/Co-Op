@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import io
 
+from ..csvsafe import csv_safe, defuse_workbook, safe_row
+
 from ..reports.service import ReportData
 
 
@@ -45,14 +47,16 @@ def render_csv(report: ReportData) -> bytes:
     w.writerow([])
 
     for t in report.tables:
+        # safe_row: a product or customer name is user input, and a cell
+        # starting with = + - @ executes as a formula in Excel.
         w.writerow([t.title])
-        w.writerow(t.columns)
+        w.writerow(safe_row(t.columns))
         for row in t.rows:
-            w.writerow(row)
+            w.writerow(safe_row(row))
         w.writerow([])
 
     for n in report.notes:
-        w.writerow(["Note", n])
+        w.writerow(["Note", csv_safe(n)])
 
     return buf.getvalue().encode("utf-8")
 
@@ -128,6 +132,7 @@ def render_xlsx(report: ReportData) -> bytes:
         _autosize(tws)
 
     out = io.BytesIO()
+    defuse_workbook(wb)  # never ship a formula the user typed as data
     wb.save(out)
     return out.getvalue()
 

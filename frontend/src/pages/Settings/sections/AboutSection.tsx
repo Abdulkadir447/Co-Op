@@ -1,7 +1,8 @@
 /**
  * Settings → About. Version + environment facts only — honest, with no
- * invented claims. Licensing: the project has not been licensed yet, and
- * the screen says so plainly.
+ * invented claims. Licensing: the codebase is proprietary (All Rights
+ * Reserved, see the LICENSE file at the repository root); business
+ * activation keys live in Settings → Licence.
  */
 import React from 'react';
 import { Descriptions, Space, Typography } from 'antd';
@@ -24,7 +25,8 @@ const AboutSection: React.FC = () => {
             {desktop ? 'Running (offline-first local database active)' : 'Not running (browser mode)'}
           </Descriptions.Item>
           <Descriptions.Item label="Licensing">
-            Not licensed yet — this project is proprietary until a license is chosen.
+            Proprietary — All Rights Reserved (see the LICENSE file). Activate your
+            business key under Settings → Licence.
           </Descriptions.Item>
         </Descriptions>
         <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>

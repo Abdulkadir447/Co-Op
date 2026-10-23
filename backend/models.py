@@ -63,7 +63,10 @@ class Business(Base):
     tax_id = Column(String(100))
     website = Column(String(255))
     timezone = Column(String(64))
-    # Ask Co-op answer style preference (0009): concise | standard | detailed.
+    # Public Supabase Storage URL for the business logo (0019). The bytes live
+    # in object storage; the database records only which logo is current.
+    logo_url = Column(String(1024), nullable=True)
+    # Ask Zeno answer style preference (0009): concise | standard | detailed.
     ai_response_style = Column(
         String(20), default="standard", server_default="standard", nullable=False
     )
@@ -436,11 +439,94 @@ class Subscription(Base):
     trial_plan = Column(String(20), nullable=True)
     trial_started_at = Column(DateTime, nullable=True)
     trial_ends_at = Column(DateTime, nullable=True)
+    # --- Licence (PRD Ch7 §7.19 / Ch8 §8.15) -------------------------------
+    # Same shape as the trial, for the same reason: an activated licence
+    # grants ``license_plan`` for a fixed window WITHOUT overwriting ``plan``,
+    # so expiry is a pure function of (license_ends_at, now) — no scheduler,
+    # no downgrade job. ``license_fingerprint`` links back to the ``licenses``
+    # row (the key itself is never stored — see License below).
+    license_plan = Column(String(20), nullable=True)
+    license_seats = Column(Integer, nullable=True)
+    license_started_at = Column(DateTime, nullable=True)
+    license_ends_at = Column(DateTime, nullable=True)
+    license_fingerprint = Column(String(64), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Subscription business={self.business_id} plan={self.plan!r}>"
+
+
+class License(Base):
+    """One issued Co-op licence (PRD Ch8 §8.15, activation per Ch7 §7.19).
+
+    The ledger of every activation string the team has minted and what became
+    of it. The key itself is NOT stored — only its SHA-256 ``fingerprint`` —
+    so a database leak cannot be replayed as activation strings. A licence is
+    bound to exactly one business, and ``revoked_at`` wins over a valid
+    signature (see ``backend/licensing.py``).
+    """
+
+    __tablename__ = "licenses"
+    __table_args__ = (
+        Index("uq_licenses_fingerprint", "fingerprint", unique=True),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)
+    fingerprint = Column(String(64), nullable=False)
+    plan = Column(String(20), nullable=False)
+    seats = Column(Integer, nullable=False, default=1)
+    issued_at = Column(DateTime, nullable=True)
+    activated_at = Column(DateTime, nullable=True)
+    activated_by = Column(String(255), nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+    revoked_reason = Column(String(255), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<License business={self.business_id} plan={self.plan!r}>"
+
+
+class Invoice(Base):
+    """A saved invoice for one order (PRD "Invoice generation").
+
+    Numbered per business (INV-0001, INV-0002, ...) so the paperwork a
+    customer receives matches what the owner sees in the list. The money is
+    deliberately NOT duplicated here: an invoice points at its order, and the
+    order stays the single source of truth for the amounts — there is no
+    total column that can drift.
+
+    Lifecycle is a document lifecycle (draft -> sent -> void). Recording
+    money received is the payments phase and lives elsewhere.
+    """
+
+    __tablename__ = "invoices"
+    __table_args__ = (
+        Index("uq_invoices_business_number", "business_id", "number", unique=True),
+        Index("uq_invoices_business_order", "business_id", "order_id", unique=True),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    number = Column(String(20), nullable=False)
+    issue_date = Column(DateTime, nullable=False)
+    due_date = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+    # draft | sent | void
+    status = Column(String(10), nullable=False, default="draft")
+    created_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
+    updated_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    order = relationship("Order")
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<Invoice {self.number} order={self.order_id} status={self.status!r}>"
 
 
 class Profile(Base):
@@ -560,3 +646,109 @@ class BusinessInvitation(Base):
     accepted_by = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     expires_at = Column(DateTime, nullable=True)
+
+
+class Payment(Base):
+    """One Paystack charge attempt for a plan (migration 0011).
+
+    The ledger of every checkout Co-op started and what Paystack said about
+    it. ``reference`` is Paystack's own idempotency key, so it is unique —
+    a duplicated webhook cannot create a second row or upgrade a plan twice.
+
+    The plan is NOT changed by this row alone: ``status`` only becomes
+    ``success`` after the charge is verified with Paystack (API verify or a
+    signature-checked ``charge.success`` webhook). A browser returning from
+    the payment page proves nothing and never touches this table's status.
+    """
+
+    __tablename__ = "payments"
+    __table_args__ = (
+        Index("uq_payments_reference", "reference", unique=True),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), index=True, nullable=False)
+    provider = Column(String(30), nullable=False, default="paystack")
+    reference = Column(String(80), nullable=False)
+    plan = Column(String(20), nullable=False)            # starter|professional|enterprise
+    interval = Column(String(20), nullable=False, default="monthly")  # monthly|annual
+    # How the owner was sent to pay: "page" (hosted payment page) or "api"
+    # (transaction/initialize -> authorization_url).
+    mode = Column(String(20), nullable=True)
+    amount_kobo = Column(Integer, nullable=True)
+    currency = Column(String(8), nullable=True)
+    email = Column(String(255), nullable=True)           # payer's email at checkout
+    status = Column(String(20), nullable=False, default="pending")  # pending|success|failed
+    provider_status = Column(String(40), nullable=True)  # Paystack's own word
+    channel = Column(String(40), nullable=True)          # card|bank|ussd|…
+    metadata_json = Column(Text, nullable=True)          # metadata we sent (JSON)
+    started_by = Column(String(255), nullable=True)      # Clerk user id
+    paid_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<Payment {self.reference} {self.plan} {self.status}>"
+
+
+class Feedback(Base):
+    """One product-feedback prompt response (migration 0015).
+
+    Co-op asks the owner how the app is doing on a fixed cadence: the first
+    prompt lands three weeks after the paid relationship begins (trial start,
+    or the first successful charge if there was no trial) and is compulsory;
+    later prompts repeat every three weeks and may be skipped.
+
+    A row is written both when the owner *submits* answers and when they
+    *dismiss* a prompt (``kind``), so the nagging cadence is driven entirely
+    off this table: a prompt is "due" only when the current three-week window
+    has no row yet. ``submitted_by`` is the Clerk user id who answered.
+    """
+
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), index=True, nullable=False)
+    submitted_by = Column(String(255), nullable=True)   # Clerk user id
+    kind = Column(String(12), nullable=False, default="submitted")  # submitted|dismissed
+    rating = Column(Integer, nullable=True)             # 1-5 overall, optional
+    overall = Column(Text, nullable=True)               # what they think of the app
+    likes = Column(Text, nullable=True)                 # what they like
+    issues = Column(Text, nullable=True)                # problems / bugs
+    improvements = Column(Text, nullable=True)          # what they'd love added
+    created_at = Column(DateTime, server_default=func.now())
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<Feedback business={self.business_id} kind={self.kind!r}>"
+
+
+class IssueReport(Base):
+    """One owner-raised problem report (the in-app \"Report an issue\" page).
+
+    The mirror image of :class:`Feedback`: feedback is something Co-op *asks
+    for* on a cadence, an issue report is something the owner raises the moment
+    something is wrong — a bug, lost data, a billing question. Every report is
+    stored tenant-scoped *and* emailed to the support inbox, so a problem
+    reaches the team even if the owner never follows up in app.
+
+    ``status`` is team-side triage bookkeeping (``new`` -> ``triaged`` ->
+    ``resolved``); the owner only ever creates rows.
+    """
+
+    __tablename__ = "issue_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), index=True, nullable=False)
+    submitted_by = Column(String(255), nullable=True)        # Clerk user id
+    category = Column(String(32), nullable=False, default="other")
+    severity = Column(String(16), nullable=False, default="normal")
+    subject = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False)
+    contact_email = Column(String(255), nullable=True)       # where to reply
+    app_version = Column(String(64), nullable=True)
+    platform = Column(String(32), nullable=True)             # web|windows|macos|linux
+    status = Column(String(16), nullable=False, default="new")
+    created_at = Column(DateTime, server_default=func.now())
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<IssueReport business={self.business_id} id={self.id}>"

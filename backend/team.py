@@ -46,6 +46,8 @@ WRITE_MATRIX: dict[str, tuple[str, ...]] = {
     "/inventory": ("owner", "manager", "inventory"),
     # Imports touch every domain; any operational role may run them.
     "/imports": ("owner", "manager", "sales", "inventory"),
+    # Invoicing: sales raises the paperwork, the accountant maintains it.
+    "/invoices": ("owner", "manager", "sales", "accountant"),
     # Sync is an operational, not an administrative surface.
     "/sync": ("owner", "manager"),
 }

@@ -1,5 +1,5 @@
 /**
- * Co-op AI — shared types (Stage 2.2).
+ * Zeno — shared types (Stage 2.2).
  *
  * Architectural rule: this layer (and the UI that renders it) talks ONLY to
  * the existing domain APIs through useApiClient. It never touches the

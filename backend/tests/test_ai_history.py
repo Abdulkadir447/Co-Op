@@ -12,7 +12,7 @@ import json
 import pytest
 
 from backend.ai import service as ai_service
-from backend.ai.providers.openai import ProviderError, ProviderResult
+from backend.ai.providers.openrouter import ProviderError, ProviderResult
 
 
 def _good_reply(**over) -> dict:
@@ -52,7 +52,7 @@ def fake_provider(monkeypatch):
             "build_provider",
             lambda model, key: FakeProvider(reply=reply, error=error),
         )
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
 
     return _install
 

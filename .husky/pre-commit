@@ -1,7 +1,46 @@
-#!/bin/bash
-# .husky/pre-commit
-#!/bin/bash
-. "$(dirname "$0")/_/husky.sh"
+#!/usr/bin/env sh
+# POSIX sh on purpose: husky runs hooks with sh, where `set -o pipefail` fails.
+# .husky/pre-commit — fail fast on the two linters, locally.
+#
+# CI (.github/workflows/ci.yml) is the gate of record: it runs ruff, pytest,
+# eslint, tsc, the test suite and the production build. This hook only exists
+# to save a round trip, so a missing tool is a warning rather than a block —
+# never `--no-verify` around a check you meant to run.
+#
+# The previous version ran `npx pre-commit run --all-files`. `npx` resolved
+# that to the unrelated npm package of the same name and died with "could not
+# determine executable to run", which failed every commit. `.pre-commit-config.yaml`
+# is not used by this hook (its repo paths no longer exist upstream).
 
-# Run pre-commit hooks
-npx pre-commit run --all-files
+set -u
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+# Prefer the project virtualenv's tools when it exists.
+if [ -d .venv/bin ]; then PATH=".venv/bin:$PATH"; export PATH; fi
+
+PYTHON="${PYTHON:-}"
+if [ -z "$PYTHON" ]; then
+  for candidate in .venv/bin/python python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1; then PYTHON="$candidate"; break; fi
+  done
+fi
+
+status=0
+
+if command -v ruff >/dev/null 2>&1; then
+  ruff check backend/ || status=1
+elif [ -n "$PYTHON" ] && "$PYTHON" -m ruff --version >/dev/null 2>&1; then
+  "$PYTHON" -m ruff check backend/ || status=1
+else
+  echo "pre-commit: ruff not found — skipping (CI runs it)."
+fi
+
+if [ -d frontend/node_modules ] && command -v pnpm >/dev/null 2>&1; then
+  (cd frontend && pnpm exec eslint .) || status=1
+elif [ -d frontend/node_modules ]; then
+  (cd frontend && npx --no-install eslint .) || status=1
+else
+  echo "pre-commit: frontend dependencies not installed — skipping eslint."
+fi
+
+exit $status

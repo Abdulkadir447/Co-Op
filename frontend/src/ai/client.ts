@@ -1,5 +1,5 @@
 /**
- * Co-op AI — backend client (AI Platform phase).
+ * Zeno — backend client (AI Platform phase).
  *
  * Talks to /ai/chat and /ai/usage. The backend guarantees the trust model:
  * verified context -> model -> structured answer contract -> validated
