@@ -9,7 +9,7 @@ import json
 
 
 from backend.ai import service as ai_service
-from backend.ai.providers.openai import ProviderResult
+from backend.ai.providers.openrouter import ProviderResult
 from backend.models import AiUsage, Business
 
 
@@ -53,7 +53,7 @@ def _install_fake(monkeypatch, output_tokens=20):
                 input_tokens=100, output_tokens=output_tokens, model="fake-model",
             )
     monkeypatch.setattr(ai_service, "build_provider", lambda model, key: Fake())
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
 
 
 # ---------------------------------------------------------------------------

@@ -408,7 +408,7 @@ acts copy in the AI composer. Residual ERP-feel:
 - [ ] Run migrations on target Postgres: `alembic upgrade head` (5
       migrations, all idempotent/additive)
 - [ ] Set production env: `DATABASE_URL`, `CLERK_FRONTEND_API`,
-      `CORS_ORIGINS`, `OPENAI_API_KEY`
+      `CORS_ORIGINS`, `OPENROUTER_API_KEY`
 - [ ] Verify `/healthcheck`, a login, an import, a report export, an AI
       question, and a plan change on the deployed instance
 - [ ] Confirm no `.env` in the deploy artifact and no secrets in logs

@@ -2291,7 +2291,8 @@ async def ai_chat(
     if not ai_service.ai_enabled():
         raise HTTPException(
             status_code=503,
-            detail="The AI assistant is not configured on this server (OPENAI_API_KEY).",
+            detail="The AI assistant is not configured on this server "
+                   "(OPENROUTER_API_KEY).",
         )
     try:
         result = await ai_service.handle_chat(

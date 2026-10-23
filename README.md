@@ -152,8 +152,10 @@ Copy `.env.example` to `.env` and fill in real values. The important ones:
 | `CLERK_ALLOWED_ORIGINS` | optional | Comma-separated `azp` allow-list |
 | `CORS_ORIGINS` | required in prod | Comma-separated CORS allow-list. Development/testing default to `*`; **production refuses to start** if neither this nor `cors.origins` in `config/production.json` is set |
 | `COOP_ENV` | optional | `development` (default) \| `testing` \| `production` |
-| `OPENAI_API_KEY` | optional | Enables the real AI assistant |
-| `OPENAI_MODEL` | optional | Model override (default from `config/*.json`) |
+| `OPENROUTER_API_KEY` | optional | Enables the real AI assistant (OpenRouter — one key for OpenAI/Anthropic/Google/Meta) |
+| `OPENROUTER_MODEL` | optional | Namespaced `vendor/model`, e.g. `openai/gpt-4o-mini` (default from `config/*.json`). Must support JSON mode |
+| `SUPABASE_URL` | optional | Supabase project URL. With the key below, enables Storage (business logos); unset = that endpoint returns 503 |
+| `SUPABASE_SERVICE_ROLE_KEY` | optional | **Bypasses RLS — server-side only, never in the frontend.** Create the bucket first: `supabase/migrations/20261022010000_storage_bucket.sql` |
 | `TEST_DATABASE_URL` | tests | Postgres URL to enable true-concurrency tests |
 | `RESEND_API_KEY` | optional | Enables outbound email (Resend). Unset = email features no-op, nothing is hardcoded |
 | `RESEND_FROM` | optional | Verified sender address for Resend |

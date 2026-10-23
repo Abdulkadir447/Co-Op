@@ -34,7 +34,7 @@ def _load_dotenv_once() -> None:
     ALWAYS win — ``.env`` only fills gaps, so it can never override a
     deployment's settings. The file is gitignored; only non-secret
     placeholders (``.env.example``) are committed. This is what makes a
-    local ``OPENAI_API_KEY`` in ``.env`` work without extra tooling.
+    local ``OPENROUTER_API_KEY`` in ``.env`` work without extra tooling.
     """
     if getattr(_load_dotenv_once, "_done", False):
         return
