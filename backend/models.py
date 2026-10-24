@@ -21,6 +21,7 @@ from __future__ import annotations
 from enum import Enum
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Enum as SAEnum,
@@ -66,6 +67,14 @@ class Business(Base):
     # Public Supabase Storage URL for the business logo (0019). The bytes live
     # in object storage; the database records only which logo is current.
     logo_url = Column(String(1024), nullable=True)
+    # Tax presentation (0021). Tax is *exclusive* by default: an order's
+    # total_amount is the net subtotal and tax is added on top, so existing
+    # revenue reporting stays net-of-tax and correct. `tax_rate` is a
+    # percentage (7.5 = 7.5%), snapshotted onto each order at creation so a
+    # later rate change never rewrites an invoice the customer already holds.
+    tax_enabled = Column(Boolean, default=False, server_default=text("false"), nullable=False)
+    tax_rate = Column(Float, default=7.5, server_default="7.5", nullable=False)
+    tax_label = Column(String(20), default="VAT", server_default="VAT", nullable=False)
     # Ask Zeno answer style preference (0009): concise | standard | detailed.
     ai_response_style = Column(
         String(20), default="standard", server_default="standard", nullable=False
@@ -244,7 +253,11 @@ class Order(Base):
         default=OrderStatus.pending,
         nullable=False,
     )
-    total_amount = Column(Float, nullable=False, default=0.0)
+    total_amount = Column(Float, nullable=False, default=0.0)  # NET subtotal (ex-tax)
+    # Tax snapshot (0021). NULL rate = tax was off when this order was raised;
+    # 0.0 amount keeps grand_total == total_amount for every legacy row.
+    tax_rate = Column(Float, nullable=True)
+    tax_amount = Column(Float, nullable=False, default=0.0, server_default="0")
     created_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     updated_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     created_at = Column(DateTime, server_default=func.now())
@@ -276,6 +289,11 @@ class Order(Base):
         lazy="selectin",
         order_by="OrderPayment.id",
     )
+
+    @property
+    def grand_total(self) -> float:
+        """What the customer actually owes: net subtotal + tax."""
+        return round(float(self.total_amount or 0.0) + float(self.tax_amount or 0.0), 2)
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Order id={self.id} status={self.status.value!r}>"

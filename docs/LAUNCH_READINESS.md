@@ -14,6 +14,8 @@ inside this repository.
 | Dashboard — KPIs, revenue charts, inventory summary, customer growth, daily sales | `/dashboard/{summary,revenue/today,revenue/month,timeseries,by-category,growth,low-stock,top-products,briefing}` | ✅ |
 | Orders — create, lifecycle/status, search, history | `/orders` CRUD + `/orders/{id}/status` + `OrdersPage`, `CreateOrderPage`, `OrderDetailsPage` | ✅ |
 | Invoices — generation, export, PDF | `/invoices` CRUD + `/invoices/export` + `exports/renderers.render_pdf` | ✅ |
+| Receivables — record payments, balances, "who owes me" | `/orders/{id}/payments` (POST/GET/DELETE) + `/receivables` + Receivables page | ✅ (0020) |
+| Tax / VAT on orders and invoices | `businesses.tax_*` + `orders.tax_rate/tax_amount`, exclusive, rate snapshotted per order | ✅ (0021) |
 | Inventory — products, categories, low-stock, valuation, movements | `/products` CRUD, `/products/{id}/adjust`, `/products/{id}/movements`, `/inventory/summary` | ✅ |
 | Customers — contacts, purchase history, spending | `/customers` CRUD + `/customers/{id}` + `CustomerProfilePage` | ✅ |
 | AI Assistant — chat, reports, explain, forecast, invoice help | `/ai/chat` (gated on `OPENROUTER_API_KEY`), `/ai/forecast`, `/ai/usage`, `/ai/history` | ✅ (needs key) |
@@ -35,7 +37,7 @@ payroll, accounting ledger, public API, plugins) are correctly absent.
 
 ## Automated gates (last run)
 
-- Backend: `pytest` → **405 passed, 6 skipped** (2026-10-23; skips = the
+- Backend: `pytest` → **413 passed, 6 skipped** (2026-10-24; skips = the
   live-Paystack and Postgres-gated RLS/concurrency tests, which need
 egress and a real Postgres).
 - Electron: `node --test` → **80 tests, 78 pass, 0 fail, 2 skip** (live sync).

@@ -17,9 +17,19 @@ PRODUCT = {"sku": "SKU-PAY", "name": "Paid widget", "unit_price": 100.0, "curren
 CUSTOMER = {"full_name": "Ada Buyer", "email": "ada@example.com"}
 
 
+_seq = 0
+
+
 async def _order(api, quantity: int = 2, price: float = 100.0) -> int:
-    p = await api.client.post("/products", json={**PRODUCT, "unit_price": price})
-    c = await api.client.post("/customers", json=CUSTOMER)
+    # SKU and email are unique per business, so each order needs its own pair.
+    global _seq
+    _seq += 1
+    p = await api.client.post(
+        "/products", json={**PRODUCT, "sku": f"SKU-PAY-{_seq}", "unit_price": price}
+    )
+    c = await api.client.post(
+        "/customers", json={**CUSTOMER, "email": f"ada{_seq}@example.com"}
+    )
     o = await api.client.post(
         "/orders",
         json={
@@ -163,3 +173,123 @@ async def test_viewer_cannot_record_a_payment(api):
     # Cross-tenant first (the viewer owns a different business) — 404, which is
     # also the correct answer: they must never learn the order exists.
     assert refused.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Tax (0021) — exclusive by default, snapshotted per order
+# ---------------------------------------------------------------------------
+
+async def test_tax_is_off_by_default(api):
+    oid = await _order(api)
+    body = (await api.client.get(f"/orders/{oid}")).json()
+    assert body["total_amount"] == 200.0
+    assert body["tax_rate"] is None
+    assert body["tax_amount"] == 0.0
+    assert body["grand_total"] == 200.0
+
+
+async def test_tax_is_added_on_top_and_snapshotted(api):
+    # Turn VAT on at 7.5% through the settings API (owner-only surface).
+    patched = await api.client.patch(
+        "/business/settings",
+        json={"tax_enabled": True, "tax_rate": 7.5, "tax_label": "VAT"},
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["tax_enabled"] is True
+
+    oid = await _order(api)  # 2 x 100 = 200 net
+    body = (await api.client.get(f"/orders/{oid}")).json()
+    assert body["total_amount"] == 200.0          # net, unchanged
+    assert body["tax_rate"] == 7.5
+    assert body["tax_amount"] == 15.0             # 7.5% of 200
+    assert body["grand_total"] == 215.0
+    assert body["balance_due"] == 215.0           # owe the gross, not the net
+
+    # Raising the rate must not reprice the order that already exists.
+    await api.client.patch("/business/settings", json={"tax_rate": 20})
+    again = (await api.client.get(f"/orders/{oid}")).json()
+    assert again["tax_rate"] == 7.5
+    assert again["tax_amount"] == 15.0
+
+    # A new order uses the new rate.
+    oid2 = await _order(api)
+    assert (await api.client.get(f"/orders/{oid2}")).json()["tax_rate"] == 20.0
+
+
+async def test_payments_settle_the_gross_total(api):
+    await api.client.patch("/business/settings", json={"tax_enabled": True, "tax_rate": 10})
+    oid = await _order(api)  # 200 net + 20 tax = 220
+
+    partial = await api.client.post(f"/orders/{oid}/payments", json={"amount": 200.0})
+    assert partial.json()["balance_due"] == 20.0
+    assert partial.json()["payment_status"] == "partial"
+
+    final = await api.client.post(f"/orders/{oid}/payments", json={"amount": 20.0})
+    assert final.json()["balance_due"] == 0.0
+    assert final.json()["payment_status"] == "paid"
+
+    # The net revenue figure is untouched by tax.
+    assert (await api.client.get(f"/orders/{oid}")).json()["total_amount"] == 200.0
+
+
+async def test_tax_rate_is_validated(api):
+    assert (
+        await api.client.patch("/business/settings", json={"tax_rate": -1})
+    ).status_code == 422
+    assert (
+        await api.client.patch("/business/settings", json={"tax_rate": 101})
+    ).status_code == 422
+
+
+async def test_invoice_reports_subtotal_tax_and_total(api):
+    await api.client.patch("/business/settings", json={"tax_enabled": True, "tax_rate": 7.5})
+    oid = await _order(api)
+    created = await api.client.post("/invoices", json={"order_id": oid})
+    assert created.status_code == 201, created.text
+    listing = (await api.client.get("/invoices")).json()
+    invoice_id = listing["items"][0]["id"]
+    detail = (await api.client.get(f"/invoices/{invoice_id}")).json()
+    assert detail["subtotal"] == 200.0
+    assert detail["tax_amount"] == 15.0
+    assert detail["total"] == 215.0
+
+
+# ---------------------------------------------------------------------------
+# Receivables list
+# ---------------------------------------------------------------------------
+
+async def test_receivables_lists_only_money_outstanding(api):
+    paid_order = await _order(api)
+    unpaid_order = await _order(api)
+    partial_order = await _order(api)
+
+    await api.client.post(f"/orders/{paid_order}/payments", json={"amount": 200.0})
+    await api.client.post(f"/orders/{partial_order}/payments", json={"amount": 50.0})
+
+    body = (await api.client.get("/receivables")).json()
+    ids = {row["order_id"] for row in body["items"]}
+    assert ids == {unpaid_order, partial_order}, body
+    assert body["count"] == 2
+    assert body["total_outstanding"] == 350.0     # 200 unpaid + 150 outstanding
+    assert body["total_collected"] == 250.0       # 200 + 50 across all orders
+
+    partial_row = next(r for r in body["items"] if r["order_id"] == partial_order)
+    assert partial_row["amount_paid"] == 50.0
+    assert partial_row["balance_due"] == 150.0
+    assert partial_row["payment_status"] == "partial"
+
+
+async def test_receivables_excludes_cancelled_orders(api):
+    oid = await _order(api)
+    await api.client.put(f"/orders/{oid}/status", json={"status": "cancelled"})
+    body = (await api.client.get("/receivables")).json()
+    assert body["items"] == []
+    assert body["total_outstanding"] == 0.0
+
+
+async def test_receivables_is_tenant_scoped(api):
+    await _order(api)
+    api.set_user("user-b")
+    body = (await api.client.get("/receivables")).json()
+    assert body["items"] == []
+    assert body["total_outstanding"] == 0.0

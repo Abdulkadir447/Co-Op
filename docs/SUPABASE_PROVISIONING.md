@@ -99,6 +99,17 @@ the snapshot and the alembic head agree (enforced by
 > the snapshot must be maintained by hand **and** the consistency tests are
 > what stop it drifting. Prefer running the generator.
 
+## Addendum 2 — migration 0021 (tax), 2026-10-24
+
+Tax/VAT presentation: `businesses.tax_enabled|tax_rate|tax_label` and
+`orders.tax_rate|tax_amount`. No new table, so the table/policy counts are
+unchanged. Applied to the live project; `alembic_version = 0021_tax`.
+
+Tax is **exclusive**: `orders.total_amount` stays the net subtotal (every
+existing revenue number keeps its meaning), `orders.tax_amount` is the tax on
+it, and the grand total is what the customer owes. `tax_rate IS NULL` = tax was
+off for that order, which leaves historical rows exactly as they were.
+
 ## Wiring the app to it
 
 Nothing in the repo referenced this project ref, and `.env` is gitignored — so

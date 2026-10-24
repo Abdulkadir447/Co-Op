@@ -34,7 +34,13 @@ export interface Order {
   status: OrderStatus;
   /** Legal next statuses, published by the backend (Task 12 / M4). */
   allowed_transitions: OrderStatus[];
+  /** Net subtotal — tax is NOT included (0021, tax-exclusive). */
   total_amount: number;
+  /** Tax snapshotted when the order was raised. `null` = tax was off. */
+  tax_rate?: number | null;
+  tax_amount?: number;
+  /** What the customer owes in full: total_amount + tax_amount. */
+  grand_total?: number;
   /**
    * Receivables (0020). Computed server-side from the payment ledger on every
    * read, so it can never drift from the order. `unknown` only appears on the

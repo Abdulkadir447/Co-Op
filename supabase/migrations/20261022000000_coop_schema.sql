@@ -1,7 +1,7 @@
 -- Co-op schema snapshot — GENERATED, DO NOT EDIT BY HAND.
 --
 -- Regenerate with:  python supabase/scripts/export_schema.py
--- Source of truth:  backend/alembic/versions/ (revision 0020_order_payments (head))
+-- Source of truth:  backend/alembic/versions/ (revision 0021_tax (head))
 --
 -- Apply in the Supabase SQL editor, or with:
 --     supabase db push
@@ -282,7 +282,10 @@ CREATE TABLE public.businesses (
     deleted_by character varying(255),
     version integer DEFAULT 1 NOT NULL,
     ai_response_style character varying(20) DEFAULT 'standard'::character varying NOT NULL,
-    logo_url character varying(1024)
+    logo_url character varying(1024),
+    tax_enabled boolean DEFAULT false NOT NULL,
+    tax_rate double precision DEFAULT 7.5 NOT NULL,
+    tax_label character varying(20) DEFAULT 'VAT'::character varying NOT NULL
 );
 
 
@@ -630,6 +633,8 @@ CREATE TABLE public.orders (
     order_date timestamp with time zone DEFAULT now() NOT NULL,
     status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
     total_amount double precision DEFAULT 0.0 NOT NULL,
+    tax_rate double precision,
+    tax_amount double precision DEFAULT 0 NOT NULL,
     created_by character varying(255),
     updated_by character varying(255),
     created_at timestamp with time zone DEFAULT now() NOT NULL,

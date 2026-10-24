@@ -12,7 +12,7 @@ contain the application, and it cannot — see
 | --- | --- | --- |
 | **Postgres database** | ✅ yes | the entire backend — `backend/database.py`, `asyncpg` |
 | **Row-Level Security** | ✅ yes | 19 policies (`0014_rls` + `0020`), tenant isolation backstop |
-| **Migrations** | ✅ yes | `backend/alembic/` → head `0020_order_payments` |
+| **Migrations** | ✅ yes | `backend/alembic/` → head `0021_tax` |
 | **Storage** | ✅ yes | business logos — `backend/storage.py`, `POST /business/logo` |
 | **Auth** | ❌ deliberately | identity is **Clerk** — `backend/clerk_auth.py` |
 | **Realtime** | ❌ no | nothing subscribes; the desktop app polls via `frontend/src/sync/` |

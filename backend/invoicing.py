@@ -206,7 +206,12 @@ def to_dict(row: Invoice, order: Optional[Order], customer: Optional[Customer],
         "due_date": row.due_date.isoformat() if row.due_date else None,
         "notes": row.notes,
         "currency": currency,
-        "total": float(order.total_amount) if order else 0.0,
+        # "total" is what the customer pays: net subtotal + tax (0021), so an
+        # invoice can never understate what is owed.
+        "subtotal": float(order.total_amount) if order else 0.0,
+        "tax_rate": (order.tax_rate if order else None),
+        "tax_amount": float(order.tax_amount or 0.0) if order else 0.0,
+        "total": float(order.grand_total) if order else 0.0,
         "amount_paid": balance.paid if balance else 0.0,
         "balance_due": balance.balance if balance else 0.0,
         "payment_status": balance.status if balance else "unpaid",
@@ -289,8 +294,8 @@ def render_csv(business: Business, items: list[dict[str, Any]]) -> bytes:
     writer = csv.writer(buf)
     writer.writerow([
         "Invoice number", "Status", "Issue date", "Due date", "Order",
-        "Customer", "Email", "Total", "Paid", "Balance", "Payment status",
-        "Currency",
+        "Customer", "Email", "Subtotal", "Tax", "Total", "Paid", "Balance",
+        "Payment status", "Currency",
     ])
     for it in items:
         writer.writerow([
@@ -302,6 +307,8 @@ def render_csv(business: Business, items: list[dict[str, Any]]) -> bytes:
             # Customer names are user input: keep them text, never a formula.
             csv_safe(it["customer"]["full_name"]) if it["customer"] else "",
             csv_safe(it["customer"]["email"] or "") if it["customer"] else "",
+            f"{it.get('subtotal', it['total']):.2f}",
+            f"{it.get('tax_amount', 0.0):.2f}",
             f"{it['total']:.2f}",
             f"{it.get('amount_paid', 0.0):.2f}",
             f"{it.get('balance_due', 0.0):.2f}",

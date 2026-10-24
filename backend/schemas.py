@@ -239,7 +239,12 @@ class OrderOut(BaseModel):
     # (Task 12 / M4). The frontend renders the status control from this instead
     # of maintaining its own copy of the rules.
     allowed_transitions: List[OrderStatus] = []
-    total_amount: float
+    total_amount: float          # NET subtotal (excludes tax)
+    # Tax, snapshotted on the order when it was raised (0021). None = tax was
+    # off for this order, so grand_total == total_amount for legacy rows.
+    tax_rate: Optional[float] = None
+    tax_amount: float = 0.0
+    grand_total: float = 0.0
     # Receivables (0020): what came in, what is still owed. Computed from the
     # payment ledger on every read — never stored, so it cannot drift.
     amount_paid: float = 0.0
@@ -280,6 +285,34 @@ class OrderPaymentsResponse(BaseModel):
     payment_status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ReceivableRow(BaseModel):
+    """One unpaid/part-paid order in the receivables list."""
+
+    order_id: int
+    customer_id: int
+    customer_name: Optional[str] = None
+    order_date: Optional[datetime] = None
+    status: str
+    subtotal: float
+    tax_amount: float
+    total: float          # what the customer owes in full (net + tax)
+    amount_paid: float
+    balance_due: float
+    payment_status: str
+    age_days: int         # days since the order was placed
+
+
+class ReceivablesResponse(BaseModel):
+    """Outstanding money across the tenant, oldest first."""
+
+    items: List[ReceivableRow]
+    total_outstanding: float
+    total_collected: float
+    count: int
+    page: int
+    limit: int
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +418,10 @@ class BusinessSettingsUpdate(BaseModel):
     website: Optional[str] = Field(None, max_length=255)
     timezone: Optional[str] = Field(None, max_length=64)
     ai_response_style: Optional[str] = Field(None, max_length=20)
+    # Tax presentation (0021). Rate is a percentage: 7.5 means 7.5%.
+    tax_enabled: Optional[bool] = None
+    tax_rate: Optional[float] = Field(None, ge=0, le=100)
+    tax_label: Optional[str] = Field(None, min_length=1, max_length=20)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -406,6 +443,9 @@ class BusinessSettingsOut(BaseModel):
     # logo at any external host.
     logo_url: Optional[str] = None
     ai_response_style: str = "standard"
+    tax_enabled: bool = False
+    tax_rate: float = 7.5
+    tax_label: str = "VAT"
     created_at: datetime
     updated_at: Optional[datetime] = None
 

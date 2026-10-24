@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 PG_URL = os.getenv("TEST_DATABASE_URL", "")
 NEEDS_PG = not PG_URL.startswith("postgres")
 REPO_ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0020_order_payments"
+HEAD = "0021_tax"
 
 
 def _asyncpg_url(url: str) -> str:

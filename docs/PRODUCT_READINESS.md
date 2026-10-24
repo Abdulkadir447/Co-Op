@@ -13,6 +13,12 @@ _Last updated: 2026-08-28 (product-readiness pass over the v1 feature set)._
 >   can be recorded against an order, partially or fully, with an audited
 >   ledger and a computed balance. This was the largest "can't actually run a
 >   shop on it" gap. Invoices now report paid/balance too.
+> * **Tax/VAT exists** (migration `0021_tax`): exclusive by default, rate set
+>   per business, snapshotted onto each order so historical invoices never
+>   change, and shown on the order, the printable invoice and the invoice CSV.
+>   Revenue reporting stays net-of-tax.
+> * **Receivables list** (`/receivables` + page) answers "who owes me money?":
+>   outstanding orders, oldest first, with 30+ day age flags.
 > * **RLS is applied to the live Supabase project** (19 policies) —
 >   `docs/SUPABASE_PROVISIONING.md`.
 > * The RLS functional test still skips without `TEST_DATABASE_URL`, and the

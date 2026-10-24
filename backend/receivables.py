@@ -46,7 +46,12 @@ class PaymentError(Exception):
 
 @dataclass(frozen=True)
 class Balance:
-    """What the order was charged, what came in, what is still owed."""
+    """What the order was charged, what came in, what is still owed.
+
+    ``total`` is the GRAND total (net + tax, 0021) because that is the money a
+    customer actually owes. Revenue reporting keeps using the net
+    ``orders.total_amount``, so tax never inflates a revenue figure.
+    """
 
     total: float
     paid: float
@@ -69,7 +74,9 @@ def balance_for(order: Order, payments: Optional[Iterable[OrderPayment]] = None)
     in async context.
     """
     rows = list(order.payments if payments is None else payments)
-    total = float(order.total_amount or 0.0)
+    # Grand total (net + tax) is what must be settled; getattr keeps this
+    # correct for any Order-shaped object that predates the tax columns.
+    total = float(getattr(order, "grand_total", None) or order.total_amount or 0.0)
     paid = round(sum(float(p.amount or 0.0) for p in rows), 2)
     balance = round(total - paid, 2)
     if paid <= _EPSILON:

@@ -113,6 +113,7 @@ const OrderDetailsPage: React.FC = () => {
       // or 'unpaid' from data we do not have would not be.
       amount_paid: undefined,
       balance_due: undefined,
+      grand_total: Number(row.total_amount ?? 0),
       payment_status: 'unknown',
       order_date: String(row.order_date ?? ''),
       created_at: String(row.created_at ?? ''),
@@ -431,6 +432,13 @@ const OrderDetailsPage: React.FC = () => {
                   <span>Subtotal</span>
                   <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.total_amount)}</span>
                 </div>
+                {/* Tax is exclusive (0021): shown only when the order carries a rate. */}
+                {order.tax_rate != null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', ...type.bodyCompact, color: colors.onSurfaceVariant }}>
+                    <span>VAT ({order.tax_rate}%)</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.tax_amount ?? 0)}</span>
+                  </div>
+                )}
                 <div
                   style={{
                     display: 'flex',
@@ -443,7 +451,9 @@ const OrderDetailsPage: React.FC = () => {
                   }}
                 >
                   <span>Total</span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.total_amount)}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(order.grand_total ?? order.total_amount)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -571,8 +581,10 @@ const OrderDetailsPage: React.FC = () => {
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', ...type.bodyCompact, color: colors.onSurfaceVariant }}>
-                    <span>Order total</span>
-                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.total_amount, business?.currency)}</span>
+                    <span>Order total{order.tax_rate != null ? ' (incl. tax)' : ''}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {formatCurrency(order.grand_total ?? order.total_amount, business?.currency)}
+                    </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', ...type.bodyCompact, color: colors.onSurfaceVariant }}>
                     <span>Received</span>
@@ -926,13 +938,31 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
           </tbody>
         </table>
 
-        {/* Total */}
+        {/* Totals — tax appears only when this order carried a rate (0021) */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 28 }}>
-          <div style={{ display: 'flex', gap: 40, alignItems: 'baseline' }}>
-            <span style={{ fontSize: 14, color: colors.onSurfaceVariant }}>Total</span>
-            <span style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-              {formatCurrency(order.total_amount, business?.currency)}
-            </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 260 }}>
+            {order.tax_rate != null && (
+              <>
+                <div style={{ display: 'flex', gap: 40, justifyContent: 'space-between', fontSize: 13, color: colors.onSurfaceVariant }}>
+                  <span>Subtotal</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(order.total_amount, business?.currency)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 40, justifyContent: 'space-between', fontSize: 13, color: colors.onSurfaceVariant }}>
+                  <span>VAT ({order.tax_rate}%)</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(order.tax_amount ?? 0, business?.currency)}
+                  </span>
+                </div>
+              </>
+            )}
+            <div style={{ display: 'flex', gap: 40, alignItems: 'baseline', justifyContent: 'space-between', paddingTop: 6, borderTop: `1px solid ${colors.borderSubtle}` }}>
+              <span style={{ fontSize: 14, color: colors.onSurfaceVariant }}>Total</span>
+              <span style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                {formatCurrency(order.grand_total ?? order.total_amount, business?.currency)}
+              </span>
+            </div>
           </div>
         </div>
 
