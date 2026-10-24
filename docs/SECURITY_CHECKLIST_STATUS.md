@@ -41,7 +41,7 @@ Legend:
 | 20 | ⚠️ | Clerk-hosted |
 | 21 | ⚠️ | Clerk session settings |
 | 22 | ⚠️ | Clerk revocation |
-| 23 | ⚠️ | enable MFA for owners in Clerk |
+| 23 | ⚠️ | enable MFA for owners in Clerk — **Clerk Pro ($25/mo) required**; not available on the free Hobby plan (see docs/GO_LIVE_COSTS.md) |
 | 24 | ⚠️ | Clerk stores the session; frontend keeps only the token in memory |
 | 25 | ⚠️ | Clerk-hosted pages |
 | 26 | ⚠️ | Clerk |

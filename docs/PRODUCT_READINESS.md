@@ -19,6 +19,11 @@ _Last updated: 2026-08-28 (product-readiness pass over the v1 feature set)._
 >   Revenue reporting stays net-of-tax.
 > * **Receivables list** (`/receivables` + page) answers "who owes me money?":
 >   outstanding orders, oldest first, with 30+ day age flags.
+> * **Costs are now documented per item** — `docs/GO_LIVE_COSTS.md` separates
+>   what is free (most of it) from what is genuinely paid, and corrects an
+>   earlier claim that Clerk's production config was free: MFA and custom
+>   session lifetime are Pro-only ($25/mo), and the free plan's fixed 7-day
+>   session is what limits offline use.
 > * **RLS is applied to the live Supabase project** (19 policies) —
 >   `docs/SUPABASE_PROVISIONING.md`.
 > * The RLS functional test still skips without `TEST_DATABASE_URL`, and the

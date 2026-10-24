@@ -72,8 +72,14 @@ egress and a real Postgres).
    `PAYSTACK_SECRET_KEY=sk_test_… COOP_PAYSTACK_LIVE=1 pytest
    backend/tests/test_paystack_live.py` where egress exists (this sandbox has
    none). Set the real secret key and point the webhook at `POST /webhooks/paystack`.
-5. **Clerk operator config:** enable MFA/2FA (17, 26), session lifetime (25),
-   password policy + recovery (24, 27), rate limiting (19, 49, 57).
+5. **Clerk operator config:** password policy + recovery (24, 27), rate
+   limiting (19, 49, 57) and allowed origins are free-plan settings — do them
+   now. **MFA/2FA (17, 26) and session lifetime (25) require Clerk Pro
+   ($25/mo)**: on the free Hobby plan sessions are fixed at 7 days and MFA is
+   unavailable. That 7-day cap is also why offline use cannot outlast a
+   session today. See `docs/GO_LIVE_COSTS.md` for the full free/paid split —
+   the only unavoidable cash before a public launch is a Windows
+   code-signing certificate.
 6. **CI is blocked:** `.github/workflows/ci.yml` cannot be pushed until the
    GitHub App gets **Workflows** write permission.
 
