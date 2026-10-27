@@ -31,6 +31,39 @@ python -m venv .venv
 
 (`python` may be `py` on some installs.) PowerShell 7+ accepts `&&` if you prefer.
 
+## 1b. Which branch, which database (read this before switching)
+
+Running the app is identical on every branch — the commands below do not
+change. What changes is **the schema the code expects**, and a mismatch fails
+in confusing ways rather than at startup.
+
+| Code branch | Database state | Result |
+|---|---|---|
+| any branch, `COOP_ENV=testing` (SQLite) | created from the models at startup | ✅ always matches — the easy way to just poke at the app |
+| a branch with newer migrations (e.g. `0020_order_payments`, `0021_tax`) | old schema | ❌ 500s on orders/payments — missing columns |
+| an **older** branch (e.g. head `0019`) | already-migrated Supabase (`0021_tax`) | ⚠️ app runs, but the new columns are invisible and `alembic upgrade head` fails with *Can't locate revision '0021_tax'* (the DB is ahead of that branch's migration scripts) |
+
+So: **SQLite (`COOP_ENV=testing`) is branch-proof; Postgres is not.** Before
+running an older branch against the Supabase project, either switch back to a
+branch that contains those migrations or point `DATABASE_URL` at a scratch
+database.
+
+Getting a branch locally, without losing work on another one:
+
+```sh
+git status                 # commit or stash first if dirty
+git fetch origin
+git switch arena/06237ab6-co-op      # inspect/run it in place
+
+# or keep your own branch and bring the work onto it:
+git switch my-branch
+git merge arena/06237ab6-co-op
+```
+
+`node_modules/` and `.venv/` belong to the working tree, not the branch, so
+after switching **rebuild them if the dependency files changed** in that
+branch (`git diff --name-only <old> <new> | grep -E 'package\.json|requirements'`).
+
 ## 2. Environment
 
 ```sh
