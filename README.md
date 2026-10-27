@@ -139,6 +139,11 @@ GET /api/...       -> 502   every data call fails (vite proxy: ECONNREFUSED :800
 frontend talks to a backend you deployed once, and you never start uvicorn
 again.
 
+If you would rather not run the API by hand at all, the whole stack runs as
+containers with one command — `podman-compose up -d --build` (or
+`docker compose up -d --build`), then http://localhost:3000. See
+`docs/RUN_LOCAL.md` §4b. uvicorn is started by the backend image, not by you.
+
 > **Why not let the browser talk to Supabase directly?** Two hard blockers:
 > (1) a browser cannot speak the Postgres wire protocol, and (2) the RLS
 > policies key off `current_setting('app.business_id')`, a value the *backend*
