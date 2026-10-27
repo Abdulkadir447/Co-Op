@@ -11,8 +11,8 @@ contain the application, and it cannot — see
 | Supabase feature | Used? | Where |
 | --- | --- | --- |
 | **Postgres database** | ✅ yes | the entire backend — `backend/database.py`, `asyncpg` |
-| **Row-Level Security** | ✅ yes | 18 policies from `0014_rls`, tenant isolation backstop |
-| **Migrations** | ✅ yes | `backend/alembic/` → head `0019_business_logo` |
+| **Row-Level Security** | ✅ yes | 19 policies (`0014_rls` + `0020`), tenant isolation backstop |
+| **Migrations** | ✅ yes | `backend/alembic/` → head `0021_tax` |
 | **Storage** | ✅ yes | business logos — `backend/storage.py`, `POST /business/logo` |
 | **Auth** | ❌ deliberately | identity is **Clerk** — `backend/clerk_auth.py` |
 | **Realtime** | ❌ no | nothing subscribes; the desktop app polls via `frontend/src/sync/` |
@@ -66,7 +66,7 @@ psql "$DATABASE_URL" -f supabase/migrations/20261022000000_coop_schema.sql
 ```
 
 You can also paste `supabase/migrations/20261022000000_coop_schema.sql` into the
-Supabase SQL editor. It produces **22 tables and 18 row-level-security
+Supabase SQL editor. It produces **23 tables and 19 row-level-security
 policies**.
 
 > On Supabase, `DATABASE_URL` accepts the plain `postgresql://` form too —

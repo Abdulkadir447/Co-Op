@@ -3,7 +3,7 @@
  * business profile; the signed-in Clerk account is shown read-only.
  */
 import React, { useEffect } from 'react';
-import { Alert, Col, Divider, Form, Input, Row, Space, Typography } from 'antd';
+import { Alert, Col, Divider, Form, Input, InputNumber, Row, Space, Switch, Typography } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
 import { useUser } from '@clerk/react';
 import CoopSelect from '../../../components/ui/CoopSelect';
@@ -21,6 +21,9 @@ interface CompanyFormValues {
   tax_id?: string;
   website?: string;
   timezone?: string;
+  tax_enabled?: boolean;
+  tax_rate?: number;
+  tax_label?: string;
 }
 
 export interface CompanySectionProps {
@@ -47,6 +50,9 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
       tax_id: settings.tax_id ?? undefined,
       website: settings.website ?? undefined,
       timezone: settings.timezone ?? undefined,
+      tax_enabled: settings.tax_enabled,
+      tax_rate: settings.tax_rate,
+      tax_label: settings.tax_label,
     });
   }, [settings, form]);
 
@@ -83,6 +89,9 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
       tax_id: settings.tax_id ?? undefined,
       website: settings.website ?? undefined,
       timezone: settings.timezone ?? undefined,
+      tax_enabled: settings.tax_enabled,
+      tax_rate: settings.tax_rate,
+      tax_label: settings.tax_label,
     });
     messageApi.info('Changes reset to last saved values.');
   };
@@ -187,6 +196,34 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
             <Col span={24}>
               <Form.Item label="Address" name="address">
                 <Input.TextArea rows={2} placeholder="Business address" maxLength={500} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider>Tax</Divider>
+          <Typography.Paragraph type="secondary" style={{ marginTop: -4, fontSize: 12.5 }}>
+            Tax is added <strong>on top</strong> of the line subtotal (exclusive), and the rate is
+            recorded on each order as it is raised — changing it later never reprices an existing
+            order or an invoice a customer already holds. Revenue reports stay net of tax.
+          </Typography.Paragraph>
+          <Row gutter={16}>
+            <Col xs={24} sm={8}>
+              <Form.Item
+                label="Charge tax on orders"
+                name="tax_enabled"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="Rate (%)" name="tax_rate">
+                <InputNumber min={0} max={100} step={0.5} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="Label on invoices" name="tax_label">
+                <Input placeholder="VAT" maxLength={20} />
               </Form.Item>
             </Col>
           </Row>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Select, message } from 'antd';
+import { Input, Select, message } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckCircleFilled,
@@ -71,6 +71,11 @@ const OrderDetailsPage: React.FC = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('cash');
+  const [payReference, setPayReference] = useState('');
+  const [payBusy, setPayBusy] = useState(false);
 
   // OFFLINE 3 local read: the order straight from the SQLite mirror (with
   // its customer, line items and product names) — same Order shape.
@@ -103,6 +108,13 @@ const OrderDetailsPage: React.FC = () => {
       status: String(row.status) as Order['status'],
       allowed_transitions: ALLOWED_ORDER_TRANSITIONS[String(row.status) as Order['status']] ?? [],
       total_amount: Number(row.total_amount ?? 0),
+      // The offline mirror carries orders, not the payment ledger (payments
+      // are recorded online). Reporting 'unknown' is honest; claiming 'paid'
+      // or 'unpaid' from data we do not have would not be.
+      amount_paid: undefined,
+      balance_due: undefined,
+      grand_total: Number(row.total_amount ?? 0),
+      payment_status: 'unknown',
       order_date: String(row.order_date ?? ''),
       created_at: String(row.created_at ?? ''),
       items: allItems
@@ -200,6 +212,40 @@ const OrderDetailsPage: React.FC = () => {
       messageApi.error(e instanceof ApiError ? e.message : 'Delete failed.');
     } finally {
       setDeleteBusy(false);
+    }
+  };
+
+  /**
+   * Record money received against this order (receivables, 0020).
+   *
+   * Online-only on purpose: the offline mirror does not carry the payment
+   * ledger, and writing money against a stale balance could accept an
+   * overpayment the server would refuse. The button is disabled offline and
+   * says why.
+   */
+  const recordPayment = async () => {
+    if (!order) return;
+    const amount = Number(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      messageApi.error('Enter an amount greater than zero.');
+      return;
+    }
+    setPayBusy(true);
+    try {
+      await api.post(`/orders/${order.id}/payments`, {
+        amount,
+        method: payMethod,
+        reference: payReference.trim() || null,
+      });
+      messageApi.success(`Payment of ${formatCurrency(amount, business?.currency)} recorded.`);
+      setPayOpen(false);
+      setPayAmount('');
+      setPayReference('');
+      await load();
+    } catch (e) {
+      messageApi.error(e instanceof ApiError ? e.message : 'Could not record the payment.');
+    } finally {
+      setPayBusy(false);
     }
   };
 
@@ -386,6 +432,13 @@ const OrderDetailsPage: React.FC = () => {
                   <span>Subtotal</span>
                   <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.total_amount)}</span>
                 </div>
+                {/* Tax is exclusive (0021): shown only when the order carries a rate. */}
+                {order.tax_rate != null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', ...type.bodyCompact, color: colors.onSurfaceVariant }}>
+                    <span>VAT ({order.tax_rate}%)</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.tax_amount ?? 0)}</span>
+                  </div>
+                )}
                 <div
                   style={{
                     display: 'flex',
@@ -398,7 +451,9 @@ const OrderDetailsPage: React.FC = () => {
                   }}
                 >
                   <span>Total</span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.total_amount)}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(order.grand_total ?? order.total_amount)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -492,6 +547,87 @@ const OrderDetailsPage: React.FC = () => {
                 <span style={{ ...type.bodyCompact, color: colors.onSurfaceVariant }}>{order.items.length} items</span>
               </div>
             </div>
+          </div>
+
+          {/* Payment / receivables (0020) */}
+          <div
+            style={{
+              background: colors.surfaceContainerLowest,
+              border: `1px solid ${colors.borderSubtle}`,
+              borderRadius: radius.lg,
+              padding: 20,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ ...type.titleMd, fontSize: 16.5, color: colors.onSurface }}>Payment</div>
+              {order.payment_status === 'paid' ? (
+                <CoopBadge variant="success">Paid</CoopBadge>
+              ) : order.payment_status === 'partial' ? (
+                <CoopBadge variant="warning">Part paid</CoopBadge>
+              ) : order.payment_status === 'overpaid' ? (
+                <CoopBadge variant="warning">Overpaid</CoopBadge>
+              ) : order.payment_status === 'unknown' ? (
+                <CoopBadge variant="neutral">Offline</CoopBadge>
+              ) : (
+                <CoopBadge variant="neutral">Unpaid</CoopBadge>
+              )}
+            </div>
+
+            {order.payment_status === 'unknown' ? (
+              <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+                Payments are recorded online. Reconnect to see what this customer has paid.
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', ...type.bodyCompact, color: colors.onSurfaceVariant }}>
+                    <span>Order total{order.tax_rate != null ? ' (incl. tax)' : ''}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {formatCurrency(order.grand_total ?? order.total_amount, business?.currency)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', ...type.bodyCompact, color: colors.onSurfaceVariant }}>
+                    <span>Received</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.amount_paid ?? 0, business?.currency)}</span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      paddingTop: 8,
+                      borderTop: `1px solid ${colors.borderSubtle}`,
+                      fontWeight: 700,
+                      fontSize: 15,
+                      color: (order.balance_due ?? 0) > 0 ? colors.error : colors.success ?? colors.onSurface,
+                    }}
+                  >
+                    <span>Balance due</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.balance_due ?? 0, business?.currency)}</span>
+                  </div>
+                </div>
+
+                <CoopButton
+                  variant="secondary"
+                  onClick={() => {
+                    setPayAmount(String(order.balance_due ?? ''));
+                    setPayOpen(true);
+                  }}
+                  disabled={
+                    isLocalModeActive() ||
+                    order.status === 'cancelled' ||
+                    (order.balance_due ?? 0) <= 0
+                  }
+                  style={{ marginTop: 14, width: '100%' }}
+                >
+                  Record payment
+                </CoopButton>
+                {order.status === 'cancelled' && (
+                  <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, marginTop: 8 }}>
+                    Cancelled orders cannot receive payments.
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* Timeline */}
@@ -621,6 +757,63 @@ const OrderDetailsPage: React.FC = () => {
         order={order}
         business={business}
       />
+
+      <CoopModal
+        open={payOpen}
+        onCancel={() => setPayOpen(false)}
+        title="Record a payment"
+        okText="Record payment"
+        cancelText="Cancel"
+        onOk={recordPayment}
+        okButtonProps={{ loading: payBusy }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label style={{ ...type.bodyCompact, color: colors.onSurfaceVariant }}>
+            Amount received
+            <Input
+              value={payAmount}
+              onChange={(e) => setPayAmount(e.target.value)}
+              inputMode="decimal"
+              prefix={business?.currency ?? ''}
+              style={{ marginTop: 6 }}
+            />
+            <span style={{ fontSize: 12, color: colors.outline }}>
+              Balance due: {formatCurrency(order.balance_due ?? 0, business?.currency)}
+            </span>
+          </label>
+
+          <label style={{ ...type.bodyCompact, color: colors.onSurfaceVariant }}>
+            Method
+            <Select
+              value={payMethod}
+              onChange={setPayMethod}
+              style={{ width: '100%', marginTop: 6 }}
+              options={[
+                { value: 'cash', label: 'Cash' },
+                { value: 'transfer', label: 'Bank transfer' },
+                { value: 'card', label: 'Card' },
+                { value: 'pos', label: 'POS terminal' },
+                { value: 'other', label: 'Other' },
+              ]}
+            />
+          </label>
+
+          <label style={{ ...type.bodyCompact, color: colors.onSurfaceVariant }}>
+            Reference (optional)
+            <Input
+              value={payReference}
+              onChange={(e) => setPayReference(e.target.value)}
+              placeholder="Transfer reference or receipt number"
+              style={{ marginTop: 6 }}
+            />
+          </label>
+
+          <div style={{ fontSize: 12, color: colors.outline }}>
+            Overpayment is refused: enter at most the balance due. A payment can be deleted
+            later (audited) if it was keyed against the wrong order.
+          </div>
+        </div>
+      </CoopModal>
     </div>
   );
 };
@@ -745,13 +938,31 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
           </tbody>
         </table>
 
-        {/* Total */}
+        {/* Totals — tax appears only when this order carried a rate (0021) */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 28 }}>
-          <div style={{ display: 'flex', gap: 40, alignItems: 'baseline' }}>
-            <span style={{ fontSize: 14, color: colors.onSurfaceVariant }}>Total</span>
-            <span style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-              {formatCurrency(order.total_amount, business?.currency)}
-            </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 260 }}>
+            {order.tax_rate != null && (
+              <>
+                <div style={{ display: 'flex', gap: 40, justifyContent: 'space-between', fontSize: 13, color: colors.onSurfaceVariant }}>
+                  <span>Subtotal</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(order.total_amount, business?.currency)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 40, justifyContent: 'space-between', fontSize: 13, color: colors.onSurfaceVariant }}>
+                  <span>VAT ({order.tax_rate}%)</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {formatCurrency(order.tax_amount ?? 0, business?.currency)}
+                  </span>
+                </div>
+              </>
+            )}
+            <div style={{ display: 'flex', gap: 40, alignItems: 'baseline', justifyContent: 'space-between', paddingTop: 6, borderTop: `1px solid ${colors.borderSubtle}` }}>
+              <span style={{ fontSize: 14, color: colors.onSurfaceVariant }}>Total</span>
+              <span style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                {formatCurrency(order.grand_total ?? order.total_amount, business?.currency)}
+              </span>
+            </div>
           </div>
         </div>
 

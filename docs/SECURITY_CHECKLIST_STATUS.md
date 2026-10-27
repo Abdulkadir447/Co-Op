@@ -29,7 +29,7 @@ Legend:
 | 8 | ✅ | `grep -rnIE "service_role\|sk-[A-Za-z0-9]{16,}\|AKIA[0-9A-Z]{12}" .` → 0 |
 | 9 | ✅ | no secret in `electron/`; `PAYSTACK_SECRET_KEY` etc. are backend env-only |
 | 10 | ✅ | `backend/config.py` reads DB URL from env; no literal creds |
-| 11 | ✅ | `OPENAI_API_KEY` from env |
+| 11 | ✅ | `OPENROUTER_API_KEY` from env |
 | 12 | ✅ | Gmail/OAuth deferred; nothing hardcoded |
 | 13 | ✅ | `.env` gitignored; only `.env.example` committed; one source of truth (root) |
 | 14 | ✅ | no secrets committed |
@@ -41,7 +41,7 @@ Legend:
 | 20 | ⚠️ | Clerk-hosted |
 | 21 | ⚠️ | Clerk session settings |
 | 22 | ⚠️ | Clerk revocation |
-| 23 | ⚠️ | enable MFA for owners in Clerk |
+| 23 | ⚠️ | enable MFA for owners in Clerk — **Clerk Pro ($25/mo) required**; not available on the free Hobby plan (see docs/GO_LIVE_COSTS.md) |
 | 24 | ⚠️ | Clerk stores the session; frontend keeps only the token in memory |
 | 25 | ⚠️ | Clerk-hosted pages |
 | 26 | ⚠️ | Clerk |

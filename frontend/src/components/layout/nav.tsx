@@ -14,6 +14,7 @@ import {
   TeamOutlined,
   UploadOutlined,
   UserOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 
 export interface NavItem {
@@ -31,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'inventory', label: 'Inventory', path: '/inventory', icon: <InboxOutlined /> },
   { key: 'orders', label: 'Orders', path: '/orders', icon: <TeamOutlined /> },
   { key: 'invoices', label: 'Invoices', path: '/invoices', icon: <FileTextOutlined /> },
+  { key: 'receivables', label: 'Receivables', path: '/receivables', icon: <WalletOutlined /> },
   { key: 'customers', label: 'Customers', path: '/customers', icon: <UserOutlined /> },
   { key: 'import', label: 'Import', path: '/import', icon: <UploadOutlined /> },
 ];

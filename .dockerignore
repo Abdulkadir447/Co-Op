@@ -1,0 +1,26 @@
+# Build context = repo root (see podman-compose.yml). Without this file the
+# whole working tree — node_modules, .venv, .git — is uploaded to the builder
+# before a single layer is built, which is slow and can leak local state into
+# the image.
+.git
+.gitignore
+.github
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.vite
+electron
+website
+Documents
+docs
+supabase
+tools
+database
+*.md
+.env
+.env.*

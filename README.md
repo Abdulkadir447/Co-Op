@@ -113,6 +113,45 @@ Provisional by design: payment provider (nothing is charged yet), and the
 Settings "coming soon" sections. See `docs/PRODUCT_READINESS.md` for the
 full status.
 
+## How the pieces fit (read this before asking "why do I need a backend?")
+
+Co-op has **three** independent services, and none of them can do another's job:
+
+| Layer | Service | Owns | Never does |
+|---|---|---|---|
+| **Identity** | **Clerk** | sign-in, sessions, MFA, password reset. Issues the session token | touch business data — the backend only calls Clerk to *verify* a token (`backend/clerk_auth.py`); there is no Clerk API call for orders/products anywhere |
+| **Data** | **Supabase** | the Postgres database (+ Storage for logos). Holds the 23 tables, 19 RLS policies, migrations | run application logic — it has no Python runtime, and its REST layer (PostgREST) cannot execute the stock ledger, order-state machine, tax snapshotting or report builders |
+| **Application** | **FastAPI** (`backend/`) | the business rules: stock movements, order transitions, invoices, tax, receivables, reports, CSV/XLSX/PDF export, rate limits, audit | store data of its own — every row lives in Supabase Postgres |
+
+So the split is exactly: **Clerk = who you are, Supabase = where the data lives,
+FastAPI = what the rules are.** All three are needed, and the third one is the
+app itself.
+
+Concretely, with Supabase connected but the API stopped:
+
+```
+GET /              -> 200   the UI loads
+GET /api/...       -> 502   every data call fails (vite proxy: ECONNREFUSED :8000)
+```
+
+`VITE_API_URL` decides where `/api` goes: unset → the dev proxy hits
+`localhost:8000` (run the backend locally); set to a deployed URL → the local
+frontend talks to a backend you deployed once, and you never start uvicorn
+again.
+
+If you would rather not run the API by hand at all, the whole stack runs as
+containers with one command — `podman-compose up -d --build` (or
+`docker compose up -d --build`), then http://localhost:3000. See
+`docs/RUN_LOCAL.md` §4b. uvicorn is started by the backend image, not by you.
+
+> **Why not let the browser talk to Supabase directly?** Two hard blockers:
+> (1) a browser cannot speak the Postgres wire protocol, and (2) the RLS
+> policies key off `current_setting('app.business_id')`, a value the *backend*
+> injects per request (`backend/rls.py`) — PostgREST never sets it, so reading
+> these tables through Supabase's REST API returns nothing. Supabase-as-a-whole-
+> backend is a real architecture for TypeScript apps using `supabase-js`; this
+> app is a Python service and would need a full rewrite to get there.
+
 ## Repository layout
 
 ```
@@ -179,15 +218,16 @@ python3 -m venv .venv
 DATABASE_URL=postgresql://... .venv/bin/uvicorn backend.main:app --reload
 ```
 
-Frontend (dev server, proxies `/api` to `localhost:8000`):
+Frontend (dev server, proxies `/api` to `localhost:8000`) — **pnpm**, the
+package manager this repo pins (`pnpm-lock.yaml`; `npm` would create a second
+lockfile and a different tree):
 
 ```bash
-cd frontend
-npm install
-npm run dev
+pnpm install        # once, from the repo root (installs the workspace)
+pnpm dev            # = pnpm --filter ./frontend dev  -> http://localhost:3000
 ```
 
-Desktop wrapper (optional): `npm run start` from the repo root.
+Desktop wrapper (optional): `pnpm dev:desktop` from the repo root.
 
 Packaged desktop builds (electron-builder, produces AppImage / NSIS / DMG
 per platform).
@@ -209,7 +249,7 @@ Locally, if you would rather build on your own machine:
 
 ```bash
 cd electron
-npm install
+npm ci                                          # npm on purpose here — electron/ ships package-lock.json
 VITE_API_URL=https://<your-api> npm run dist   # `npm run pack` for an unpacked build
 ```
 
