@@ -179,15 +179,16 @@ python3 -m venv .venv
 DATABASE_URL=postgresql://... .venv/bin/uvicorn backend.main:app --reload
 ```
 
-Frontend (dev server, proxies `/api` to `localhost:8000`):
+Frontend (dev server, proxies `/api` to `localhost:8000`) — **pnpm**, the
+package manager this repo pins (`pnpm-lock.yaml`; `npm` would create a second
+lockfile and a different tree):
 
 ```bash
-cd frontend
-npm install
-npm run dev
+pnpm install        # once, from the repo root (installs the workspace)
+pnpm dev            # = pnpm --filter ./frontend dev  -> http://localhost:3000
 ```
 
-Desktop wrapper (optional): `npm run start` from the repo root.
+Desktop wrapper (optional): `pnpm dev:desktop` from the repo root.
 
 Packaged desktop builds (electron-builder, produces AppImage / NSIS / DMG
 per platform).
@@ -209,7 +210,7 @@ Locally, if you would rather build on your own machine:
 
 ```bash
 cd electron
-npm install
+npm ci                                          # npm on purpose here — electron/ ships package-lock.json
 VITE_API_URL=https://<your-api> npm run dist   # `npm run pack` for an unpacked build
 ```
 

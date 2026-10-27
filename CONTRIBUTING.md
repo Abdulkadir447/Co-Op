@@ -21,8 +21,8 @@ git clone <repo-url> && cd Co-op
 python3 -m venv .venv
 .venv/bin/pip install -r backend/requirements.txt pytest pytest-asyncio
 
-# Frontend
-cd frontend && npm install && cd ..
+# Frontend (pnpm workspace — install from the repo ROOT, not inside frontend/)
+pnpm install
 
 # Environment
 cp .env.example .env   # then fill in real values
@@ -58,7 +58,7 @@ electron/   Optional desktop wrapper
 DATABASE_URL=postgresql://... .venv/bin/uvicorn backend.main:app --reload
 
 # Frontend (port 3000, proxies /api -> :8000)
-cd frontend && npm run dev
+pnpm dev          # = pnpm --filter ./frontend dev
 ```
 
 ## Testing
@@ -67,8 +67,9 @@ cd frontend && npm run dev
 # Backend — full suite from the repo root (contract test needs both trees)
 .venv/bin/python -m pytest
 
-# Frontend — type check + production build
-cd frontend && npx tsc --noEmit -p tsconfig.json && npm run build
+# Frontend — type check + production build (pnpm, from the repo root)
+pnpm --filter ./frontend exec tsc --noEmit -p tsconfig.json
+pnpm build
 ```
 
 A **contract test** scans every `api.get/post/...` call in the frontend and
