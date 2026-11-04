@@ -101,6 +101,19 @@ def assert_can_write(role: str, method: str, path: str) -> None:
     if any(path.startswith(p) for p in ROLE_AGNOSTIC_PREFIXES):
         return
     if not role_can_write(role, _path_prefix(path)):
+        # Tier 4 visibility: a refusal is a security signal, not just a 403.
+        # Without this line an escalation attempt leaves no trace anywhere —
+        # there is nothing to alert on. security_event() always logs at
+        # WARNING and POSTs to SECURITY_ALERT_WEBHOOK when configured, and
+        # deep-redacts the payload before it leaves the process.
+        from .security_events import security_event
+
+        security_event(
+            "authz_denied",
+            role=role,
+            method=method,
+            route=_path_prefix(path),
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Role {role!r} cannot perform this action",

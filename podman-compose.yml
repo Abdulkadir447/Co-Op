@@ -1,8 +1,22 @@
 # Co-op local stack (podman-compose / docker-compose compatible).
 #
-# Production deploys against a hosted Supabase/Postgres database via the
-# DATABASE_URL environment variable. This file provides a local Postgres for
-# development; it does NOT run MySQL (Task 11 / audit H3).
+# This is the "one command instead of three terminals" path:
+#
+#     podman-compose up -d --build      # or: docker compose up -d --build
+#     open http://localhost:3000        # nginx serves the app and proxies /api/
+#
+# Nothing but podman (or docker) is required on the host: Python, Node and
+# Postgres all run in containers. `uvicorn` is started by the backend image's
+# entrypoint, not by you.
+#
+# Production deploys against a hosted Supabase/Postgres database via
+# DATABASE_URL. The `db` service below is a LOCAL development Postgres; to use
+# your Supabase project instead, set DATABASE_URL in the environment (see
+# docs/RUN_LOCAL.md section 4b) and remove the `db` service + depends_on.
+# It does NOT run MySQL (Task 11 / audit H3).
+#
+# Required: VITE_CLERK_PUBLISHABLE_KEY (pk_test_... from dashboard.clerk.com).
+# It is baked into the bundle at build time, so changing it needs a rebuild.
 version: '3.8'
 services:
   backend:
@@ -10,15 +24,27 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      - DATABASE_URL=postgresql://coop:coop_password@db:5432/coop
-      - COOP_ENV=development
+      - DATABASE_URL=${DATABASE_URL:-postgresql://coop:coop_password@db:5432/coop}
+      - COOP_ENV=${COOP_ENV:-development}
       - CLERK_FRONTEND_API=${CLERK_FRONTEND_API:-}
       - CLERK_ALLOWED_ORIGINS=${CLERK_ALLOWED_ORIGINS:-}
+      # Optional: business logos go to Supabase Storage. Unset = the logo
+      # endpoint returns 503 and everything else works.
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+      - SUPABASE_STORAGE_BUCKET=${SUPABASE_STORAGE_BUCKET:-}
     ports:
       - "8000:8000"
     depends_on:
       - db
     restart: always
+    healthcheck:
+      # The app mounts /healthcheck at the root (no /api prefix in-container).
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthcheck').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   db:
     image: postgres:16-alpine
@@ -30,10 +56,24 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coop -d coop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
 
   frontend:
-    build: ./frontend
+    # Repo-root context: the frontend is a pnpm workspace member, so the build
+    # needs pnpm-lock.yaml / pnpm-workspace.yaml from the root.
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-}
+        # Empty on purpose: nginx proxies /api/ -> backend:8000, so the bundle
+        # must use relative URLs.
+        - VITE_API_URL=
     ports:
       - "3000:3000"
     depends_on:

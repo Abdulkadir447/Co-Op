@@ -32,11 +32,16 @@ DEFAULTS: dict[str, dict[str, float]] = {
     "imports": {"requests": 20, "window_seconds": 300},
     # Exports are cheap individually but unbounded in a loop.
     "exports": {"requests": 30, "window_seconds": 60},
+    # Owner-authored writes that change what the app will do later (the Zeno
+    # lesson ledger). A loop here cannot move money, but it can flood the
+    # prompt with noise, so it is bounded like everything else.
+    "writes": {"requests": 60, "window_seconds": 60},
 }
 
 _MESSAGES = {
     "imports": "Too many imports. Wait a few minutes and try again.",
     "exports": "Too many exports. Wait a moment and try again.",
+    "writes": "Too many changes. Wait a moment and try again.",
 }
 
 _limiters: dict[str, SlidingWindowRateLimiter] = {}
@@ -51,6 +56,7 @@ def limiter_for(section: str) -> SlidingWindowRateLimiter:
             requests=int(cfg.get("requests", fallback["requests"])),
             window_seconds=float(cfg.get("window_seconds", fallback["window_seconds"])),
             detail=_MESSAGES.get(section),
+            name=section,
         )
     return _limiters[section]
 
@@ -70,12 +76,14 @@ def _dependency(section: str):
 
 enforce_import_rate_limit = _dependency("imports")
 enforce_export_rate_limit = _dependency("exports")
+enforce_write_rate_limit = _dependency("writes")
 
 
 __all__ = [
     "DEFAULTS",
     "enforce_export_rate_limit",
     "enforce_import_rate_limit",
+    "enforce_write_rate_limit",
     "limiter_for",
     "reset",
 ]

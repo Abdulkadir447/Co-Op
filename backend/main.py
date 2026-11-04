@@ -48,9 +48,14 @@ from . import storage as storage_mod
 from .ai import service as ai_service
 from .ai import forecast as ai_forecast_mod
 from .ai import history as ai_history_mod
+from .ai import lessons as zeno_lessons
 from .ai import prompts as ai_prompts_mod
 from .ai.ratelimit import SlidingWindowRateLimiter, enforce_ai_rate_limit
-from .ratelimits import enforce_export_rate_limit, enforce_import_rate_limit
+from .ratelimits import (
+    enforce_export_rate_limit,
+    enforce_import_rate_limit,
+    enforce_write_rate_limit,
+)
 from .exports import export_report, ExportError
 from .notifications import build_daily_summary
 from .notifications import delivery as delivery_mod
@@ -101,6 +106,9 @@ from .schemas import (
     OrderCreate,
     OrderListResponse,
     OrderOut,
+    OrderPaymentCreate,
+    OrderPaymentsResponse,
+    ReceivablesResponse,
     OrderUpdate,
     ProductCreate,
     ProductListResponse,
@@ -189,7 +197,19 @@ async def security_headers(request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
-    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
+    response.headers.setdefault(
+        "Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+    )
+    response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+    # Every API response is per-tenant. Authenticated JSON must never be
+    # stored by a shared cache or replayed from the bfcache to the next user
+    # of the same machine — the same reason the nginx tier sets no-store on
+    # /api/. Set unconditionally: there is no cacheable API response here.
+    response.headers.setdefault(
+        "Cache-Control", "no-store, no-cache, must-revalidate, private"
+    )
     # The API is never rendered as a page; a strict CSP is safe here and
     # stops any accidental HTML/JS from executing if an error page leaks.
     response.headers.setdefault(
@@ -1451,6 +1471,10 @@ def _serialize_order(order: Order) -> OrderOut:
         for s in sorted(ALLOWED_ORDER_TRANSITIONS.get(current, set()))
     ]
 
+    from .receivables import balance_for
+
+    balance = balance_for(order)
+
     return OrderOut(
         id=order.id,
         customer_id=order.customer_id,
@@ -1458,6 +1482,12 @@ def _serialize_order(order: Order) -> OrderOut:
         status=order.status,
         allowed_transitions=allowed,
         total_amount=order.total_amount,
+        tax_rate=order.tax_rate,
+        tax_amount=round(float(order.tax_amount or 0.0), 2),
+        grand_total=order.grand_total,
+        amount_paid=balance.paid,
+        balance_due=balance.balance,
+        payment_status=balance.status,
         order_date=order.order_date,
         created_at=order.created_at,
         items=[
@@ -1536,11 +1566,21 @@ async def create_order(
             )
         )
 
+    # Tax is exclusive (0021): total_amount stays the NET subtotal, so every
+    # existing revenue number keeps its meaning; the tax and the rate that
+    # produced it are snapshotted here so a later rate change cannot reprice
+    # an order that already exists.
+    net_total = round(total, 2)
+    tax_rate = float(business.tax_rate) if business.tax_enabled else None
+    tax_amount = round(net_total * tax_rate / 100.0, 2) if tax_rate is not None else 0.0
+
     new_order = Order(
         business_id=business.id,
         customer_id=customer.id,
         status=order.status or "pending",
-        total_amount=round(total, 2),
+        total_amount=net_total,
+        tax_rate=tax_rate,
+        tax_amount=tax_amount,
         created_by=business.owner_id,
         items=item_models,
     )
@@ -1561,6 +1601,7 @@ async def create_order(
         change={
             "customer_id": new_order.customer_id,
             "total_amount": new_order.total_amount,
+            "tax_amount": new_order.tax_amount,
             "status": "pending",
         },
         actor=business.owner_id,
@@ -1675,6 +1716,173 @@ async def update_order_status(
     )
     # Re-load relationships refreshed by the stock restore.
     return _serialize_order(await _load_order(id, business, db))
+
+
+# ---------------------------------------------------------------------------
+# Receivables — money received against an order (0020)
+#
+# Reads are open to every role. Writes are limited to the people who
+# actually handle money: owner, manager, accountant and sales. (The path
+# matrix in team.py keys on the FIRST path segment, so `/orders/{id}/payments`
+# would otherwise inherit the sales/inventory rule — the accountant has to be
+# added explicitly here.)
+# ---------------------------------------------------------------------------
+
+_PAYMENT_ROLES = ("owner", "manager", "accountant", "sales")
+
+
+def _require_payment_role(role: str = Depends(team_mod.get_current_role)) -> str:
+    if role not in _PAYMENT_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Role {role!r} cannot record customer payments",
+        )
+    return role
+
+
+@app.get("/orders/{id}/payments", response_model=OrderPaymentsResponse, tags=["Orders"])
+async def list_order_payments(
+    id: int,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> OrderPaymentsResponse:
+    """The payment ledger for one order, with paid/outstanding totals."""
+    from . import receivables as recv
+
+    order = await _load_order(id, business, db)
+    return OrderPaymentsResponse(**await recv.list_payments(business, order))
+
+
+@app.post(
+    "/orders/{id}/payments",
+    response_model=OrderPaymentsResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Orders"],
+)
+async def record_order_payment(
+    id: int,
+    req: OrderPaymentCreate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(_require_payment_role),
+) -> OrderPaymentsResponse:
+    """Record money received. Refuses overpayment and cancelled orders."""
+    from . import receivables as recv
+
+    order = await _load_order(id, business, db)
+    try:
+        await recv.record_payment(
+            db, business, order,
+            amount=req.amount, method=req.method,
+            reference=req.reference, note=req.note,
+            actor=business.owner_id,
+        )
+    except recv.PaymentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    return OrderPaymentsResponse(**await recv.list_payments(business, order))
+
+
+@app.delete(
+    "/orders/{id}/payments/{payment_id}",
+    response_model=OrderPaymentsResponse,
+    tags=["Orders"],
+)
+async def delete_order_payment(
+    id: int,
+    payment_id: int,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(_require_payment_role),
+) -> OrderPaymentsResponse:
+    """Remove a mis-keyed payment (audited); the order itself is untouched."""
+    from . import receivables as recv
+
+    order = await _load_order(id, business, db)
+    try:
+        await recv.delete_payment(db, business, order, payment_id, actor=business.owner_id)
+    except recv.PaymentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    return OrderPaymentsResponse(**await recv.list_payments(business, order))
+
+
+@app.get("/receivables", response_model=ReceivablesResponse, tags=["Orders"])
+async def list_receivables(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> ReceivablesResponse:
+    """Everything the tenant is still owed, oldest first.
+
+    This is the question the app could not answer before 0020: "who owes me
+    money?". Cancelled orders are excluded (they were voided and their stock
+    returned); fully-paid orders are excluded because they are not
+    receivables.
+
+    Balances are computed per order from the payment ledger, which keeps a
+    single definition of "paid" shared with the order page. Aggregating in
+    SQL would duplicate that rule, so the trade is CPU for one source of
+    truth; the tenant's open orders are bounded by ``limit`` and the query
+    only loads orders that can still owe money.
+    """
+    from . import receivables as recv
+
+    stmt = (
+        select(Order)
+        .options(
+            selectinload(Order.customer),
+            selectinload(Order.payments),
+        )
+        .where(
+            Order.business_id == business.id,
+            Order.deleted_at.is_(None),
+            Order.status != "cancelled",
+        )
+        .order_by(Order.order_date.asc(), Order.id.asc())
+    )
+    orders = (await db.execute(stmt)).scalars().all()
+
+    rows: list[dict] = []
+    total_outstanding = 0.0
+    total_collected = 0.0
+    now = datetime.utcnow()
+    for order in orders:
+        balance = recv.balance_for(order)
+        total_collected += balance.paid
+        if balance.balance <= 0.005:
+            continue
+        total_outstanding += balance.balance
+        ordered_at = order.order_date or order.created_at
+        age_days = 0
+        if ordered_at is not None:
+            age_days = max(0, (now - ordered_at.replace(tzinfo=None)).days)
+        rows.append({
+            "order_id": order.id,
+            "customer_id": order.customer_id,
+            "customer_name": order.customer.full_name if order.customer else None,
+            "order_date": order.order_date,
+            "status": (order.status.value if hasattr(order.status, "value") else str(order.status)),
+            "subtotal": round(float(order.total_amount or 0.0), 2),
+            "tax_amount": round(float(order.tax_amount or 0.0), 2),
+            "total": balance.total,
+            "amount_paid": balance.paid,
+            "balance_due": balance.balance,
+            "payment_status": balance.status,
+            "age_days": age_days,
+        })
+
+    # Oldest first (biggest age first) — the ones to chase.
+    rows.sort(key=lambda r: (-r["age_days"], r["order_id"]))
+    count = len(rows)
+    start = (page - 1) * limit
+    return ReceivablesResponse(
+        items=rows[start:start + limit],
+        total_outstanding=round(total_outstanding, 2),
+        total_collected=round(total_collected, 2),
+        count=count,
+        page=page,
+        limit=limit,
+    )
 
 
 @app.delete("/orders/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Orders"])
@@ -2407,6 +2615,135 @@ async def ai_history_clear(
 
 
 # ---------------------------------------------------------------------------
+# Zeno learning ledger (0022) — graded mistakes + owner-accepted preferences.
+#
+# The trust rule is enforced in data, not in prose: only status='active' rows
+# reach the prompt, a preference is never obeyed from repetition alone, and
+# nothing here can mutate business data. Recording a lesson is an owner action;
+# reviewing a candidate is an owner action.
+# ---------------------------------------------------------------------------
+
+
+class ZenoLessonCreate(BaseModel):
+    kind: str = "mistake"
+    statement: str
+    severity: int = Field(3, ge=1, le=5)
+    scope: str = "general"
+    cost_amount: Optional[float] = Field(None, ge=0)
+    evidence_ref: Optional[str] = None
+
+
+class ZenoLessonUpdate(BaseModel):
+    status: Optional[str] = None
+    severity: Optional[int] = Field(None, ge=1, le=5)
+
+
+class ZenoLessonItem(BaseModel):
+    id: int
+    kind: str
+    scope: str
+    statement: str
+    severity: int
+    severity_label: Optional[str] = None
+    cost_amount: Optional[float] = None
+    cost_basis: Optional[str] = None
+    blast_radius: int = 0
+    repeat_count: int = 1
+    status: str
+    source: Optional[str] = None
+    evidence_ref: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class ZenoLessonsResponse(BaseModel):
+    items: List[ZenoLessonItem]
+    severities: Dict[int, str]
+
+
+@app.get("/ai/lessons", response_model=ZenoLessonsResponse, tags=["AI"])
+async def zeno_lessons_list(
+    status: Optional[str] = Query(None),
+    kind: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> ZenoLessonsResponse:
+    """What Zeno has learned in THIS business: graded mistakes and preferences.
+
+    Worst first — severity, then the money it cost, then how often it recurred.
+    ``severities`` is the 1-5 scale in words, so the UI never shows a bare number.
+    """
+    rows = await zeno_lessons.list_lessons(db, business.id, status=status, kind=kind, limit=limit)
+    return ZenoLessonsResponse(
+        items=[zeno_lessons.serialize(r) for r in rows],
+        severities=zeno_lessons.SEVERITY_LABELS,
+    )
+
+
+@app.post("/ai/lessons", response_model=ZenoLessonItem, status_code=201, tags=["AI"])
+async def zeno_lesson_record(
+    req: ZenoLessonCreate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_write_rate_limit),
+) -> ZenoLessonItem:
+    """Record a mistake (graded 1-5, optional cost) or a repeated preference.
+
+    A mistake is active immediately — it is a fact about what went wrong. A
+    preference is stored as a ``candidate``: Zeno does not obey it until the
+    owner accepts it in PATCH /ai/lessons/{id}.
+    """
+    try:
+        if req.kind == "preference":
+            lesson, _ = await zeno_lessons.observe_preference(
+                db, business.id, req.statement, scope=req.scope, evidence_ref=req.evidence_ref
+            )
+        elif req.kind == "mistake":
+            lesson, _ = await zeno_lessons.record_mistake(
+                db,
+                business.id,
+                req.statement,
+                severity=req.severity,
+                scope=req.scope,
+                cost_amount=req.cost_amount,
+                evidence_ref=req.evidence_ref,
+            )
+        else:
+            raise HTTPException(status_code=422, detail="kind must be mistake or preference")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    await db.flush()
+    return ZenoLessonItem(**zeno_lessons.serialize(lesson))
+
+
+@app.patch("/ai/lessons/{lesson_id}", response_model=ZenoLessonItem, tags=["AI"])
+async def zeno_lesson_update(
+    lesson_id: int,
+    req: ZenoLessonUpdate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_write_rate_limit),
+) -> ZenoLessonItem:
+    """Accept a candidate, dismiss a lesson, or re-grade it.
+
+    Tenant-scoped: another business's lesson is a 404, not a 403 — the same
+    "does not exist for you" answer every other Co-op route gives.
+    """
+    if req.status is None and req.severity is None:
+        raise HTTPException(status_code=422, detail="nothing to update")
+    try:
+        lesson = await zeno_lessons.set_status(
+            db, business.id, lesson_id, req.status or "active", severity=req.severity
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="lesson not found")
+    await db.flush()
+    return ZenoLessonItem(**zeno_lessons.serialize(lesson))
+
+
+# ---------------------------------------------------------------------------
 # Billing + Credits (Real Billing phase) — plans and credit enforcement are
 # REAL server-side state; payment collection is a later phase (nothing is
 # charged yet, and the UI says so honestly).
@@ -2751,11 +3088,13 @@ async def support_submit_issue(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
     user: ClerkUser = Depends(verify_clerk_token),
+    _rate: None = Depends(enforce_write_rate_limit),
 ) -> dict:
     """Record a problem report and email it to the support inbox.
 
-    Always allowed: there is no cadence, no prompt to dismiss and no limit on
-    how often a business can ask for help.
+    Always available — no cadence and no prompt to dismiss — but not
+    unbounded: each submission writes a row and sends an email, so a loop
+    here is an inbox flood. Bounded by the shared write limiter.
     """
     from . import support as support_mod
 

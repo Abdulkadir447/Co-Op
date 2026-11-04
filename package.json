@@ -6,8 +6,8 @@
   "scripts": {
     "prepare": "husky install",
     "commitlint": "commitlint --edit $1",
-    "build": "npm --prefix frontend run build",
-    "dev": "npm --prefix frontend run dev",
+    "build": "pnpm --filter ./frontend build",
+    "dev": "pnpm --filter ./frontend dev",
     "dist:desktop": "npm --prefix electron run dist",
     "dev:desktop": "npm --prefix electron run build:renderer && npm --prefix electron run start"
   },
@@ -19,5 +19,6 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  }
+  },
+  "packageManager": "pnpm@9.15.9"
 }

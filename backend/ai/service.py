@@ -23,6 +23,7 @@ from ..models import Business
 from .actions import validate_actions, validate_links
 from .context import build_context
 from .history import record_turn
+from .lessons import active_constraints, record_rejection, render_lessons
 from .providers.openrouter import ProviderError, build_provider
 from .prompts import REPAIR_PROMPT, build_system_prompt, user_prompt
 from .schemas import AiChatResponse
@@ -162,7 +163,11 @@ async def handle_chat(
     try:
         provider = build_provider(model, api_key)
         style = getattr(business, "ai_response_style", None) or "standard"
-        system = build_system_prompt(style)
+        # Cross-turn memory: only status='active' lessons reach the prompt.
+        # Read-only — this can teach Zeno what NOT to say; it cannot let Zeno
+        # change business data.
+        lessons_block = render_lessons(await active_constraints(db, business.id))
+        system = build_system_prompt(style, lessons_block)
         context_json = json.dumps(context, ensure_ascii=False, separators=(",", ":"))
         messages = user_prompt(question, context_json, history or [])
         try:
@@ -210,6 +215,14 @@ async def handle_chat(
     # --- Validate the proposal surface (links + actions) ---------------------
     links = validate_links(parsed.links)
     actions, rejected = await validate_actions(parsed.actions, db, business.id)
+
+    # Learn from refusals. The validator checks proposals against the LIVE row
+    # (stock, price, ambiguous customer), so a rejection is ground truth the
+    # model cannot fake. Recorded as a lesson, it is injected next turn.
+    for r in rejected:
+        await record_rejection(
+            db, business.id, str(r.get("type") or ""), str(r.get("reason") or "")
+        )
 
     credits = await record_usage(
         db,

@@ -21,6 +21,7 @@ from __future__ import annotations
 from enum import Enum
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Enum as SAEnum,
@@ -66,6 +67,14 @@ class Business(Base):
     # Public Supabase Storage URL for the business logo (0019). The bytes live
     # in object storage; the database records only which logo is current.
     logo_url = Column(String(1024), nullable=True)
+    # Tax presentation (0021). Tax is *exclusive* by default: an order's
+    # total_amount is the net subtotal and tax is added on top, so existing
+    # revenue reporting stays net-of-tax and correct. `tax_rate` is a
+    # percentage (7.5 = 7.5%), snapshotted onto each order at creation so a
+    # later rate change never rewrites an invoice the customer already holds.
+    tax_enabled = Column(Boolean, default=False, server_default=text("false"), nullable=False)
+    tax_rate = Column(Float, default=7.5, server_default="7.5", nullable=False)
+    tax_label = Column(String(20), default="VAT", server_default="VAT", nullable=False)
     # Ask Zeno answer style preference (0009): concise | standard | detailed.
     ai_response_style = Column(
         String(20), default="standard", server_default="standard", nullable=False
@@ -244,7 +253,11 @@ class Order(Base):
         default=OrderStatus.pending,
         nullable=False,
     )
-    total_amount = Column(Float, nullable=False, default=0.0)
+    total_amount = Column(Float, nullable=False, default=0.0)  # NET subtotal (ex-tax)
+    # Tax snapshot (0021). NULL rate = tax was off when this order was raised;
+    # 0.0 amount keeps grand_total == total_amount for every legacy row.
+    tax_rate = Column(Float, nullable=True)
+    tax_amount = Column(Float, nullable=False, default=0.0, server_default="0")
     created_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     updated_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     created_at = Column(DateTime, server_default=func.now())
@@ -265,9 +278,59 @@ class Order(Base):
         back_populates="order",
         cascade="all, delete-orphan",
     )
+    # Money received from the customer against this order (0020). Eagerly
+    # loaded with ``selectin`` so every place that already loads an Order can
+    # compute paid/balance without an extra query or a lazy-load in async
+    # context (which would raise MissingGreenlet).
+    payments = relationship(
+        "OrderPayment",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="OrderPayment.id",
+    )
+
+    @property
+    def grand_total(self) -> float:
+        """What the customer actually owes: net subtotal + tax."""
+        return round(float(self.total_amount or 0.0) + float(self.tax_amount or 0.0), 2)
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Order id={self.id} status={self.status.value!r}>"
+
+
+class OrderPayment(Base):
+    """One payment received from a customer against an order (0020).
+
+    Before this table Co-op could create, deliver and invoice an order and
+    never record that the customer actually paid — so "who owes me money?"
+    was unanswerable. Order *totals* stay the single source of truth for what
+    was charged (``orders.total_amount``); payments are a separate ledger of
+    what came in, which is why partial payments and overpayment detection are
+    possible without ever mutating the order.
+
+    Rows are append-only by convention: a correction is a delete (owner/
+    manager, audited) rather than an edit, so the ledger never silently
+    rewrites history.
+    """
+
+    __tablename__ = "order_payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)   # tenant isolation
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    method = Column(String(20), nullable=False, default="cash", server_default="cash")
+    reference = Column(String(120), nullable=True)   # transfer ref / receipt no.
+    note = Column(String(500), nullable=True)
+    received_at = Column(DateTime, server_default=func.now(), nullable=False)
+    created_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    order = relationship("Order", back_populates="payments")
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<OrderPayment id={self.id} order={self.order_id} amount={self.amount}>"
 
 
 class OrderItem(Base):
@@ -404,6 +467,57 @@ class AiHistory(Base):
     model = Column(String(64))
     credits_used = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class ZenoLesson(Base):
+    """One thing Zeno must not get wrong twice (AI learning ledger, 0022).
+
+    Two kinds, deliberately stored together because they share the same
+    lifecycle and the same trust rule — *only ``status="active"`` rows reach
+    the prompt*:
+
+    ``kind="mistake"``
+        Something Zeno did that was wrong. Carries a 1-5 severity and, where
+        Co-op can measure it, the money it cost (``cost_amount``) — the ledger
+        is the ground truth, so severity is graded by real consequence rather
+        than by a thumbs-down.
+
+    ``kind="preference"``
+        Something the OWNER asked for more than once. ``repeat_count`` counts
+        the asks; at 2 it becomes ``status="candidate"`` — a proposal, shown to
+        the owner, never silently obeyed. Only the owner moves it to
+        ``"active"``.
+
+    ``fingerprint`` (business_id + a hash of kind/scope/statement) is unique so
+    a repeated mistake bumps ``repeat_count`` instead of duplicating a row: the
+    ledger stays small enough to fit in a prompt.
+
+    Why the tiering matters: a wrong answer costs a sentence, a wrong *rule*
+    costs money. Nothing here can mutate business data, and nothing becomes
+    behavioural without the owner seeing it.
+    """
+
+    __tablename__ = "zeno_lessons"
+    __table_args__ = (
+        UniqueConstraint("business_id", "fingerprint", name="uq_zeno_lessons_business_fingerprint"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)
+    kind = Column(String(16), nullable=False, default="mistake")  # mistake | preference
+    scope = Column(String(40), nullable=False, default="general")
+    statement = Column(Text, nullable=False)  # owner-readable "do not ..."
+    severity = Column(Integer, nullable=False, default=3)  # 1 trivial .. 5 money/stock
+    cost_amount = Column(Float)  # measured/estimated money lost, business currency
+    cost_basis = Column(String(12), default="estimated")  # measured | estimated
+    blast_radius = Column(Integer, default=0)  # rows/customers affected
+    repeat_count = Column(Integer, nullable=False, default=1)
+    status = Column(String(12), nullable=False, default="active")  # active | candidate | dismissed
+    source = Column(String(12), nullable=False, default="owner")  # owner | detected | repeated
+    fingerprint = Column(String(40), nullable=False)
+    evidence_ref = Column(String(80))  # e.g. "order:412", "action:DRAFT_ORDER"
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class Subscription(Base):

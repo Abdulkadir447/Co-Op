@@ -66,8 +66,14 @@ def test_snapshot_names_the_alembic_head_it_was_generated_from() -> None:
 def test_snapshot_carries_the_row_level_security_backstop() -> None:
     # 0014_rls is the tenant-isolation backstop. A dump taken before it ran, or
     # with --no-privileges stripping more than expected, would ship without it.
+    from backend.rls import TENANT_TABLES
+
     sql = _sql()
-    assert sql.count("CREATE POLICY") == 18, (
-        "expected the 18 RLS policies from 0014_rls; the snapshot looks partial"
+    # One policy per tenant table. Derived from TENANT_TABLES rather than a
+    # hard-coded number so adding a table (e.g. 0020 order_payments) cannot
+    # silently ship a snapshot with a missing backstop.
+    assert sql.count("CREATE POLICY") == len(TENANT_TABLES), (
+        f"expected {len(TENANT_TABLES)} RLS policies (one per tenant table); "
+        "the snapshot looks partial"
     )
     assert "ENABLE ROW LEVEL SECURITY" in sql

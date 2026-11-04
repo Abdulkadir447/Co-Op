@@ -32,6 +32,7 @@ const CustomersPage = lazy(() => import('./pages/Customers'));
 const CustomerProfilePage = lazy(() => import('./pages/Customers/CustomerProfilePage'));
 const OrdersPage = lazy(() => import('./pages/Orders'));
 const InvoicesPage = lazy(() => import('./pages/Invoices'));
+const ReceivablesPage = lazy(() => import('./pages/Receivables'));
 const CreateOrderPage = lazy(() => import('./pages/Orders/CreateOrderPage'));
 const OrderDetailsPage = lazy(() => import('./pages/Orders/OrderDetailsPage'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
@@ -443,6 +444,7 @@ const App: React.FC = () => {
                         <Route path="/orders/new" element={<CreateOrderPage />} />
                         <Route path="/orders/:id" element={<OrderDetailsPage />} />
                         <Route path="/invoices" element={<InvoicesPage />} />
+                        <Route path="/receivables" element={<ReceivablesPage />} />
               <Route path="/coop-ai" element={<CoopAiPage />} />
               <Route path="/billing" element={<BillingPage />} />
               <Route path="/sync" element={<SyncPage />} />

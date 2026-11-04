@@ -2,6 +2,34 @@
 
 _Last updated: 2026-08-28 (product-readiness pass over the v1 feature set)._
 
+> **Update — 2026-10-23 (supersedes the counts and the payments section below).**
+>
+> * Backend suite is now **405 passed / 6 skipped** (not 226/310). Frontend 26.
+> * **Payments are no longer parked.** Paystack hosted-page checkout + verify +
+>   signature-checked webhook are implemented (`backend/payments.py`,
+>   `backend/paystack.py`, 37 tests). The remaining risk is that *no live
+>   charge has ever been made* — see `docs/LAUNCH_READINESS.md` §Blocking 4.
+> * **Receivables exist** (migration `0020_order_payments`): a customer payment
+>   can be recorded against an order, partially or fully, with an audited
+>   ledger and a computed balance. This was the largest "can't actually run a
+>   shop on it" gap. Invoices now report paid/balance too.
+> * **Tax/VAT exists** (migration `0021_tax`): exclusive by default, rate set
+>   per business, snapshotted onto each order so historical invoices never
+>   change, and shown on the order, the printable invoice and the invoice CSV.
+>   Revenue reporting stays net-of-tax.
+> * **Receivables list** (`/receivables` + page) answers "who owes me money?":
+>   outstanding orders, oldest first, with 30+ day age flags.
+> * **Costs are now documented per item** — `docs/GO_LIVE_COSTS.md` separates
+>   what is free (most of it) from what is genuinely paid, and corrects an
+>   earlier claim that Clerk's production config was free: MFA and custom
+>   session lifetime are Pro-only ($25/mo), and the free plan's fixed 7-day
+>   session is what limits offline use.
+> * **RLS is applied to the live Supabase project** (19 policies) —
+>   `docs/SUPABASE_PROVISIONING.md`.
+> * The RLS functional test still skips without `TEST_DATABASE_URL`, and the
+>   desktop offline mirror does **not** carry the payment ledger (payments are
+>   recorded online; the UI says so instead of guessing).
+
 **Verdict:** Co-op has a coherent, working v1 foundation: ingest →
 understand → operate → report → explain → draft → confirm → meter, with
 honest UI states wherever a capability is provisional. It is ready for

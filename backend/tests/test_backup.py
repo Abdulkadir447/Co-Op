@@ -92,6 +92,9 @@ async def test_restore_into_empty_business_rebuilds_data(api):
         "orders": 1,
         "order_items": 2,
         "stock_movements": 4,
+        # 0020: the payment ledger travels with the data (empty here — the
+        # seed raises orders without recording payments).
+        "order_payments": 0,
     }
 
     products = (await api.client.get("/products")).json()["items"]

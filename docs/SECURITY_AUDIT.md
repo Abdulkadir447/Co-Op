@@ -1,138 +1,156 @@
-# Security audit — Co-op
+# Security audit — the AI-app threat model, applied to THIS codebase
 
-Verified against the working tree, not against intention. Every line below was
-checked with a command that is written next to it, so the finding can be
-re-checked in seconds.
+Not a generic checklist. Every row below was checked against the code in this
+repository, and each one says **verified**, **fixed in this pass**, **gap** (real,
+not fixed) or **manual** (cannot be verified from here — needs a live browser,
+staging database, or a purchase).
 
-Scope: the checklist you sent (OWASP Top 10:2025 / ASVS 5 / API Top 10 /
-Electron / Supabase / GenAI), reduced to what this codebase can actually answer
-today. Items that need infrastructure you do not have yet (Supabase RLS, Clerk
-dashboard config, production monitoring) are marked **out of reach from here**
-rather than "passing" — pretending otherwise would be the worst possible
-outcome of an audit.
+Audited 2026-10-27 against `arena/06237ab6-co-op`. The earlier 20-item
+OWASP/ASVS pass is preserved at `docs/SECURITY_AUDIT_2026-10-22_OWASP.md`. Re-run the greps in §7 before
+trusting this document again.
 
-Legend: ✅ verified in code · ⚠️ open, fixable here · 🚧 needs infrastructure
-you don't have yet · ➖ not applicable
+## The short version
 
-**For the item-by-item disposition of all 170 checklist numbers, see
-`SECURITY_CHECKLIST_STATUS.md`** (tally: 110 done in code, 23 code-done +
-operator step, 31 ops/infra, 6 n/a). This document is the narrative; that one
-is the accountability table.
+This app is **not** a typical "vibe-coded" app, and the reason is architectural
+rather than careful: the browser never talks to the database. There is no
+`supabase-js` in the frontend, no anon key in the bundle, no PostgREST path and
+no client-side SQL. Every read and write is a FastAPI route that resolves the
+tenant server-side.
 
----
+That single decision deletes most of the attack surface in the brief:
 
-## 1. The 20 that could actually destroy the app
+| Attack in the brief | Why it does not apply here |
+|---|---|
+| RLS off → PostgREST enumeration → full dump (chain 1) | There is no PostgREST path from the browser. The DB is not reachable from it at all. |
+| `service_role` in the browser | Only `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` server-side (`backend/storage.py`); the frontend references neither. |
+| Firebase `allow read, write: if true` | No Firebase. |
+| IDOR via `/rest/v1/table?id=eq.N` | Every list/detail route filters `business_id == caller` centrally (`_scoped()`), and cross-tenant access is a 404 by test. |
+| Mass assignment (`role: admin`) | Every write body is an explicit Pydantic schema — `BusinessSettingsUpdate` lists 13 fields and cannot mutate `owner_id`/`id`. |
 
-| # | Risk | Status | Evidence |
-|---|---|---|---|
-| 1 | Broken authorization | ✅ | 65 routes take `Depends(get_current_business)`; `grep -c "Depends(get_current_business)" backend/main.py` |
-| 2 | Supabase RLS failure | 🚧 | No RLS policies in the repo (`find . -name "*.sql" | xargs grep -l "row level security"` → none). The app never uses the Supabase REST API — it talks to Postgres through SQLAlchemy with `business_id` in every query — so RLS is defence-in-depth, not the primary control. Enable it anyway before exposing a table to any client. |
-| 3 | Leaked service-role key | ✅ | No Supabase key exists in the tree: `grep -rnIE "service_role|sk-[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{12}" .` → 0 hits |
-| 4 | Tenant isolation | ✅ | `backend/tests/test_tenant_isolation.py`; every repository query filters on `business_id` |
-| 5 | Admin privilege escalation | ✅ | `/admin/*` requires `X-Admin-Token` (503 when unconfigured, 403 on mismatch) — `backend/main.py:2344` |
-| 6 | Authentication bypass | ✅ | Clerk JWKS verification (`backend/clerk_auth.py`); the test seam `COOP_TEST_AUTH_USER` **raises in production** — `clerk_auth.py:139` |
-| 7 | Session/token compromise | 🚧 | Clerk-owned. Token lifetime, revocation and rotation are dashboard settings — verify there, not here |
-| 8 | Hardcoded secrets | ✅ | Same grep as #3, plus `backend/config.py` reads everything from env/`config/<env>.json` |
-| 9 | SQL injection | ✅ | No interpolated SQL anywhere: `grep -rn "text(f\|execute(f\"" backend/` → 0 hits; all queries are SQLAlchemy expressions with bound parameters |
-| 10 | Electron privilege escape | ✅ | `contextIsolation: true`, `nodeIntegration: false`, **`sandbox: true`** and the navigation guard, all in `electron/security.js` — see §3 |
-| 11 | Unsafe IPC | ✅ | Allow-list only: unknown methods throw `Blocked non-allow-listed …` (`electron/main.js`); the preload exposes named functions, never a generic invoke (`electron/preload.js:24`) |
-| 12 | XSS | ✅ | React escapes by default; `grep -rn "dangerouslySetInnerHTML" frontend/src` → 0 hits |
-| 13 | Unrestricted API operations | ✅ | Role matrix in `backend/team.py` `WRITE_MATRIX`, enforced server-side in `get_current_business` |
-| 14 | Rate limiting | ✅ | `/ai/chat` (8/60 s) plus `/imports/commit` (20/5 min) and `/reports/{key}/export` (30/60 s), per Clerk user — `backend/ratelimits.py` |
-| 15 | File upload / import | ✅ | 5 MB cap and csv/xlsx only (`backend/main.py:1845`); exports neutralise leading `= + - @` in csv **and** xlsx — `backend/csvsafe.py` |
-| 16 | SSRF | ➖ | The backend never fetches a user-supplied URL |
-| 17 | Supply chain | ⚠️ | Backend pinned exactly, pnpm lockfile committed, **`electron` and `electron-builder` now pinned exactly**; `frontend/package.json` (27) still uses `^` ranges against the lockfile |
-| 18 | AI prompt injection | ✅ partially | Zeno answers from a verified context and a fixed, validated action registry; it cannot invent an action |
-| 19 | AI excessive agency | ✅ | AI actions require user confirmation; credit balance enforced with 402 on every AI request |
-| 20 | Monitoring / backups | 🚧 | Audit log exists (`/audit`, migration 0008) and backups exist; **no alerting** — nothing pages anybody |
+## Tier 0 — the first hour
 
-## 2. P0 items 16–35 (auth + API) in one pass
+| Item | Status | Evidence |
+|---|---|---|
+| Deny-by-default authz on every route | ✅ verified | One dependency, `get_current_business`, resolves tenant + role and calls `team_mod.assert_can_write(role, method, path)` — **fails closed**: unknown routes and unlisted methods are refused for non-owners. `ROLE_AGNOSTIC_PREFIXES` is the explicit, short allow-list. |
+| RLS on every table | ✅ verified (code) / **manual** (live) | 20 tenant tables in `backend/rls.py`, each with `USING` **and** `WITH CHECK` (`tenant_isolation_<table>`). Deliberately **not** `FORCE`, so the owning role (the backend) is unaffected — documented in `rls.py`. Live verification needs `TEST_DATABASE_URL`; the suite skips it here. |
+| Secrets out of the client bundle | ✅ verified | The bundle only ever contains `VITE_API_URL` and `VITE_CLERK_PUBLISHABLE_KEY` (public by design). Grep for `service_role\|sk_live\|secret_key` in `frontend/src` → 0 hits. |
+| Edge rate limits on auth/model/upload/write | ⚠️ **partly fixed** | AI (`/ai/chat`), imports, exports already had limits. **Added this pass:** a shared `writes` limiter on the lesson ledger and `/support/issues` (was unbounded while sending email — an inbox flood). **Gap:** limits are in-process, so they reset on restart and do not hold across instances; v1 is single-instance, and Redis is the fix when that changes. |
+| Webhook signature verification | ✅ verified | `paystack.verify_webhook_signature` — HMAC-SHA512 over the **raw** body, `hmac.compare_digest`. |
+| Price recomputation server-side | ✅ verified | Order totals, tax and payments are computed in `create_order`/`payments`; a client-sent `total_amount` is never trusted. |
 
-- **Password reset, MFA, brute force, credential stuffing, session storage**
-  (16–28): all delegated to Clerk. 🚧 Verify in the Clerk dashboard: MFA
-  enforcement for owners, session length, and that "identify additional
-  sessions" is on. Nothing in this repo can prove them.
-- **25 account enumeration**: Clerk's hosted pages decide this. 🚧
-- **29 auth events logged**: Clerk logs them; Co-op logs business mutations to
-  `audit_log`, not sign-ins. 🚧
-- **30 privilege escalation via client data**: role changes only happen through
-  `/team/invites` (owner/manager) and are re-checked server-side. ✅
-- **33 BOLA / IDOR**: every `/{id}` lookup is scoped to the caller's business;
-  `backend/tests/test_tenant_isolation.py` asserts a second tenant gets 404. ✅
-- **34 function-level auth**: `WRITE_MATRIX` maps each write path to allowed
-  roles, including `/invoices` and `/imports`. ✅
-- **35 property-level auth**: `ProductUpdate` deliberately omits
-  `current_stock` — stock only moves through `/products/{id}/adjust`, which
-  writes the ledger (`backend/schemas.py:46`). ✅
+## Tier 1 — before real users
 
-## 3. Electron — the real gaps
+| Item | Status | Evidence |
+|---|---|---|
+| Schema validation + field allowlists | ✅ verified | Pydantic v2 on every body; whitelisted update schemas; `Query(ge=, le=)` on numeric params; `Float(ge=0, le=100)` on the tax rate. |
+| Model output sanitised before render | ✅ mostly | The model returns a **strict JSON contract** (`_parse_reply`), the UI renders text through React (auto-escaped), and links are filtered against `ALLOWED_LINK_TARGETS` — a model cannot emit an arbitrary `href`. **Gap:** `kind`/`title` are not length-capped at the schema boundary. |
+| Strict CSP with nonces on the app shell | ✅ **fixed this pass** | `frontend/nginx.conf` had **zero** security headers — the CSP existed only on API responses, which protects nothing (the document that runs the app is served by nginx). Now: CSP (`script-src 'self'`, no `unsafe-inline`/`unsafe-eval`, Clerk + Supabase origins), HSTS+preload, nosniff, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, COOP, CORP, `X-Permitted-Cross-Domain-Policies`. `style-src` needs `'unsafe-inline'` — Ant Design injects styles; documented trade-off, not an oversight. |
+| `Cache-Control: no-store` on authenticated responses | ✅ **fixed this pass** | Neither tier set it. Now on every API response (middleware) and on `/api/` in nginx — one owner's receivables must not replay to the next person on a shared machine. |
+| Treat ingested content as untrusted | ✅ by construction | The model never reads uploaded files, emails or web pages. Its only input is `build_context`, built from the tenant's own rows. Uploads are images (`content_type` allow-list, 5 MB cap) used as logos — never parsed as data. **This removes the entire indirect-injection class (C1–C9) by architecture, not by filtering.** |
+| Token budgets / max agent steps / statement timeouts | ✅ partly | Credit ledger + per-month gate (`check_credits`), AI rate limit, one repair retry and no tool loop (single completion). **Gap:** no DB `statement_timeout`; a slow report can hold a connection. |
+| Automated object-level authz tests | ✅ verified | Cross-tenant reads/writes assert 404 across products, customers, orders, payments, invoices, team, and lessons. |
 
-Checked against the official Electron security checklist.
+## Tier 2 — structural
 
-✅ Already correct: `contextIsolation: true`, `nodeIntegration: false`, a CSP
-built per environment and applied via `onHeadersReceived`, no
-`shell.openExternal` anywhere, no `<webview>`, no custom protocol, IPC
-allow-list, single-instance lock.
+| Item | Status | Evidence |
+|---|---|---|
+| Tool least privilege | ✅ verified | `ACTION_REGISTRY` has exactly one entry (`DRAFT_ORDER`); the model cannot call anything else, and a proposal only executes after explicit user confirmation through the normal API. |
+| Human confirm on writes | ✅ verified | Same — the AI never writes. |
+| MCP allowlist / pinned tool hashes | n/a | No MCP, no agent tool loop, no RAG. Nothing to pin. |
+| Per-tenant RAG namespacing | n/a | No retrieval layer. |
+| Signed URLs / private buckets | ⚠️ **gap** | `storage.public_url()` is used for logos (fine — a logo is public by nature). `signed_url()` exists but nothing else uses it, because nothing else is uploaded. Revisit the moment invoices/attachments become uploadable: **do not** extend `public_url` to them. |
+| Egress allowlist blocking link-local/metadata | ⚠️ **gap** | No user-supplied URL is fetched anywhere (no SSRF sink — verified by grep on `httpx`/`requests` call sites). But there is no egress allow-list either, so a future feature that fetches a URL would be unprotected. |
+| Parameterised queries only | ✅ verified | ORM throughout. The only `text()` f-string is a constant GUC name in `rls.py`. No `ORDER BY` is built from user input. |
 
-✅ Fixed (all three, tested in `electron/test/security.test.js`):
+## Tier 3 — supply chain
 
-1. **Renderer sandbox** — `sandbox: true` is set for every window. The preload
-   only bridges `ipcRenderer`, so this cost nothing.
-2. **Navigation guard** — `web-contents-created` installs
-   `setWindowOpenHandler` (deny; `http(s)` links are handed to the user's real
-   browser via `shell.openExternal`) and a `will-navigate` listener that calls
-   `preventDefault()` for anything that is not `file:`/`devtools:`. The logic
-   lives in `electron/security.js` so the suite can drive it with a stub
-   renderer instead of grepping source.
-3. **Electron pinned** — `electron` and `electron-builder` are exact versions.
-   `electron/test/windows.test.js` asserts every module `main.js` requires is
-   in `build.files`; adding `security.js` without listing it failed that test,
-   which is the packaging check doing its job.
+| Item | Status | Evidence |
+|---|---|---|
+| Committed lockfile + `--frozen-lockfile` | ✅ verified | `pnpm-lock.yaml`; CI and `frontend/Dockerfile` use `--frozen-lockfile`. **Gap:** `backend/requirements.txt` mixes exact pins (`fastapi==`) with ranges (`sqlalchemy>=2.0.0`) and has no hash lock — a compromised or yanked release installs silently. |
+| Actions pinned to SHAs | ✅ **fixed this pass** | All six actions in `ci.yml`/`desktop.yml` now reference 40-char commit SHAs with the version in a comment (resolved via `git ls-remote`, including the annotated `pnpm/action-setup@v3` tag). |
+| `permissions: {}` on workflows | ✅ **fixed this pass** | `ci.yml` had none, so it inherited the repository default (possibly write). Now `contents: read`, per-job for the new scan. `desktop.yml` already restricted. |
+| gitleaks pre-commit + history scan | ✅ **fixed this pass** | New `secrets` job with `fetch-depth: 0` (a key committed then deleted is still leaked) and `.gitleaks.toml` whose only exclusions are literal placeholders in docs/`.env.example`. |
+| `pull_request_target` leaks | ✅ verified | Neither workflow uses it. |
+| Digest-pinned images | ⚠️ **gap** | `postgres:16-alpine`, `python:3.11-slim`, `node:22-alpine`, `nginx:alpine` are tags, not digests. |
+| `npm audit` signatures / safetensors | ⚠️ n/a-partial | No model artefacts are downloaded (no pickle, no safetensors). `npm audit` is not wired into CI. |
 
-## 4. What I would fix, in order
+## Tier 4 — visibility
 
-1. ✅ **CSV formula injection** — `backend/csvsafe.py` prefixes any cell
-   starting with `= + - @` (or a tab/CR) with a `'`, leaving plain numbers
-   numeric. Applied in `backend/exports/renderers.py` for both csv and xlsx
-   (`defuse_workbook`, because openpyxl types a leading `=` as a formula on
-   assignment) and in `backend/invoicing.py` for customer name and email.
-   `backend/tests/test_export_safety.py` drives the real endpoints with
-   `=cmd|'/c calc'!A1`, `=HYPERLINK(...)`, `@SUM(A1)` and `+234 …` and asserts
-   no exported cell — in either format — can execute.
-2. ✅ **Electron sandbox + navigation guard** — see §3.
-3. ✅ **Rate limits beyond `/ai/chat`** — `backend/ratelimits.py` adds
-   per-Clerk-user sliding windows for `/imports/commit` (20 per 5 minutes) and
-   `/reports/{key}/export` (30 per 60 seconds), configured per environment in
-   `config/<env>.json` (`requests: 0` disables, which the testing environment
-   does). `backend/tests/test_ratelimits.py` proves the 429 path on both routes.
-4. ✅ **`electron` pinned**; frontend ranges still sit against the lockfile.
-5. **Supabase RLS** before any table is exposed to a client, plus a key
-   rotation runbook. 🚧
-6. **Alerting**: nothing currently tells you that an admin token was used, that
-   a login storm happened, or that a bulk export ran. 🚧
+| Item | Status | Evidence |
+|---|---|---|
+| Audit log of data changes | ✅ verified | `audit_log` + `GET /audit`, one row per create/update/delete/status/adjust/import/plan change/restore, including offline-synced operations. |
+| Structured audit of **authz decisions** | ✅ **fixed this pass** | `team.assert_can_write` now emits `security_event("authz_denied", role, method, route)` on every refusal, and a tripped rate limit emits `rate_limit_tripped` (keyed by a **hashed** user id, so no raw identifier reaches an alert webhook). `security_event` already logs at WARNING and POSTs to `SECURITY_ALERT_WEBHOOK` when configured, with `deep_redact` applied. Pinned by `test_security_baseline.py`. **Gap that remains:** cross-tenant 404s are not events — a probe for another tenant's order is indistinguishable from a typo. |
+| Alerting (403 spikes, egress, spend, webhook failures) | ⚠️ **partly** | The delivery path exists: `SECURITY_ALERT_WEBHOOK` receives every `security_event` (bad Paystack signature, rejected admin token, rejected platform admin, and now authz denials + rate-limit trips). What is missing is the *rules on the receiving end* — nobody is paged on a spike. Wire the webhook to a channel and add threshold rules. |
+| Quarterly external pentest | manual | Not a code task. |
 
-## 5. How to re-run this audit
+## Headers baseline
 
-```bash
-# authorisation coverage
+| Header | API (FastAPI) | Web app (nginx) |
+|---|---|---|
+| `Strict-Transport-Security` | prod only, `max-age` 2y | **added**: `includeSubDomains; preload` |
+| `Content-Security-Policy` | `default-src 'none'` | **added**: app CSP (see Tier 1) |
+| `X-Content-Type-Options` | ✅ | **added** |
+| `Referrer-Policy` | `no-referrer` | **added**: `strict-origin-when-cross-origin` (the baseline you specified) |
+| `Permissions-Policy` | ✅ (extended) | **added**, incl. `payment=(), usb=()` |
+| COOP / CORP | **added** | **added** |
+| `Cache-Control: no-store` | **added** | **added** on `/api/` |
+
+## The five chains, tested against this app
+
+1. **RLS off → PostgREST enumeration → dump.** *Not reachable.* No PostgREST
+   client, no anon key, no DB credentials in the bundle. RLS remains a
+   second-layer backstop for a future non-owner DB role.
+2. **IDOR + token in localStorage → takeover.** *Mitigated.* Tenant scoping is
+   central and cross-tenant is a 404 by test; the token lives in Clerk's own
+   storage and is a short-lived session token, not a long-lived API key.
+3. **Indirect injection + exfil tool → tenant theft.** *Not reachable.* No
+   document ingestion, no tools, no egress. The model's only inputs are the
+   caller's own verified rows, and its only output path is a JSON contract.
+4. **Prompt-leaked keys + SSRF → cloud credentials.** *Not reachable.* The
+   system prompt contains no secrets (it is a static string plus context), and
+   there is no URL-fetching sink to chain into.
+5. **Webhook forgery + referral loop → free product.** *Mitigated.* HMAC-SHA512
+   over the raw body with a constant-time compare, and plans are granted by the
+   server after verifying with Paystack (`/billing/payments/verify`), not by
+   anything the client sends.
+
+## What is still missing, in the order I would fix it
+
+1. **Log cross-tenant 404s.** Authz *refusals* are now events, but a request for
+   another tenant's object still returns a plain 404 with no signal — an IDOR
+   probe looks exactly like a typo in an id. Add the event at the scoping
+   helper, then alert on it.
+2. **Hash-lock the Python dependencies** (`pip-compile` → hashes, or
+   `uv lock`). This is the cheapest remaining supply-chain win.
+3. **`statement_timeout` on Postgres sessions** — a report query should not be
+   able to hold a connection indefinitely.
+4. **Digest-pin the container images.**
+5. **Electron CSP: drop `'unsafe-eval'` for packaged builds.** `electron/main.js`
+   keeps it for the Vite dev runtime; a packaged renderer does not need it, and
+   it is the one place a strict CSP is weakened in a shipped artefact. I did not
+   change it in this pass because the desktop build cannot be executed in this
+   environment — an untested CSP change can white-screen the app, which is worse
+   than the finding.
+6. **A staging run of the RLS test** (`TEST_DATABASE_URL`) so the 20 policies are
+   proven on Postgres rather than asserted against source.
+
+## §7 — re-run these checks
+
+```sh
+# secrets in the client bundle
+grep -rniE "service_role|sk_live|secret_?key" frontend/src
+grep -rhoE "VITE_[A-Z_]+" frontend/src | sort -u     # expect only API_URL + CLERK key
+
+# SQL built from strings
+grep -rn 'text(f"\|execute(f"' backend/*.py | grep -v tests
+
+# routes with no authz dependency
+grep -n "@app\." backend/main.py | wc -l
 grep -c "Depends(get_current_business)" backend/main.py
 
-# secrets
-grep -rnIE "service_role|sk-[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{12}" \
-  --exclude-dir=.git --exclude-dir=node_modules .
+# headers actually served
+curl -sI https://<host>/ | grep -iE "content-security|strict-transport|referrer|cache-control"
 
-# injected SQL
-grep -rn 'text(f\|execute(f"' backend/
-
-# XSS sinks
-grep -rn "dangerouslySetInnerHTML" frontend/src
-
-# Electron posture
-grep -n "nodeIntegration\|contextIsolation\|sandbox\|setWindowOpenHandler\|shell.openExternal" electron/*.js
-
-# tenant isolation + roles
-.venv/bin/python -m pytest backend/tests/test_tenant_isolation.py backend/tests/test_team.py -q
+# rate limits present
+grep -rn "Depends(enforce_" backend/main.py
 ```
-
-This file is a snapshot. The commands above are the part worth keeping — an
-audit you cannot re-run is a rumour.

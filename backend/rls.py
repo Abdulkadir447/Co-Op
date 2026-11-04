@@ -44,6 +44,8 @@ TENANT_TABLES = (
     "business_invitations",
     "payments",
     "issue_reports",
+    "order_payments",
+    "zeno_lessons",
 )
 
 GUC = "app.business_id"

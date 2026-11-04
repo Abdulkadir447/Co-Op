@@ -1,7 +1,7 @@
 -- Co-op schema snapshot — GENERATED, DO NOT EDIT BY HAND.
 --
 -- Regenerate with:  python supabase/scripts/export_schema.py
--- Source of truth:  backend/alembic/versions/ (revision 0019_business_logo (head))
+-- Source of truth:  backend/alembic/versions/ (revision 0022_zeno_lessons (head))
 --
 -- Apply in the Supabase SQL editor, or with:
 --     supabase db push
@@ -88,6 +88,48 @@ CREATE TABLE public.ai_usage (
     answer_kind character varying(20),
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+CREATE TABLE public.zeno_lessons (
+    id integer NOT NULL,
+    business_id integer NOT NULL,
+    kind character varying(16) DEFAULT 'mistake'::character varying NOT NULL,
+    scope character varying(40) DEFAULT 'general'::character varying NOT NULL,
+    statement text NOT NULL,
+    severity integer DEFAULT 3 NOT NULL,
+    cost_amount double precision,
+    cost_basis character varying(12) DEFAULT 'estimated'::character varying,
+    blast_radius integer DEFAULT 0,
+    repeat_count integer DEFAULT 1 NOT NULL,
+    status character varying(12) DEFAULT 'active'::character varying NOT NULL,
+    source character varying(12) DEFAULT 'owner'::character varying NOT NULL,
+    fingerprint character varying(40) NOT NULL,
+    evidence_ref character varying(80),
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: zeno_lessons_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.zeno_lessons_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: zeno_lessons_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.zeno_lessons_id_seq OWNED BY public.zeno_lessons.id;
+
+
 
 
 --
@@ -282,7 +324,10 @@ CREATE TABLE public.businesses (
     deleted_by character varying(255),
     version integer DEFAULT 1 NOT NULL,
     ai_response_style character varying(20) DEFAULT 'standard'::character varying NOT NULL,
-    logo_url character varying(1024)
+    logo_url character varying(1024),
+    tax_enabled boolean DEFAULT false NOT NULL,
+    tax_rate double precision DEFAULT 7.5 NOT NULL,
+    tax_label character varying(20) DEFAULT 'VAT'::character varying NOT NULL
 );
 
 
@@ -582,6 +627,44 @@ ALTER SEQUENCE public.order_items_id_seq OWNED BY public.order_items.id;
 
 
 --
+-- Name: order_payments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.order_payments (
+    id integer NOT NULL,
+    business_id integer NOT NULL,
+    order_id integer NOT NULL,
+    amount double precision NOT NULL,
+    method character varying(20) DEFAULT 'cash'::character varying NOT NULL,
+    reference character varying(120),
+    note character varying(500),
+    received_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_by character varying(255),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: order_payments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.order_payments_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: order_payments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.order_payments_id_seq OWNED BY public.order_payments.id;
+
+
+--
 -- Name: orders; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -592,6 +675,8 @@ CREATE TABLE public.orders (
     order_date timestamp with time zone DEFAULT now() NOT NULL,
     status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
     total_amount double precision DEFAULT 0.0 NOT NULL,
+    tax_rate double precision,
+    tax_amount double precision DEFAULT 0 NOT NULL,
     created_by character varying(255),
     updated_by character varying(255),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -974,6 +1059,7 @@ ALTER TABLE ONLY public.order_items ALTER COLUMN id SET DEFAULT nextval('public.
 -- Name: orders id; Type: DEFAULT; Schema: public; Owner: -
 --
 
+ALTER TABLE ONLY public.order_payments ALTER COLUMN id SET DEFAULT nextval('public.order_payments_id_seq'::regclass);
 ALTER TABLE ONLY public.orders ALTER COLUMN id SET DEFAULT nextval('public.orders_id_seq'::regclass);
 
 
@@ -1145,6 +1231,14 @@ ALTER TABLE ONLY public.licenses
 
 ALTER TABLE ONLY public.order_items
     ADD CONSTRAINT order_items_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: order_payments order_payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_payments
+    ADD CONSTRAINT order_payments_pkey PRIMARY KEY (id);
 
 
 --
@@ -1498,6 +1592,20 @@ CREATE INDEX ix_licenses_business_id ON public.licenses USING btree (business_id
 
 
 --
+-- Name: ix_order_payments_business_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_order_payments_business_id ON public.order_payments USING btree (business_id);
+
+
+--
+-- Name: ix_order_payments_order_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_order_payments_order_id ON public.order_payments USING btree (order_id);
+
+
+--
 -- Name: ix_payments_business_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1628,6 +1736,14 @@ ALTER TABLE ONLY public.order_items
 
 ALTER TABLE ONLY public.order_items
     ADD CONSTRAINT fk_order_items_product_id FOREIGN KEY (product_id) REFERENCES public.products(id);
+
+
+--
+-- Name: order_payments order_payments_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.order_payments
+    ADD CONSTRAINT order_payments_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id);
 
 
 --
@@ -1773,6 +1889,7 @@ ALTER TABLE public.licenses ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_payments ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: orders; Type: ROW SECURITY; Schema: public; Owner: -
@@ -1895,6 +2012,13 @@ CREATE POLICY tenant_isolation_order_items ON public.order_items USING ((busines
 
 
 --
+-- Name: order_payments tenant_isolation_order_payments; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation_order_payments ON public.order_payments USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
+
+
+--
 -- Name: orders tenant_isolation_orders; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1934,6 +2058,48 @@ CREATE POLICY tenant_isolation_subscriptions ON public.subscriptions USING ((bus
 --
 
 CREATE POLICY tenant_isolation_sync_queue ON public.sync_queue USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
+
+
+--
+-- Name: zeno_lessons id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.zeno_lessons ALTER COLUMN id SET DEFAULT nextval('public.zeno_lessons_id_seq'::regclass);
+
+
+--
+-- Name: zeno_lessons uq_zeno_lessons_business_fingerprint; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.zeno_lessons
+    ADD CONSTRAINT uq_zeno_lessons_business_fingerprint UNIQUE (business_id, fingerprint);
+
+
+--
+-- Name: ix_zeno_lessons_business_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_zeno_lessons_business_id ON public.zeno_lessons USING btree (business_id);
+
+
+--
+-- Name: ix_zeno_lessons_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_zeno_lessons_id ON public.zeno_lessons USING btree (id);
+
+
+--
+-- Name: zeno_lessons; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.zeno_lessons ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: zeno_lessons tenant_isolation_zeno_lessons; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation_zeno_lessons ON public.zeno_lessons USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
 
 
 --
