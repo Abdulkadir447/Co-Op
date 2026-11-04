@@ -48,6 +48,7 @@ from . import storage as storage_mod
 from .ai import service as ai_service
 from .ai import forecast as ai_forecast_mod
 from .ai import history as ai_history_mod
+from .ai import lessons as zeno_lessons
 from .ai import prompts as ai_prompts_mod
 from .ai.ratelimit import SlidingWindowRateLimiter, enforce_ai_rate_limit
 from .ratelimits import enforce_export_rate_limit, enforce_import_rate_limit
@@ -2595,6 +2596,133 @@ async def ai_history_clear(
     """Delete the business's AI activity (explicit owner action)."""
     deleted = await ai_history_mod.clear_history(db, business.id)
     return {"deleted": deleted}
+
+
+# ---------------------------------------------------------------------------
+# Zeno learning ledger (0022) — graded mistakes + owner-accepted preferences.
+#
+# The trust rule is enforced in data, not in prose: only status='active' rows
+# reach the prompt, a preference is never obeyed from repetition alone, and
+# nothing here can mutate business data. Recording a lesson is an owner action;
+# reviewing a candidate is an owner action.
+# ---------------------------------------------------------------------------
+
+
+class ZenoLessonCreate(BaseModel):
+    kind: str = "mistake"
+    statement: str
+    severity: int = Field(3, ge=1, le=5)
+    scope: str = "general"
+    cost_amount: Optional[float] = Field(None, ge=0)
+    evidence_ref: Optional[str] = None
+
+
+class ZenoLessonUpdate(BaseModel):
+    status: Optional[str] = None
+    severity: Optional[int] = Field(None, ge=1, le=5)
+
+
+class ZenoLessonItem(BaseModel):
+    id: int
+    kind: str
+    scope: str
+    statement: str
+    severity: int
+    severity_label: Optional[str] = None
+    cost_amount: Optional[float] = None
+    cost_basis: Optional[str] = None
+    blast_radius: int = 0
+    repeat_count: int = 1
+    status: str
+    source: Optional[str] = None
+    evidence_ref: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class ZenoLessonsResponse(BaseModel):
+    items: List[ZenoLessonItem]
+    severities: Dict[int, str]
+
+
+@app.get("/ai/lessons", response_model=ZenoLessonsResponse, tags=["AI"])
+async def zeno_lessons_list(
+    status: Optional[str] = Query(None),
+    kind: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> ZenoLessonsResponse:
+    """What Zeno has learned in THIS business: graded mistakes and preferences.
+
+    Worst first — severity, then the money it cost, then how often it recurred.
+    ``severities`` is the 1-5 scale in words, so the UI never shows a bare number.
+    """
+    rows = await zeno_lessons.list_lessons(db, business.id, status=status, kind=kind, limit=limit)
+    return ZenoLessonsResponse(
+        items=[zeno_lessons.serialize(r) for r in rows],
+        severities=zeno_lessons.SEVERITY_LABELS,
+    )
+
+
+@app.post("/ai/lessons", response_model=ZenoLessonItem, status_code=201, tags=["AI"])
+async def zeno_lesson_record(
+    req: ZenoLessonCreate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> ZenoLessonItem:
+    """Record a mistake (graded 1-5, optional cost) or a repeated preference.
+
+    A mistake is active immediately — it is a fact about what went wrong. A
+    preference is stored as a ``candidate``: Zeno does not obey it until the
+    owner accepts it in PATCH /ai/lessons/{id}.
+    """
+    try:
+        if req.kind == "preference":
+            lesson, _ = await zeno_lessons.observe_preference(
+                db, business.id, req.statement, scope=req.scope, evidence_ref=req.evidence_ref
+            )
+        elif req.kind == "mistake":
+            lesson, _ = await zeno_lessons.record_mistake(
+                db,
+                business.id,
+                req.statement,
+                severity=req.severity,
+                scope=req.scope,
+                cost_amount=req.cost_amount,
+                evidence_ref=req.evidence_ref,
+            )
+        else:
+            raise HTTPException(status_code=422, detail="kind must be mistake or preference")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    await db.flush()
+    return ZenoLessonItem(**zeno_lessons.serialize(lesson))
+
+
+@app.patch("/ai/lessons/{lesson_id}", response_model=ZenoLessonItem, tags=["AI"])
+async def zeno_lesson_update(
+    lesson_id: int,
+    req: ZenoLessonUpdate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> ZenoLessonItem:
+    """Accept a candidate, dismiss a lesson, or re-grade it.
+
+    Tenant-scoped: another business's lesson is a 404, not a 403 — the same
+    "does not exist for you" answer every other Co-op route gives.
+    """
+    if req.status is None and req.severity is None:
+        raise HTTPException(status_code=422, detail="nothing to update")
+    try:
+        lesson = await zeno_lessons.set_status(
+            db, business.id, lesson_id, req.status or "active", severity=req.severity
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="lesson not found")
+    await db.flush()
+    return ZenoLessonItem(**zeno_lessons.serialize(lesson))
 
 
 # ---------------------------------------------------------------------------

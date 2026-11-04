@@ -469,6 +469,57 @@ class AiHistory(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class ZenoLesson(Base):
+    """One thing Zeno must not get wrong twice (AI learning ledger, 0022).
+
+    Two kinds, deliberately stored together because they share the same
+    lifecycle and the same trust rule — *only ``status="active"`` rows reach
+    the prompt*:
+
+    ``kind="mistake"``
+        Something Zeno did that was wrong. Carries a 1-5 severity and, where
+        Co-op can measure it, the money it cost (``cost_amount``) — the ledger
+        is the ground truth, so severity is graded by real consequence rather
+        than by a thumbs-down.
+
+    ``kind="preference"``
+        Something the OWNER asked for more than once. ``repeat_count`` counts
+        the asks; at 2 it becomes ``status="candidate"`` — a proposal, shown to
+        the owner, never silently obeyed. Only the owner moves it to
+        ``"active"``.
+
+    ``fingerprint`` (business_id + a hash of kind/scope/statement) is unique so
+    a repeated mistake bumps ``repeat_count`` instead of duplicating a row: the
+    ledger stays small enough to fit in a prompt.
+
+    Why the tiering matters: a wrong answer costs a sentence, a wrong *rule*
+    costs money. Nothing here can mutate business data, and nothing becomes
+    behavioural without the owner seeing it.
+    """
+
+    __tablename__ = "zeno_lessons"
+    __table_args__ = (
+        UniqueConstraint("business_id", "fingerprint", name="uq_zeno_lessons_business_fingerprint"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)
+    kind = Column(String(16), nullable=False, default="mistake")  # mistake | preference
+    scope = Column(String(40), nullable=False, default="general")
+    statement = Column(Text, nullable=False)  # owner-readable "do not ..."
+    severity = Column(Integer, nullable=False, default=3)  # 1 trivial .. 5 money/stock
+    cost_amount = Column(Float)  # measured/estimated money lost, business currency
+    cost_basis = Column(String(12), default="estimated")  # measured | estimated
+    blast_radius = Column(Integer, default=0)  # rows/customers affected
+    repeat_count = Column(Integer, nullable=False, default=1)
+    status = Column(String(12), nullable=False, default="active")  # active | candidate | dismissed
+    source = Column(String(12), nullable=False, default="owner")  # owner | detected | repeated
+    fingerprint = Column(String(40), nullable=False)
+    evidence_ref = Column(String(80))  # e.g. "order:412", "action:DRAFT_ORDER"
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class Subscription(Base):
     """The business's active plan (Real Billing phase).
 

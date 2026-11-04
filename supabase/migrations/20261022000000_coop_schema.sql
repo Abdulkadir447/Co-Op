@@ -1,7 +1,7 @@
 -- Co-op schema snapshot — GENERATED, DO NOT EDIT BY HAND.
 --
 -- Regenerate with:  python supabase/scripts/export_schema.py
--- Source of truth:  backend/alembic/versions/ (revision 0021_tax (head))
+-- Source of truth:  backend/alembic/versions/ (revision 0022_zeno_lessons (head))
 --
 -- Apply in the Supabase SQL editor, or with:
 --     supabase db push
@@ -88,6 +88,48 @@ CREATE TABLE public.ai_usage (
     answer_kind character varying(20),
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+CREATE TABLE public.zeno_lessons (
+    id integer NOT NULL,
+    business_id integer NOT NULL,
+    kind character varying(16) DEFAULT 'mistake'::character varying NOT NULL,
+    scope character varying(40) DEFAULT 'general'::character varying NOT NULL,
+    statement text NOT NULL,
+    severity integer DEFAULT 3 NOT NULL,
+    cost_amount double precision,
+    cost_basis character varying(12) DEFAULT 'estimated'::character varying,
+    blast_radius integer DEFAULT 0,
+    repeat_count integer DEFAULT 1 NOT NULL,
+    status character varying(12) DEFAULT 'active'::character varying NOT NULL,
+    source character varying(12) DEFAULT 'owner'::character varying NOT NULL,
+    fingerprint character varying(40) NOT NULL,
+    evidence_ref character varying(80),
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+--
+-- Name: zeno_lessons_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.zeno_lessons_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: zeno_lessons_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.zeno_lessons_id_seq OWNED BY public.zeno_lessons.id;
+
+
 
 
 --
@@ -2016,6 +2058,48 @@ CREATE POLICY tenant_isolation_subscriptions ON public.subscriptions USING ((bus
 --
 
 CREATE POLICY tenant_isolation_sync_queue ON public.sync_queue USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
+
+
+--
+-- Name: zeno_lessons id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.zeno_lessons ALTER COLUMN id SET DEFAULT nextval('public.zeno_lessons_id_seq'::regclass);
+
+
+--
+-- Name: zeno_lessons uq_zeno_lessons_business_fingerprint; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.zeno_lessons
+    ADD CONSTRAINT uq_zeno_lessons_business_fingerprint UNIQUE (business_id, fingerprint);
+
+
+--
+-- Name: ix_zeno_lessons_business_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_zeno_lessons_business_id ON public.zeno_lessons USING btree (business_id);
+
+
+--
+-- Name: ix_zeno_lessons_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_zeno_lessons_id ON public.zeno_lessons USING btree (id);
+
+
+--
+-- Name: zeno_lessons; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.zeno_lessons ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: zeno_lessons tenant_isolation_zeno_lessons; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation_zeno_lessons ON public.zeno_lessons USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
 
 
 --
