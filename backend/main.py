@@ -51,7 +51,11 @@ from .ai import history as ai_history_mod
 from .ai import lessons as zeno_lessons
 from .ai import prompts as ai_prompts_mod
 from .ai.ratelimit import SlidingWindowRateLimiter, enforce_ai_rate_limit
-from .ratelimits import enforce_export_rate_limit, enforce_import_rate_limit
+from .ratelimits import (
+    enforce_export_rate_limit,
+    enforce_import_rate_limit,
+    enforce_write_rate_limit,
+)
 from .exports import export_report, ExportError
 from .notifications import build_daily_summary
 from .notifications import delivery as delivery_mod
@@ -193,7 +197,19 @@ async def security_headers(request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
-    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
+    response.headers.setdefault(
+        "Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+    )
+    response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+    # Every API response is per-tenant. Authenticated JSON must never be
+    # stored by a shared cache or replayed from the bfcache to the next user
+    # of the same machine — the same reason the nginx tier sets no-store on
+    # /api/. Set unconditionally: there is no cacheable API response here.
+    response.headers.setdefault(
+        "Cache-Control", "no-store, no-cache, must-revalidate, private"
+    )
     # The API is never rendered as a page; a strict CSP is safe here and
     # stops any accidental HTML/JS from executing if an error page leaks.
     response.headers.setdefault(
@@ -2669,6 +2685,7 @@ async def zeno_lesson_record(
     req: ZenoLessonCreate,
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_write_rate_limit),
 ) -> ZenoLessonItem:
     """Record a mistake (graded 1-5, optional cost) or a repeated preference.
 
@@ -2705,6 +2722,7 @@ async def zeno_lesson_update(
     req: ZenoLessonUpdate,
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_write_rate_limit),
 ) -> ZenoLessonItem:
     """Accept a candidate, dismiss a lesson, or re-grade it.
 
@@ -3070,11 +3088,13 @@ async def support_submit_issue(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
     user: ClerkUser = Depends(verify_clerk_token),
+    _rate: None = Depends(enforce_write_rate_limit),
 ) -> dict:
     """Record a problem report and email it to the support inbox.
 
-    Always allowed: there is no cadence, no prompt to dismiss and no limit on
-    how often a business can ask for help.
+    Always available — no cadence and no prompt to dismiss — but not
+    unbounded: each submission writes a row and sends an email, so a loop
+    here is an inbox flood. Bounded by the shared write limiter.
     """
     from . import support as support_mod
 

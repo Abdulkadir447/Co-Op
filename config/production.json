@@ -119,6 +119,10 @@
     "exports": {
       "requests": 30,
       "window_seconds": 60
+    },
+    "writes": {
+      "requests": 60,
+      "window_seconds": 60
     }
   },
   "paystack": {
@@ -133,8 +137,14 @@
     "allowed_callback_hosts": [],
     "payment_pages": {},
     "prices_kobo": {
-      "starter": { "monthly": 2900, "annual": 27600 },
-      "professional": { "monthly": 9900, "annual": 94800 }
+      "starter": {
+        "monthly": 2900,
+        "annual": 27600
+      },
+      "professional": {
+        "monthly": 9900,
+        "annual": 94800
+      }
     }
   }
 }
