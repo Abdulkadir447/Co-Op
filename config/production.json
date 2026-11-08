@@ -126,9 +126,9 @@
     }
   },
   "paystack": {
-    "_comment": "Paystack. Charges go through the API (POST /transaction/initialize) using prices_kobo, so PAYSTACK_SECRET_KEY is REQUIRED - without it no checkout can start and no webhook can be verified. Amounts are in the currency's minor unit (USD cents): starter $29/mo, $276/yr; professional $99/mo, $948/yr. The annual figures are the UI's displayed monthly-equivalent x 12 (frontend/src/billing/plans.ts, 20% discount rounded to whole dollars) - confirm them before taking real money. Enterprise has no price on purpose: it is Contact Sales. Set paystack.callback_url (or the PAYSTACK_CALLBACK_URL env var) to the absolute URL of the deployed Billing page.",
+    "_comment": "Paystack. Charges go through the API (POST /transaction/initialize) using prices_kobo, so PAYSTACK_SECRET_KEY is REQUIRED - without it no checkout can start and no webhook can be verified. Currency is NGN and amounts are in kobo: starter N9,500/mo (N91,200/yr), professional N29,000/mo (N278,400/yr) - both 20% off annual, matching frontend/src/billing/plans.ts. These sit inside the observed Nigerian SME band (generic POS N5,000-20,000; Fisco Pro N10,000; Odoo POS+Inventory N37,500-55,500) - see docs/BUSINESS_PLAN.md section 5. Enterprise has no price on purpose: it is Contact Sales. Set paystack.callback_url (or the PAYSTACK_CALLBACK_URL env var) to the absolute URL of the deployed Billing page.",
     "enabled": true,
-    "currency": "USD",
+    "currency": "NGN",
     "api_base": "https://api.paystack.co",
     "timeout_seconds": 15,
     "secret_key_env": "PAYSTACK_SECRET_KEY",
@@ -138,12 +138,12 @@
     "payment_pages": {},
     "prices_kobo": {
       "starter": {
-        "monthly": 2900,
-        "annual": 27600
+        "monthly": 950000,
+        "annual": 9120000
       },
       "professional": {
-        "monthly": 9900,
-        "annual": 94800
+        "monthly": 2900000,
+        "annual": 27840000
       }
     }
   }

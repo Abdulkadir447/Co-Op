@@ -15,6 +15,8 @@ export interface BusinessSettings {
   address: string | null;
   phone: string | null;
   tax_id: string | null;
+  /** CAC RC/BN — printed on the invoice (NTA 2025 s.153(d)). */
+  registration_number: string | null;
   website: string | null;
   timezone: string | null;
   /** Ask Zeno answer style (concise | standard | detailed). */

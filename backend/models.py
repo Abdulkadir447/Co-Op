@@ -61,7 +61,11 @@ class Business(Base):
     # Company profile fields (UXDS 15.6, Task 9) — additive, nullable.
     address = Column(String(500))
     phone = Column(String(20))
-    tax_id = Column(String(100))
+    tax_id = Column(String(100))                      # TIN / VAT number
+    # Business registration number (CAC RC / BN). Required on a Nigerian VAT
+    # invoice by the Nigeria Tax Act 2025 s.153(d); nullable because older rows
+    # and non-Nigerian businesses have none (0023).
+    registration_number = Column(String(60))
     website = Column(String(255))
     timezone = Column(String(64))
     # Public Supabase Storage URL for the business logo (0019). The bytes live

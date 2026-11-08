@@ -62,7 +62,7 @@ const OrderDetailsPage: React.FC = () => {
   const [messageApi, messageCtx] = message.useMessage();
 
   const [order, setOrder] = useState<Order | null>(null);
-  const [business, setBusiness] = useState<{ name: string; currency: string; address: string | null; phone: string | null; email: string | null } | null>(null);
+  const [business, setBusiness] = useState<{ name: string; currency: string; address: string | null; phone: string | null; email: string | null; tax_id: string | null; registration_number: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
 
@@ -98,6 +98,8 @@ const OrderDetailsPage: React.FC = () => {
         address: null,
         phone: null,
         email: null,
+        tax_id: null,
+        registration_number: null,
       });
     }
     const nameById = new Map<number, string>(products.map((p) => [Number(p.id), String(p.name ?? '')]));
@@ -150,7 +152,7 @@ const OrderDetailsPage: React.FC = () => {
       setNextStatus(data.allowed_transitions[0] ?? null);
       // Business identity for the invoice header (best-effort).
       api
-        .get<{ name: string; currency: string; address: string | null; phone: string | null; owner_email: string | null }>(
+        .get<{ name: string; currency: string; address: string | null; phone: string | null; owner_email: string | null; tax_id: string | null; registration_number: string | null }>(
           '/business/settings',
         )
         .then((r) =>
@@ -159,6 +161,8 @@ const OrderDetailsPage: React.FC = () => {
             currency: r.data.currency,
             address: r.data.address,
             phone: r.data.phone,
+            tax_id: r.data.tax_id ?? null,
+            registration_number: r.data.registration_number ?? null,
             email: r.data.owner_email,
           }),
         )
@@ -823,7 +827,7 @@ interface InvoiceModalProps {
   open: boolean;
   onClose: () => void;
   order: Order;
-  business: { name: string; currency: string; address: string | null; phone: string | null; email: string | null } | null;
+  business: { name: string; currency: string; address: string | null; phone: string | null; email: string | null; tax_id: string | null; registration_number: string | null } | null;
 }
 
 const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, business }) => {
@@ -883,11 +887,29 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
             </div>
             {business?.address && <div style={{ fontSize: 13, color: colors.onSurfaceVariant, marginTop: 6, whiteSpace: 'pre-line' }}>{business.address}</div>}
             {business?.phone && <div style={{ fontSize: 13, color: colors.onSurfaceVariant, marginTop: 2 }}>{business.phone}</div>}
+            {/* Statutory invoice detail (Nigeria Tax Act 2025 s.153): the supplier's
+                Tax ID and business registration number must appear on the document. */}
+            {business?.tax_id && (
+              <div style={{ fontSize: 12.5, color: colors.onSurfaceVariant, marginTop: 2 }}>TIN: {business.tax_id}</div>
+            )}
+            {business?.registration_number && (
+              <div style={{ fontSize: 12.5, color: colors.onSurfaceVariant, marginTop: 2 }}>RC/BN: {business.registration_number}</div>
+            )}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.onSurface }}>Invoice</div>
-            <div style={{ fontSize: 13.5, color: colors.onSurfaceVariant, marginTop: 8 }}>{orderNumber(order.id)}</div>
-            <div style={{ fontSize: 13, color: colors.outline, marginTop: 2 }}>{dayjs(order.order_date).format('MMM D, YYYY')}</div>
+            {order.invoice_number ? (
+              <>
+                <div style={{ fontSize: 13.5, color: colors.onSurfaceVariant, marginTop: 8 }}>{order.invoice_number}</div>
+                <div style={{ fontSize: 12, color: colors.outline, marginTop: 2 }}>Order {orderNumber(order.id)}</div>
+              </>
+            ) : (
+              <div style={{ fontSize: 13.5, color: colors.onSurfaceVariant, marginTop: 8 }}>{orderNumber(order.id)}</div>
+            )}
+            <div style={{ fontSize: 13, color: colors.outline, marginTop: 2 }}>Date of supply: {dayjs(order.order_date).format('MMM D, YYYY')}</div>
+            {!order.invoice_number && (
+              <div style={{ fontSize: 11.5, color: colors.outline, marginTop: 2 }}>Not yet saved as a numbered invoice</div>
+            )}
           </div>
         </div>
 

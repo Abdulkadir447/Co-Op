@@ -615,14 +615,15 @@ def test_shipped_config_charges_through_the_api():
 
     raw = load_config("development").get("paystack", {})
     assert raw["enabled"] is True
-    assert raw["currency"] == "USD"
+    assert raw["currency"] == "NGN"
     # The hosted payment pages were removed: paystack.shop is not a Paystack
     # domain, so a charge through it could not be trusted. Checkout now goes
     # through POST /transaction/initialize, which requires a price.
     assert raw["payment_pages"] == {}
     assert raw["prices_kobo"] == {
-        "starter": {"monthly": 2900, "annual": 27600},
-        "professional": {"monthly": 9900, "annual": 94800},
+        # NGN kobo: N9,500/mo and N91,200/yr (20% off); N29,000 and N278,400.
+        "starter": {"monthly": 950000, "annual": 9120000},
+        "professional": {"monthly": 2900000, "annual": 27840000},
     }
     # Enterprise is Contact Sales, so it must carry no price to charge.
     assert "enterprise" not in raw["prices_kobo"]
@@ -778,12 +779,12 @@ async def test_shipped_catalog_produces_a_real_api_checkout(api, monkeypatch):
 
     out = await start_checkout(api, "starter", interval="annual")
     assert out["mode"] == "api"
-    assert out["currency"] == "USD"
+    assert out["currency"] == "NGN"
     assert out["url"] == "https://checkout.paystack.test/xyz"
 
     body = json.loads(calls[0].content)
-    assert body["amount"] == 27600        # $276.00, in minor units
-    assert body["currency"] == "USD"
+    assert body["amount"] == 9120000      # N91,200.00 annual, in kobo
+    assert body["currency"] == "NGN"
     assert body["metadata"]["plan"] == "starter"
 
 

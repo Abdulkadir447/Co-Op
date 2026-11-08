@@ -73,6 +73,7 @@ from .models import (
     BusinessInvitation,
     BusinessMember,
     Customer,
+    Invoice,
     License,
     Order,
     OrderItem,
@@ -1679,7 +1680,20 @@ async def get_order(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> OrderOut:
-    return _serialize_order(await _load_order(id, business, db))
+    order = await _load_order(id, business, db)
+    out = _serialize_order(order)
+    # A VAT invoice must carry an invoice number (NTA 2025 s.153(b)), which is
+    # the document's number — not the order reference. One indexed lookup on a
+    # single-order read; the list endpoint is untouched.
+    number = (
+        await db.execute(
+            select(Invoice.number).where(
+                Invoice.business_id == business.id, Invoice.order_id == order.id
+            )
+        )
+    ).scalar_one_or_none()
+    out.invoice_number = number
+    return out
 
 
 @app.put("/orders/{id}/status", response_model=OrderOut, tags=["Orders"])
@@ -3506,8 +3520,15 @@ async def admin_revoke_license(
 async def license_status(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
 ) -> dict:
-    """This business's licence position (Settings -> Licence)."""
+    """This business's licence position (Settings -> Licence).
+
+    **Owner only.** The Settings menu already hid this section from other
+    roles, but the API answered anyone in the tenant — hiding a menu item is
+    presentation, not access control. A licence is the commercial entitlement
+    for the whole account, so a viewer/sales member has no reason to read it.
+    """
     from . import billing as billing_mod
 
     sub = await billing_mod.get_or_create_subscription(db, business)

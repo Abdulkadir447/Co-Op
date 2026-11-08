@@ -19,6 +19,7 @@ interface CompanyFormValues {
   address?: string;
   phone?: string;
   tax_id?: string;
+  registration_number?: string;
   website?: string;
   timezone?: string;
   tax_enabled?: boolean;
@@ -48,6 +49,7 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
       address: settings.address ?? undefined,
       phone: settings.phone ?? undefined,
       tax_id: settings.tax_id ?? undefined,
+      registration_number: settings.registration_number ?? undefined,
       website: settings.website ?? undefined,
       timezone: settings.timezone ?? undefined,
       tax_enabled: settings.tax_enabled,
@@ -87,6 +89,7 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
       address: settings.address ?? undefined,
       phone: settings.phone ?? undefined,
       tax_id: settings.tax_id ?? undefined,
+      registration_number: settings.registration_number ?? undefined,
       website: settings.website ?? undefined,
       timezone: settings.timezone ?? undefined,
       tax_enabled: settings.tax_enabled,
@@ -176,7 +179,16 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item label="Tax ID" name="tax_id">
-                <Input placeholder="VAT / TIN (optional)" maxLength={100} />
+                <Input placeholder="TIN / VAT number (optional)" maxLength={100} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Registration number"
+                name="registration_number"
+                tooltip="CAC RC or BN number. Nigerian VAT invoices must show it."
+              >
+                <Input placeholder="RC 1234567 / BN 2345678" maxLength={60} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>

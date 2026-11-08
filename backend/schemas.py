@@ -253,6 +253,10 @@ class OrderOut(BaseModel):
     order_date: datetime
     created_at: datetime
     items: List[OrderItemOut]
+    # The saved invoice document for this order, when one exists (0023). A VAT
+    # invoice must show an invoice number from a sequential series, not the
+    # order reference — the print view uses this when it is present.
+    invoice_number: Optional[str] = None
 
 
 class OrderPaymentCreate(BaseModel):
@@ -415,6 +419,8 @@ class BusinessSettingsUpdate(BaseModel):
     address: Optional[str] = Field(None, max_length=500)
     phone: Optional[str] = Field(None, max_length=20)
     tax_id: Optional[str] = Field(None, max_length=100)
+    # CAC RC/BN number — printed on the invoice (NTA 2025 s.153(d)).
+    registration_number: Optional[str] = Field(None, max_length=60)
     website: Optional[str] = Field(None, max_length=255)
     timezone: Optional[str] = Field(None, max_length=64)
     ai_response_style: Optional[str] = Field(None, max_length=20)
@@ -436,6 +442,7 @@ class BusinessSettingsOut(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     tax_id: Optional[str] = None
+    registration_number: Optional[str] = None
     website: Optional[str] = None
     timezone: Optional[str] = None
     # Set only by POST /business/logo (a Storage upload), never by PATCH —

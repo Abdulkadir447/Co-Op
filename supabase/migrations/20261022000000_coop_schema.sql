@@ -1,7 +1,7 @@
 -- Co-op schema snapshot — GENERATED, DO NOT EDIT BY HAND.
 --
 -- Regenerate with:  python supabase/scripts/export_schema.py
--- Source of truth:  backend/alembic/versions/ (revision 0022_zeno_lessons (head))
+-- Source of truth:  backend/alembic/versions/ (revision 0023_invoice_compliance (head))
 --
 -- Apply in the Supabase SQL editor, or with:
 --     supabase db push
@@ -314,6 +314,7 @@ CREATE TABLE public.businesses (
     address character varying(500),
     phone character varying(20),
     tax_id character varying(100),
+    registration_number character varying(60),
     website character varying(255),
     timezone character varying(64),
     created_by character varying(255),

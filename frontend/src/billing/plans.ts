@@ -24,7 +24,15 @@ export interface Plan {
   id: PlanId;
   name: string;
   tagline: string;
-  /** Provisional display price (USD/month). null = custom quote. */
+  /**
+   * Price per month in NGN. null = custom quote.
+   *
+   * Naira-native on purpose: $29/$99 at ~NGN1,348/USD was N39,000/N133,500,
+   * three to twenty-five times the observed willingness to pay of a Nigerian
+   * SME (POS software runs N5,000-20,000/month; Odoo POS+Inventory
+   * N37,500-55,500). See docs/BUSINESS_PLAN.md section 5 and
+   * docs/PRODUCT_MARKET_FIT_AUDIT.md section 3.
+   */
   priceMonthly: number | null;
   /** Annual billing discount (provisional display). */
   annualDiscountPct: number;
@@ -42,14 +50,15 @@ export const PLAN_CATALOG: Plan[] = [
     id: 'starter',
     name: 'Starter',
     tagline: 'Essential tools for small teams getting started.',
-    priceMonthly: 29,
+    priceMonthly: 9500,
     annualDiscountPct: 20,
     cta: 'Start Free Trial',
     includesLabel: 'Includes:',
     features: [
       { label: 'Up to 3 users', included: true },
-      { label: 'Basic analytics', included: true },
-      { label: 'Community support', included: true },
+      { label: 'VAT invoices & receivables', included: true },
+      { label: 'Offline desktop app', included: true },
+      { label: '200 AI credits / month', included: true, ai: true },
       { label: 'Advanced integrations', included: false },
     ],
   },
@@ -57,14 +66,15 @@ export const PLAN_CATALOG: Plan[] = [
     id: 'professional',
     name: 'Professional',
     tagline: 'Advanced features and AI capabilities for growing businesses.',
-    priceMonthly: 99,
+    priceMonthly: 29000,
     annualDiscountPct: 20,
     cta: 'Start Free Trial',
     highlight: true,
     includesLabel: 'Everything in Starter, plus:',
     features: [
       { label: 'Unlimited users', included: true },
-      { label: 'Zeno Insights', included: true, ai: true },
+      { label: '1,000 AI credits / month', included: true, ai: true },
+      { label: 'Zeno Insights & lesson ledger', included: true, ai: true },
       { label: 'Advanced integrations', included: true },
       { label: 'Priority support', included: true },
     ],
@@ -156,7 +166,10 @@ export function displayPrice(plan: Plan, annual: boolean): { amount: string; not
   if (plan.priceMonthly == null) return { amount: 'Custom', note: 'Let\u2019s talk' };
   if (annual && plan.annualDiscountPct > 0) {
     const m = Math.round(plan.priceMonthly * (1 - plan.annualDiscountPct / 100));
-    return { amount: `$${m}`, note: 'Billed annually' };
+    return { amount: `₦${m.toLocaleString('en-NG')}`, note: 'Billed annually' };
   }
-  return { amount: `$${plan.priceMonthly}`, note: annual ? 'Billed annually' : 'Billed monthly' };
+  return {
+    amount: `₦${plan.priceMonthly.toLocaleString('en-NG')}`,
+    note: annual ? 'Billed annually' : 'Billed monthly',
+  };
 }

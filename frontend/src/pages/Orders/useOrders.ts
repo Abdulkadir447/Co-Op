@@ -52,6 +52,12 @@ export interface Order {
   order_date: string;
   created_at: string;
   items: OrderItem[];
+  /**
+   * The saved invoice document's number (INV-0001), when the order has been
+   * invoiced. A VAT invoice must carry an invoice number, not the order
+   * reference, so the print view prefers this (0023).
+   */
+  invoice_number?: string | null;
 }
 
 export interface OrderListResponse {
