@@ -64,7 +64,7 @@ English.
 
 ## 3. What Co-op is, factually
 
-Built and running today (92 API routes, 446 backend tests, 26 frontend tests):
+Built and running today (92 API routes, 448 backend tests, 26 frontend tests):
 
 - Products, stock movements on an append-only ledger, low-stock and reorder signals.
 - Customers, orders with a validated status machine, invoices with per-business
