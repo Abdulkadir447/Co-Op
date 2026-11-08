@@ -4,15 +4,16 @@ Revision ID: 0023_invoice_compliance
 Revises: 0022_zeno_lessons
 Create Date: 2026-11-06
 
-The Nigeria Tax Act 2025 (s.153) lists what a VAT invoice must carry. Co-op
-already stored and printed the supplier name, address, TIN, sequential invoice
-number, date of supply, buyer name, gross amount and VAT (rate + amount). The
-one statutory field with no home in the schema was the supplier's
-**incorporation / business registration number** (CAC RC or BN).
+A tax invoice has to say who the supplier legally is. Co-op already stored and
+printed the supplier name, address, tax ID, sequential invoice number, date of
+supply, buyer name, gross amount and tax (rate + amount). The one field with no
+home in the schema was the supplier's **incorporation / business registration
+number** (CAC RC or BN in Nigeria; a state filing number, CRN, or EIN
+elsewhere). The Nigeria Tax Act 2025 s.153(d) is the clearest statement of the
+requirement; the same identity block is expected on US, UK and EU invoices.
 
-Nullable on purpose: existing businesses, and businesses outside Nigeria, have
-no such number and must not be blocked from invoicing. The invoice prints it
-only when it is set.
+Nullable on purpose: a sole trader, and any business that has not registered,
+must not be blocked from invoicing. The invoice prints it only when it is set.
 
 Additive only, idempotent (guarded DDL), mirroring 0021/0022.
 """

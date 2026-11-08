@@ -1,12 +1,12 @@
 /**
  * Co-op Billing — plan catalog (Stage 2.3).
  *
- * ⚠️ PROVISIONAL DISPLAY VALUES.
- * The final pricing / AI-credit economics are DELIBERATELY NOT LOCKED IN.
+ * List prices are USD and must match `paystack.prices_kobo` in
+ * config/<env>.json — that file is what the card is actually charged, this one
+ * is what the customer reads. Changing a price means changing both.
  * This file is the single place the billing UI reads plan names, prices,
- * features and comparison rows from — when the pricing model is finalized,
- * it plugs in HERE (or replaces this file with a provider-supplied catalog).
- * No other component may hard-code a price or a credit rule.
+ * features and comparison rows from; no other component may hard-code a price
+ * or a credit rule.
  *
  * Visual spec: coop_pricing_plans_qa_polished + coop_plan_comparison.
  */
@@ -25,13 +25,15 @@ export interface Plan {
   name: string;
   tagline: string;
   /**
-   * Price per month in NGN. null = custom quote.
+   * Price per month in USD. null = custom quote.
    *
-   * Naira-native on purpose: $29/$99 at ~NGN1,348/USD was N39,000/N133,500,
-   * three to twenty-five times the observed willingness to pay of a Nigerian
-   * SME (POS software runs N5,000-20,000/month; Odoo POS+Inventory
-   * N37,500-55,500). See docs/BUSINESS_PLAN.md section 5 and
-   * docs/PRODUCT_MARKET_FIT_AUDIT.md section 3.
+   * USD-native on purpose: Co-op sells to English-speaking small businesses in
+   * dollar-billed markets, so the list price must be the price the card is
+   * charged. $29 sits between Zoho Books Standard ($15-20/mo billed annually)
+   * and QuickBooks Online Simple Start ($38/mo); $99 is above FreshBooks
+   * Premium ($70/mo) and below QuickBooks Plus ($115/mo). See
+   * docs/BUSINESS_PLAN.md section 5 and docs/PRODUCT_MARKET_FIT_AUDIT.md
+   * section 3 for the compared list prices.
    */
   priceMonthly: number | null;
   /** Annual billing discount (provisional display). */
@@ -50,13 +52,13 @@ export const PLAN_CATALOG: Plan[] = [
     id: 'starter',
     name: 'Starter',
     tagline: 'Essential tools for small teams getting started.',
-    priceMonthly: 9500,
+    priceMonthly: 29,
     annualDiscountPct: 20,
     cta: 'Start Free Trial',
     includesLabel: 'Includes:',
     features: [
       { label: 'Up to 3 users', included: true },
-      { label: 'VAT invoices & receivables', included: true },
+      { label: 'Tax-ready invoices & receivables', included: true },
       { label: 'Offline desktop app', included: true },
       { label: '200 AI credits / month', included: true, ai: true },
       { label: 'Advanced integrations', included: false },
@@ -66,7 +68,7 @@ export const PLAN_CATALOG: Plan[] = [
     id: 'professional',
     name: 'Professional',
     tagline: 'Advanced features and AI capabilities for growing businesses.',
-    priceMonthly: 29000,
+    priceMonthly: 99,
     annualDiscountPct: 20,
     cta: 'Start Free Trial',
     highlight: true,
@@ -74,7 +76,7 @@ export const PLAN_CATALOG: Plan[] = [
     features: [
       { label: 'Unlimited users', included: true },
       { label: '1,000 AI credits / month', included: true, ai: true },
-      { label: 'Zeno Insights & lesson ledger', included: true, ai: true },
+      { label: 'Zeno Insights — adapts to how you work', included: true, ai: true },
       { label: 'Advanced integrations', included: true },
       { label: 'Priority support', included: true },
     ],
@@ -164,12 +166,15 @@ export const COMPARISON_SECTIONS: ComparisonSection[] = [
  */
 export function displayPrice(plan: Plan, annual: boolean): { amount: string; note: string } {
   if (plan.priceMonthly == null) return { amount: 'Custom', note: 'Let\u2019s talk' };
+  // The catalog is USD because the product is sold in dollars; en-US keeps the
+  // currency marker unambiguous ($) for every dollar-billed market.
+  const usd = (n: number) => `$${n.toLocaleString('en-US')}`;
   if (annual && plan.annualDiscountPct > 0) {
     const m = Math.round(plan.priceMonthly * (1 - plan.annualDiscountPct / 100));
-    return { amount: `₦${m.toLocaleString('en-NG')}`, note: 'Billed annually' };
+    return { amount: usd(m), note: 'Billed annually' };
   }
   return {
-    amount: `₦${plan.priceMonthly.toLocaleString('en-NG')}`,
+    amount: usd(plan.priceMonthly),
     note: annual ? 'Billed annually' : 'Billed monthly',
   };
 }

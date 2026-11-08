@@ -1,7 +1,7 @@
 -- Co-op schema snapshot — GENERATED, DO NOT EDIT BY HAND.
 --
 -- Regenerate with:  python supabase/scripts/export_schema.py
--- Source of truth:  backend/alembic/versions/ (revision 0023_invoice_compliance (head))
+-- Source of truth:  backend/alembic/versions/ (revision 0024_tax_defaults (head))
 --
 -- Apply in the Supabase SQL editor, or with:
 --     supabase db push
@@ -327,8 +327,8 @@ CREATE TABLE public.businesses (
     ai_response_style character varying(20) DEFAULT 'standard'::character varying NOT NULL,
     logo_url character varying(1024),
     tax_enabled boolean DEFAULT false NOT NULL,
-    tax_rate double precision DEFAULT 7.5 NOT NULL,
-    tax_label character varying(20) DEFAULT 'VAT'::character varying NOT NULL
+    tax_rate double precision DEFAULT 0 NOT NULL,
+    tax_label character varying(20) DEFAULT 'Tax'::character varying NOT NULL
 );
 
 

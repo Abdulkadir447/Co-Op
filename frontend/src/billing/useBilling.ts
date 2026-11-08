@@ -395,7 +395,7 @@ export function useBilling() {
   // True when the backend has a payment provider wired up (Paystack).
   const paymentConnected = summary?.payment_connected ?? payment?.enabled ?? false;
   /** Interval the toggle maps to when buying: the pricing screen's own state. */
-  const paymentCurrency = payment?.currency ?? 'NGN';
+  const paymentCurrency = payment?.currency ?? 'USD';
 
   return {
     plans: PLAN_CATALOG,

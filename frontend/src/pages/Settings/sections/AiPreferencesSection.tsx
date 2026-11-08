@@ -32,7 +32,7 @@ const AiPreferencesSection: React.FC<AiPreferencesSectionProps> = ({ settings, s
   return (
     <CoopCard
       title="AI Preferences"
-      subtitle="How Ask Zeno answers you. Applied to every AI response."
+      subtitle="How Zeno answers you. It also gets to know how your business works as you use it — there is nothing to set up."
     >
       <Radio.Group value={current} onChange={(e) => void handleChange(e.target.value as string)} disabled={saving}>
         <Space direction="vertical" size={14}>

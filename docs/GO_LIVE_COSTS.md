@@ -22,7 +22,7 @@ checked 2026-10-24; the vendor's own page is the final word.
 | Sentry (error monitoring) | $0 free tier | No | No |
 | **Windows code-signing certificate** | **~$120–400/yr** | No (warn customers) | **Yes** |
 | **Apple Developer (macOS only)** | **$99/yr** | No | Only if shipping to macOS |
-| Paystack | 1.5% + ₦100 (capped ₦2,000) | No | No (you only pay when you earn) |
+| Paystack | 1.5% + ₦100 on NGN; **3.9% on USD** (the shipped catalogue is USD) | No | No (you only pay when you earn) |
 
 **The only unavoidable cash before a public launch: one Windows
 code-signing certificate.** Everything else is either free or can wait until

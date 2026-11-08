@@ -62,7 +62,7 @@ const OrderDetailsPage: React.FC = () => {
   const [messageApi, messageCtx] = message.useMessage();
 
   const [order, setOrder] = useState<Order | null>(null);
-  const [business, setBusiness] = useState<{ name: string; currency: string; address: string | null; phone: string | null; email: string | null; tax_id: string | null; registration_number: string | null } | null>(null);
+  const [business, setBusiness] = useState<{ name: string; currency: string; address: string | null; phone: string | null; email: string | null; tax_id: string | null; registration_number: string | null; tax_label: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
 
@@ -100,6 +100,7 @@ const OrderDetailsPage: React.FC = () => {
         email: null,
         tax_id: null,
         registration_number: null,
+        tax_label: null,
       });
     }
     const nameById = new Map<number, string>(products.map((p) => [Number(p.id), String(p.name ?? '')]));
@@ -152,7 +153,7 @@ const OrderDetailsPage: React.FC = () => {
       setNextStatus(data.allowed_transitions[0] ?? null);
       // Business identity for the invoice header (best-effort).
       api
-        .get<{ name: string; currency: string; address: string | null; phone: string | null; owner_email: string | null; tax_id: string | null; registration_number: string | null }>(
+        .get<{ name: string; currency: string; address: string | null; phone: string | null; owner_email: string | null; tax_id: string | null; registration_number: string | null; tax_label: string | null }>(
           '/business/settings',
         )
         .then((r) =>
@@ -163,6 +164,7 @@ const OrderDetailsPage: React.FC = () => {
             phone: r.data.phone,
             tax_id: r.data.tax_id ?? null,
             registration_number: r.data.registration_number ?? null,
+            tax_label: r.data.tax_label ?? null,
             email: r.data.owner_email,
           }),
         )
@@ -439,7 +441,7 @@ const OrderDetailsPage: React.FC = () => {
                 {/* Tax is exclusive (0021): shown only when the order carries a rate. */}
                 {order.tax_rate != null && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', ...type.bodyCompact, color: colors.onSurfaceVariant }}>
-                    <span>VAT ({order.tax_rate}%)</span>
+                    <span>{business?.tax_label ?? 'Tax'} ({order.tax_rate}%)</span>
                     <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(order.tax_amount ?? 0)}</span>
                   </div>
                 )}
@@ -827,7 +829,7 @@ interface InvoiceModalProps {
   open: boolean;
   onClose: () => void;
   order: Order;
-  business: { name: string; currency: string; address: string | null; phone: string | null; email: string | null; tax_id: string | null; registration_number: string | null } | null;
+  business: { name: string; currency: string; address: string | null; phone: string | null; email: string | null; tax_id: string | null; registration_number: string | null; tax_label: string | null } | null;
 }
 
 const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, business }) => {
@@ -887,13 +889,14 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
             </div>
             {business?.address && <div style={{ fontSize: 13, color: colors.onSurfaceVariant, marginTop: 6, whiteSpace: 'pre-line' }}>{business.address}</div>}
             {business?.phone && <div style={{ fontSize: 13, color: colors.onSurfaceVariant, marginTop: 2 }}>{business.phone}</div>}
-            {/* Statutory invoice detail (Nigeria Tax Act 2025 s.153): the supplier's
-                Tax ID and business registration number must appear on the document. */}
+            {/* Supplier identity block. A tax invoice has to say who issued it:
+                tax ID plus company/LLC registration number (the NTA 2025 s.153(d)
+                rule is the clearest statement of the same requirement). */}
             {business?.tax_id && (
-              <div style={{ fontSize: 12.5, color: colors.onSurfaceVariant, marginTop: 2 }}>TIN: {business.tax_id}</div>
+              <div style={{ fontSize: 12.5, color: colors.onSurfaceVariant, marginTop: 2 }}>Tax ID: {business.tax_id}</div>
             )}
             {business?.registration_number && (
-              <div style={{ fontSize: 12.5, color: colors.onSurfaceVariant, marginTop: 2 }}>RC/BN: {business.registration_number}</div>
+              <div style={{ fontSize: 12.5, color: colors.onSurfaceVariant, marginTop: 2 }}>Reg. no.: {business.registration_number}</div>
             )}
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -972,7 +975,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: 40, justifyContent: 'space-between', fontSize: 13, color: colors.onSurfaceVariant }}>
-                  <span>VAT ({order.tax_rate}%)</span>
+                  <span>{business?.tax_label ?? 'Tax'} ({order.tax_rate}%)</span>
                   <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(order.tax_amount ?? 0, business?.currency)}
                   </span>

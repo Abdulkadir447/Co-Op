@@ -250,7 +250,7 @@ async def test_initialize_sends_the_shape_paystack_expects():
 
     client = PaystackClient(SECRET, transport=httpx.MockTransport(handler))
     out = await client.initialize_transaction(
-        email="owner@example.com", amount_kobo=2_900_000, reference="coop_r1",
+        email="owner@example.com", amount_kobo=2_900, reference="coop_r1",
         callback_url="https://app.example.test/billing", metadata={"plan": "starter"},
     )
     assert out["authorization_url"] == "https://checkout.paystack.test/abc"
@@ -260,8 +260,8 @@ async def test_initialize_sends_the_shape_paystack_expects():
     assert str(req.url) == "https://api.paystack.co/transaction/initialize"
     assert req.headers["authorization"] == f"Bearer {SECRET}"
     body = json.loads(req.content)
-    assert body["amount"] == 2_900_000
-    assert body["currency"] == "NGN"
+    assert body["amount"] == 2_900
+    assert body["currency"] == "USD"
     assert body["reference"] == "coop_r1"
     assert body["metadata"] == {"plan": "starter"}
 
@@ -615,15 +615,15 @@ def test_shipped_config_charges_through_the_api():
 
     raw = load_config("development").get("paystack", {})
     assert raw["enabled"] is True
-    assert raw["currency"] == "NGN"
+    assert raw["currency"] == "USD"
     # The hosted payment pages were removed: paystack.shop is not a Paystack
     # domain, so a charge through it could not be trusted. Checkout now goes
     # through POST /transaction/initialize, which requires a price.
     assert raw["payment_pages"] == {}
     assert raw["prices_kobo"] == {
-        # NGN kobo: N9,500/mo and N91,200/yr (20% off); N29,000 and N278,400.
-        "starter": {"monthly": 950000, "annual": 9120000},
-        "professional": {"monthly": 2900000, "annual": 27840000},
+        # USD cents: $29/mo and $278.40/yr (20% off); $99 and $950.40.
+        "starter": {"monthly": 2900, "annual": 27840},
+        "professional": {"monthly": 9900, "annual": 95040},
     }
     # Enterprise is Contact Sales, so it must carry no price to charge.
     assert "enterprise" not in raw["prices_kobo"]
@@ -779,12 +779,12 @@ async def test_shipped_catalog_produces_a_real_api_checkout(api, monkeypatch):
 
     out = await start_checkout(api, "starter", interval="annual")
     assert out["mode"] == "api"
-    assert out["currency"] == "NGN"
+    assert out["currency"] == "USD"
     assert out["url"] == "https://checkout.paystack.test/xyz"
 
     body = json.loads(calls[0].content)
-    assert body["amount"] == 9120000      # N91,200.00 annual, in kobo
-    assert body["currency"] == "NGN"
+    assert body["amount"] == 27840        # $278.40 annual, in cents
+    assert body["currency"] == "USD"
     assert body["metadata"]["plan"] == "starter"
 
 

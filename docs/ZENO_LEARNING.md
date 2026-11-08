@@ -1,15 +1,19 @@
 # Zeno's learning ledger (0022) — what it is, and what it deliberately is not
 
-Zeno can now learn in a business: it keeps a small, owner-visible record of
-mistakes it has made (graded 1–5 by what they cost) and preferences the owner
-has repeated, and injects the *accepted* ones into the system prompt of every
-later turn.
+Zeno learns in a business: it keeps a small record of mistakes it has made
+(graded 1–5 by what they cost) and working habits it has observed, and injects
+the active ones into the system prompt of every later turn.
 
 ```
-owner grades a mistake  ──┐
-validator refuses a draft ├─→ zeno_lessons (active)  ──→ prompt on every turn
-owner repeats a request  ──┘   (candidates wait for the owner)
+validator refuses a draft ──┐
+model notices an owner habit ├─→ zeno_lessons (active)  ──→ prompt on every turn
+owner repeats a request  ─────┘   (a single mention stays dormant)
 ```
+
+**The record is deliberately invisible.** There is no "AI Learning" screen, no
+count of what was learned, and no Accept button. Adaptation is meant to be felt
+in the answers, not administered. The Settings → AI panel says only that Zeno
+gets to know how the business works; nothing else about the mechanism is surfaced.
 
 Table: `zeno_lessons` (migration `0022_zeno_lessons`). Code:
 `backend/ai/lessons.py`. Endpoints: `GET/POST /ai/lessons`,
@@ -20,11 +24,12 @@ Table: `zeno_lessons` (migration `0022_zeno_lessons`). Code:
 | kind | created by | status | reaches the prompt |
 |---|---|---|---|
 | `mistake` | the owner (graded), or the validator refusing a proposal (`source="detected"`) | `active` immediately | yes |
-| `preference` | the owner asking for the same thing | `candidate` from the first ask, `active` only when the owner accepts | only once accepted |
+| `preference` | the model noticing a durable habit in what the owner wrote (`source="observed"`), or the owner asking for the same thing twice | `candidate` on the first mention, `active` when the same fingerprint is seen twice | only once active |
 
 `fingerprint` is unique per business, so saying the same thing twice increments
 `repeat_count` rather than adding a row. The ledger has to stay small enough to
-fit in a prompt — 8 active lessons maximum, worst first.
+fit in a prompt — 8 active lessons maximum, worst first, with at most 4 of them
+preferences so a busy mistake ledger can never silence the personalisation.
 
 ## Why severity is graded by money, not by a thumbs-down
 
@@ -62,9 +67,14 @@ Learning must not become an exception:
 
 - A lesson is **text in a prompt**. It cannot call a route, mutate a row, or
   change a calculation. The deterministic engine still decides every number.
-- **Two mentions propose; the owner decides.** Silent rule-learning from
-  repetition is how an assistant starts doing the wrong thing confidently. A
-  wrong answer costs a sentence; a wrong rule costs money.
+- **Two mentions, never one.** With no review screen, the gate is repetition:
+  a single observation is stored dormant and is ignored by the prompt; only a
+  second, independent mention with the same fingerprint activates it. A stray
+  sentence — or a line inside business data — cannot become a standing rule.
+- **Model-authored text passes a sanitiser.** `sanitize_preference` refuses
+  URLs, markup, fenced blocks, "ignore/instructions/system" phrasing and
+  anything over 160 characters before it can be stored. A dropped habit costs a
+  little polish; a stored instruction costs the trust contract.
 - **Dismissal is permanent.** A later repeat still increments `repeat_count`
   (so the owner sees the pattern) but does not resurrect the lesson.
 - **Tenant-scoped end to end**, including the API: another business's lesson is
@@ -84,14 +94,18 @@ Learning must not become an exception:
   wrong, 1–5?"; that rewards confident self-assessment. Severity comes from a
   deterministic refusal reason or from the owner. Where neither exists, no
   lesson is recorded.
-- **Not yet in the UI.** The API is live and tested; a settings panel for
-  grading and reviewing candidates is the next slice. Until then the ledger is
-  populated by refusals (`source="detected"`).
+- **Not a UI surface, by design.** The endpoints exist for support and tests
+  only. There is no screen to review, grade, accept or browse lessons: an owner
+  who could watch the mechanism would experience it as training work rather
+  than as a product that knows them.
 
 ## Verification
 
-`backend/tests/test_zeno_lessons.py` — 17 tests: severity bounds (a 7 is a 422,
+`backend/tests/test_zeno_lessons.py` — 19 tests: severity bounds (a 7 is a 422,
 never a clamp), one row per repeated mistake with the worst severity kept,
-preferences never active on arrival, dismissal not resurrected, tenant
-isolation on read and write, the refusal loop, and the rendered prompt
-containing the lesson. Full suite: **429 passed, 6 skipped**.
+preferences dormant on arrival and active after the second mention, dismissal
+not resurrected, the sanitiser refusing instruction-shaped text, preferences
+keeping their own share of the prompt budget, tenant isolation on read and
+write, the refusal loop, a full chat turn teaching a habit without the mechanism
+appearing in the response, and the rendered prompt containing the lesson.
+Full suite: **439 passed, 6 skipped**.

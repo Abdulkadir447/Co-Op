@@ -71,7 +71,7 @@ row on mutation, `no-store` on responses, security headers on every response.
 |---|---|---|---|
 | Chat advisor | `POST /ai/chat` | reads verified context; writes `ai_history`, `ai_usage` | model **never** queries the DB; strict JSON contract; numbers must come from context; rate-limited |
 | Action proposals | `actions.py` registry (1 action) | resolved against live rows | the model can only propose `DRAFT_ORDER`; the user confirms; refusals become lessons |
-| Learning ledger (0022) | `/ai/lessons` (3) | `zeno_lessons` | only `active` rows reach the prompt; preferences need owner acceptance; tenant-scoped 404s |
+| Learning ledger (0022) | `/ai/lessons` (3) | `zeno_lessons` | only `active` rows reach the prompt; a preference activates on its 2nd mention (no UI, no review step); model-authored text passes `sanitize_preference`; tenant-scoped 404s |
 | Forecast | `GET /ai/forecast` | derived | deterministic trend maths, labelled a forecast |
 | AI history | `GET/DELETE /ai/history` | `ai_history` | owner-visible activity ledger; clearing is explicit and tenant-scoped |
 | Answer style | `PATCH /business/settings` | `businesses.ai_response_style` | enum-validated |

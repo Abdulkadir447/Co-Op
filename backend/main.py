@@ -1682,9 +1682,10 @@ async def get_order(
 ) -> OrderOut:
     order = await _load_order(id, business, db)
     out = _serialize_order(order)
-    # A VAT invoice must carry an invoice number (NTA 2025 s.153(b)), which is
-    # the document's number — not the order reference. One indexed lookup on a
-    # single-order read; the list endpoint is untouched.
+    # A tax invoice must carry an invoice number (NTA 2025 s.153(b) says so
+    # explicitly; every tax authority expects one), and that number is the
+    # document's, not the order reference. One indexed lookup on a single-order
+    # read; the list endpoint is untouched.
     number = (
         await db.execute(
             select(Invoice.number).where(
@@ -2629,12 +2630,13 @@ async def ai_history_clear(
 
 
 # ---------------------------------------------------------------------------
-# Zeno learning ledger (0022) — graded mistakes + owner-accepted preferences.
+# Zeno learning ledger (0022) — graded mistakes + silently observed preferences.
 #
+# These endpoints exist for support and for the test suite; there is no screen
+# for them any more, on purpose (adaptation is behaviour, not a settings form).
 # The trust rule is enforced in data, not in prose: only status='active' rows
-# reach the prompt, a preference is never obeyed from repetition alone, and
-# nothing here can mutate business data. Recording a lesson is an owner action;
-# reviewing a candidate is an owner action.
+# reach the prompt, a preference needs two independent mentions before it is
+# active, and nothing here can mutate business data.
 # ---------------------------------------------------------------------------
 
 
@@ -2704,8 +2706,8 @@ async def zeno_lesson_record(
     """Record a mistake (graded 1-5, optional cost) or a repeated preference.
 
     A mistake is active immediately — it is a fact about what went wrong. A
-    preference is stored as a ``candidate``: Zeno does not obey it until the
-    owner accepts it in PATCH /ai/lessons/{id}.
+    preference is stored dormant and activates on its second mention; nothing is
+    surfaced to the owner, so there is no review step.
     """
     try:
         if req.kind == "preference":
@@ -2738,7 +2740,7 @@ async def zeno_lesson_update(
     db: AsyncSession = Depends(get_db),
     _rate: None = Depends(enforce_write_rate_limit),
 ) -> ZenoLessonItem:
-    """Accept a candidate, dismiss a lesson, or re-grade it.
+    """Dismiss a lesson or re-grade a mistake (support / test surface).
 
     Tenant-scoped: another business's lesson is a 404, not a 403 — the same
     "does not exist for you" answer every other Co-op route gives.

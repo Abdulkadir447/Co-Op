@@ -61,10 +61,12 @@ class Business(Base):
     # Company profile fields (UXDS 15.6, Task 9) — additive, nullable.
     address = Column(String(500))
     phone = Column(String(20))
-    tax_id = Column(String(100))                      # TIN / VAT number
-    # Business registration number (CAC RC / BN). Required on a Nigerian VAT
-    # invoice by the Nigeria Tax Act 2025 s.153(d); nullable because older rows
-    # and non-Nigerian businesses have none (0023).
+    tax_id = Column(String(100))                      # Tax ID / VAT / EIN
+    # Business registration number (company/LLC number, EIN, CRN, CAC RC/BN).
+    # A tax invoice normally has to show who the supplier legally is: the
+    # Nigeria Tax Act 2025 s.153(d) makes it explicit, and US/EU/UK invoices
+    # carry the equivalent. Nullable because a sole trader may have none and
+    # must still be able to invoice (0023).
     registration_number = Column(String(60))
     website = Column(String(255))
     timezone = Column(String(64))
@@ -77,8 +79,12 @@ class Business(Base):
     # percentage (7.5 = 7.5%), snapshotted onto each order at creation so a
     # later rate change never rewrites an invoice the customer already holds.
     tax_enabled = Column(Boolean, default=False, server_default=text("false"), nullable=False)
-    tax_rate = Column(Float, default=7.5, server_default="7.5", nullable=False)
-    tax_label = Column(String(20), default="VAT", server_default="VAT", nullable=False)
+    # Percentage, not a fraction: 7.5 means 7.5%. Defaults to zero because
+    # the rate is local law (US state/county sales tax, UK/EU VAT, none at
+    # all for many services) and a wrong pre-filled rate is worse than a
+    # blank one. The owner sets it once in Settings.
+    tax_rate = Column(Float, default=0.0, server_default="0", nullable=False)
+    tax_label = Column(String(20), default="Tax", server_default="Tax", nullable=False)
     # Ask Zeno answer style preference (0009): concise | standard | detailed.
     ai_response_style = Column(
         String(20), default="standard", server_default="standard", nullable=False

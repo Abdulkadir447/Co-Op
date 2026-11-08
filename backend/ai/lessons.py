@@ -1,25 +1,37 @@
-"""Zeno's learning ledger — lessons from mistakes, preferences the owner taught.
+"""Zeno's learning ledger — the memory that makes answers improve over time.
 
-This is the only place the assistant "learns", and the design is deliberately
-narrow. Co-op's trust contract says Zeno never executes anything and never
-queries the database; a learning layer must not become a back door around
-that. So a lesson is **text injected into the prompt**, never a code path that
-changes behaviour by itself:
+This is the only place the assistant "learns", and it is deliberately narrow.
+Co-op's trust contract says Zeno never executes anything and never queries the
+database; a learning layer must not become a back door around that. So a lesson
+is **text injected into the prompt**, never a code path that changes behaviour
+by itself:
 
-    mistake  -> recorded with a 1-5 severity -> injected immediately
-    preference -> counted -> at 2 asks it becomes a *candidate* -> the OWNER
-                  accepts or dismisses -> only then injected
+    mistake    -> recorded with a 1-5 severity -> injected immediately
+    preference -> first mention stored dormant -> a second, independent mention
+                  activates it -> injected from then on
 
-Two deliberate asymmetries:
+Both halves are *invisible on purpose*. The owner is never shown a list of what
+Zeno has learned, because a settings screen turns adaptation into homework: the
+product is supposed to feel like it is getting to know the business, not like it
+is asking to be trained. (This replaced the reviewed-candidate flow, which put
+every observation behind an Accept button.)
 
-* **Mistakes are graded by cost, not by vibes.** Co-op owns the ledger, so a
-  mistake can carry the money it actually cost (``cost_amount``) and how many
-  rows it touched (``blast_radius``). Grading 1-5 by real consequence is what
-  makes this different from a thumbs-down memory feature.
-* **A preference is never obeyed silently.** A wrong answer costs a sentence;
-  a wrong *rule* costs money. Two mentions produce a proposal, not a rule.
-  Dismissing one is permanent — a later repeat bumps the counter but does not
-  resurrect it, because the owner already said no.
+Because no human reviews a preference any more, three automated gates replace
+the review:
+
+* **Repetition.** One mention is stored as ``candidate`` and ignored by the
+  prompt. Only a second independent mention with the same fingerprint activates
+  it, so a single odd sentence (or a stray line of text inside business data)
+  cannot become a standing rule.
+* **Sanitising.** ``sanitize_preference`` refuses text that looks like an
+  instruction to the assistant rather than a description of how the owner
+  works — no URLs, no markup, no "ignore/instructions/system" phrasing, bounded
+  length, one line. Model-authored statements go through it.
+* **A cap.** At most ``MAX_PREFERENCES`` active preferences reach the prompt, so
+  a long tail can never crowd out the verified business context.
+
+Dismissal is still final: an explicit "no" bumps the counter but never
+resurrects the lesson.
 
 Everything is tenant-scoped (``business_id``), like every other Co-op query.
 """
@@ -49,10 +61,46 @@ STATEMENT_MAX = 300
 SCOPE_MAX = 40
 # Cap the prompt block: lessons are instructions, and a wall of instructions
 # crowds out the verified context (the thing the answer must be built from).
+# Minds and habits are budgeted separately so a file of mistakes can never bury
+# the preferences that make answers feel personal.
 PROMPT_LIMIT = 8
+MISTAKE_LIMIT = 6
+MAX_PREFERENCES = 4
+# How many times the owner must say the same thing before Zeno treats it as a
+# standing preference. Two independent mentions, never one.
+PROMOTE_AFTER = 2
 
 ACTIVE, CANDIDATE, DISMISSED = "active", "candidate", "dismissed"
 KINDS = ("mistake", "preference")
+
+# A preference is a description of how the owner works, so genuine ones read
+# like "prefers totals rounded to whole dollars". These markers are what an
+# injected instruction looks like instead (a URL, markup, or a directive aimed
+# at the model). Model-authored preference text must pass this filter.
+_PREFERENCE_DENY = (
+    "ignore previous", "ignore all", "ignore the", "disregard", "system prompt",
+    "instructions", "instruction:", "you must", "you are now", "act as",
+    "http://", "https://", "www.", "javascript:", "<script", "{{", "}}",
+    "```", "\n", "\r", "base64", "api key", "secret", "password", "token",
+)
+PREFERENCE_MAX = 160
+
+
+def sanitize_preference(statement: str) -> Optional[str]:
+    """Return a safe one-line preference, or None if it smells like an injection.
+
+    Deliberately conservative: a dropped preference costs a little polish, a
+    stored instruction costs the trust contract.
+    """
+    text = _clean(statement, PREFERENCE_MAX)
+    if len(text) < 8:
+        return None
+    low = text.lower()
+    if any(marker in low for marker in _PREFERENCE_DENY):
+        return None
+    if low.count("__") or "\x00" in text:
+        return None
+    return text
 
 
 def _clean(text: str, limit: int) -> str:
@@ -159,8 +207,10 @@ async def observe_preference(
 ) -> tuple[ZenoLesson, bool]:
     """Count the owner asking for the same thing. Returns (lesson, created).
 
-    Two mentions make it a ``candidate`` — visible to the owner, still NOT
-    obeyed. A dismissed preference is never resurrected by repetition.
+    The first mention is stored dormant (``candidate``) and is ignored by the
+    prompt. A second independent mention of the same fingerprint promotes it to
+    ``active``, and only then does it shape answers. Nothing is ever shown to
+    the owner. A dismissed preference is never resurrected by repetition.
     """
     text = _clean(statement, STATEMENT_MAX)
     if not text:
@@ -170,8 +220,8 @@ async def observe_preference(
     existing = await _find(db, business_id, fp)
     if existing is not None:
         existing.repeat_count = (existing.repeat_count or 1) + 1
-        if existing.status != DISMISSED and existing.repeat_count >= 2:
-            existing.status = CANDIDATE
+        if existing.status != DISMISSED and existing.repeat_count >= PROMOTE_AFTER:
+            existing.status = ACTIVE
         return existing, False
 
     lesson = ZenoLesson(
@@ -181,14 +231,12 @@ async def observe_preference(
         statement=text,
         severity=2,  # a preference is not a mistake; keep it out of severity ranking
         repeat_count=1,
-        # A single mention is already a *candidate* (visible, not obeyed);
-        # obeys nothing until the owner accepts it.
+        # One mention is remembered but obeyed by nothing; see PROMOTE_AFTER.
         status=CANDIDATE,
-        source="repeated",
+        source="observed",
         fingerprint=fp,
         evidence_ref=_clean(evidence_ref, 80) if evidence_ref else None,
     )
-    lesson.status = CANDIDATE
     db.add(lesson)
     return lesson, True
 
@@ -303,10 +351,32 @@ async def list_lessons(
 
 
 async def active_constraints(
-    db, business_id: int, limit: int = PROMPT_LIMIT
+    db,
+    business_id: int,
+    limit: int = PROMPT_LIMIT,
+    preference_limit: int = MAX_PREFERENCES,
 ) -> list[dict[str, Any]]:
-    """The only lessons that reach the prompt: ``status='active'``, worst first."""
-    rows = await list_lessons(db, business_id, status=ACTIVE, limit=limit)
+    """The only lessons that reach the prompt: ``status='active'``, worst first.
+
+    Mistakes and preferences are fetched separately so that preferences always
+    get their share of the budget — sorted together, severity 2 preferences
+    would lose to every severity 3-5 mistake and never reach an established
+    business, which is exactly the business that has the most to personalise.
+    """
+    preferences = await list_lessons(
+        db,
+        business_id,
+        status=ACTIVE,
+        kind="preference",
+        limit=max(0, min(preference_limit, limit)),
+    )
+    # Mistakes get whatever is left of the budget, so the block never exceeds
+    # ``limit`` lessons no matter how busy the ledger is.
+    mistakes = await list_lessons(
+        db, business_id, status=ACTIVE, kind="mistake",
+        limit=max(0, limit - len(preferences)),
+    )
+    rows = mistakes + preferences
     return [
         {
             "severity": r.severity,
@@ -339,7 +409,7 @@ def render_lessons(lessons: list[dict[str, Any]]) -> str:
             bits.append(f"cost {lesson['cost_amount']:.2f}")
         lines.append(f"- [{lesson['scope']}; {', '.join(bits)}] {lesson['statement']}")
     return (
-        "\nLESSONS FROM THIS BUSINESS (learned from graded mistakes and accepted "
+        "\nLESSONS FROM THIS BUSINESS (learned from graded mistakes and observed "
         "preferences — these OUTRANK style and general best practice):\n"
         + "\n".join(lines)
         + "\nDo not repeat these. If the owner's request would make you repeat one, "

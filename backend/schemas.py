@@ -253,9 +253,9 @@ class OrderOut(BaseModel):
     order_date: datetime
     created_at: datetime
     items: List[OrderItemOut]
-    # The saved invoice document for this order, when one exists (0023). A VAT
-    # invoice must show an invoice number from a sequential series, not the
-    # order reference — the print view uses this when it is present.
+    # The saved invoice number for this order, when one exists (0023). A tax
+    # invoice must show a number from a sequential series, not an order
+    # reference — the print view uses this when it is present.
     invoice_number: Optional[str] = None
 
 
@@ -419,12 +419,12 @@ class BusinessSettingsUpdate(BaseModel):
     address: Optional[str] = Field(None, max_length=500)
     phone: Optional[str] = Field(None, max_length=20)
     tax_id: Optional[str] = Field(None, max_length=100)
-    # CAC RC/BN number — printed on the invoice (NTA 2025 s.153(d)).
+    # Company/LLC registration number — printed on the invoice.
     registration_number: Optional[str] = Field(None, max_length=60)
     website: Optional[str] = Field(None, max_length=255)
     timezone: Optional[str] = Field(None, max_length=64)
     ai_response_style: Optional[str] = Field(None, max_length=20)
-    # Tax presentation (0021). Rate is a percentage: 7.5 means 7.5%.
+    # Tax presentation (0021). Rate is a percentage: 8.25 means 8.25%.
     tax_enabled: Optional[bool] = None
     tax_rate: Optional[float] = Field(None, ge=0, le=100)
     tax_label: Optional[str] = Field(None, min_length=1, max_length=20)
@@ -451,8 +451,8 @@ class BusinessSettingsOut(BaseModel):
     logo_url: Optional[str] = None
     ai_response_style: str = "standard"
     tax_enabled: bool = False
-    tax_rate: float = 7.5
-    tax_label: str = "VAT"
+    tax_rate: float = 0.0
+    tax_label: str = "Tax"
     created_at: datetime
     updated_at: Optional[datetime] = None
 

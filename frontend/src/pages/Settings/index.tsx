@@ -3,8 +3,11 @@
  * PageHeader · CoopCard section menu · one real section per entry.
  *
  * Every section in the menu is implemented (no "coming soon" panels):
- *   Company · Licence · Appearance · AI · AI Learning · Notifications · Security
+ *   Company · Licence · Team · Appearance · AI · Notifications · Security
  *   · Backup & Restore · Sync · Audit Log · About
+ *
+ * There is deliberately no "what Zeno learned" panel: adaptation is not a
+ * surface the owner administers, it is behaviour they notice.
  *
  * Company + AI read/write the tenant settings through the shared hook here;
  * the other sections own their state (theme, device prefs, Clerk, sync
@@ -21,7 +24,6 @@ import {
   InfoCircleOutlined,
   KeyOutlined,
   RobotOutlined,
-  BulbOutlined,
   SafetyCertificateOutlined,
   SkinOutlined,
 } from '@ant-design/icons';
@@ -32,7 +34,6 @@ import CompanySection from './sections/CompanySection';
 import LicenceSection from './sections/LicenceSection';
 import AppearanceSection from './sections/AppearanceSection';
 import AiPreferencesSection from './sections/AiPreferencesSection';
-import ZenoLearningSection from './sections/ZenoLearningSection';
 import NotificationsSection from './sections/NotificationsSection';
 import SecuritySection from './sections/SecuritySection';
 import BackupRestoreSection from './sections/BackupRestoreSection';
@@ -49,7 +50,6 @@ const SECTIONS = [
   { key: 'team', label: 'Team', icon: <TeamOutlined />, teamVisible: true },
   { key: 'appearance', label: 'Appearance', icon: <SkinOutlined /> },
   { key: 'ai', label: 'AI', icon: <RobotOutlined /> },
-  { key: 'learning', label: 'AI Learning', icon: <BulbOutlined /> },
   { key: 'notifications', label: 'Notifications', icon: <BellOutlined /> },
   { key: 'security', label: 'Security', icon: <KeyOutlined /> },
   { key: 'backup', label: 'Backup & Restore', icon: <DatabaseOutlined />, ownerOnly: true },
@@ -92,8 +92,6 @@ const SettingsPage: React.FC = () => {
         return <AppearanceSection />;
       case 'ai':
         return <AiPreferencesSection settings={settings} saving={saving} save={save} messageApi={messageApi} />;
-      case 'learning':
-        return <ZenoLearningSection />;
       case 'notifications':
         return <NotificationsSection />;
       case 'security':

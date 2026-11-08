@@ -116,9 +116,9 @@
     }
   },
   "paystack": {
-    "_comment": "Payments are off in the test environment; the suite monkeypatches paystack_config() with its own pages and prices.",
+    "_comment": "Payments are off in the test environment; the suite monkeypatches paystack_config() with its own pages and prices. The catalogue here still mirrors production so a config drift shows up in tests.",
     "enabled": false,
-    "currency": "NGN",
+    "currency": "USD",
     "api_base": "https://api.paystack.co",
     "timeout_seconds": 15,
     "secret_key_env": "PAYSTACK_SECRET_KEY",
@@ -128,12 +128,12 @@
     "payment_pages": {},
     "prices_kobo": {
       "starter": {
-        "monthly": 950000,
-        "annual": 9120000
+        "monthly": 2900,
+        "annual": 27840
       },
       "professional": {
-        "monthly": 2900000,
-        "annual": 27840000
+        "monthly": 9900,
+        "annual": 95040
       }
     }
   }

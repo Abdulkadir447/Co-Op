@@ -174,21 +174,21 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item label="Phone" name="phone">
-                <Input placeholder="+234…" maxLength={20} />
+                <Input placeholder="+1 555 010 0000" maxLength={20} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item label="Tax ID" name="tax_id">
-                <Input placeholder="TIN / VAT number (optional)" maxLength={100} />
+                <Input placeholder="Tax ID / VAT / EIN (optional)" maxLength={100} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item
                 label="Registration number"
                 name="registration_number"
-                tooltip="CAC RC or BN number. Nigerian VAT invoices must show it."
+                tooltip="Your company or LLC registration number (CRN, EIN, CAC RC/BN). Tax invoices show it."
               >
-                <Input placeholder="RC 1234567 / BN 2345678" maxLength={60} />
+                <Input placeholder="e.g. 12345678" maxLength={60} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
@@ -235,7 +235,7 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
             </Col>
             <Col xs={24} sm={8}>
               <Form.Item label="Label on invoices" name="tax_label">
-                <Input placeholder="VAT" maxLength={20} />
+                <Input placeholder="Tax" maxLength={20} />
               </Form.Item>
             </Col>
           </Row>
