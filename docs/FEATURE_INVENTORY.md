@@ -18,7 +18,7 @@ row on mutation, `no-store` on responses, security headers on every response.
 | Tenant provisioning | auto-provision "My Business" on first `/auth/me` | `businesses` | owner_id from the verified token; never from the body |
 | Team members & roles | `GET /team`, `PATCH/DELETE /team/members/{id}` | `business_members` | owner-only mutations; the last-owner guard prevents locking the tenant out |
 | Invitations | `POST /team/invites/accept`, `DELETE /team/invites/{token}` | `business_invitations` | token-bound, email-matched, expires; accepting requires a verified email |
-| Platform admin console | `/platform/*` (5) | cross-tenant aggregates | email/allow-list gate (`platform_admin.is_platform_admin`), refusals emit `platform_admin_rejected` |
+| Platform admin console | `/platform/*` (6) | cross-tenant aggregates | email/allow-list gate (`platform_admin.is_platform_admin`), refusals emit `platform_admin_rejected`; `investor-metrics` returns counts only (no names, no emails) |
 | Licence admin | `/admin/*` (3) | `licenses` | shared secret in `X-Admin-Token`, constant-time compare, refusals emit `admin_token_rejected` |
 | Role enforcement | all mutating routes | — | `WRITE_MATRIX` per surface; viewers/accountants cannot write; denial now emits `authz_denied` |
 

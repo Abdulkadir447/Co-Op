@@ -343,6 +343,24 @@ Product documentation (PRD, TRD, BSD, AFD, IPD, UXDS) lives in
 `Documents/`; engineering docs (branch protection, ADRs, coding standards)
 in `docs/`; current readiness status in `docs/PRODUCT_READINESS.md`.
 
+Business and fundraising docs:
+
+- `docs/BUSINESS_PLAN.md` — the zero-capital plan, USD pricing, unit economics.
+- `docs/YC_APPLICATION.md` — an honest read on whether YC would fund this, plus
+  the application written out with every number wired to the product.
+- `docs/PRODUCT_MARKET_FIT_AUDIT.md` — every feature checked against how it is
+  done in the wild, with sources.
+
+To demo the product with data in it (three-minute demo, screen recording):
+
+```bash
+python scripts/seed_demo.py --email you@example.com
+```
+
+Then open **Admin console → Fundraising** for the five numbers an investor or
+accelerator asks for (signups, activation, retention, MRR, AI usage), each with
+its definition printed beside it.
+
 ## Licence
 
 Proprietary — All Rights Reserved. See [LICENSE](LICENSE): the codebase is

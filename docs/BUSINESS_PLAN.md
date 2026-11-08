@@ -64,7 +64,7 @@ English.
 
 ## 3. What Co-op is, factually
 
-Built and running today (91 API routes, 439 backend tests, 26 frontend tests):
+Built and running today (92 API routes, 446 backend tests, 26 frontend tests):
 
 - Products, stock movements on an append-only ledger, low-stock and reorder signals.
 - Customers, orders with a validated status machine, invoices with per-business
@@ -201,7 +201,18 @@ vendor, is a real conversion cost, not a cosmetic one.
 At $29, 100 paying businesses is **$2,900/month** — enough to fund the company
 without selling it.
 
-## 8. Go-to-market (no ad budget)
+## 8. Measuring it (built, not aspirational)
+
+The original version of this plan had a table of targets and no way to check
+them. The metrics now exist in the product: **Admin console → Fundraising**
+(`GET /platform/investor-metrics`) computes signups, activation (first invoice
+within 7 days), week-over-week retention, MRR and AI credits per paying business
+from the ledgers, and prints the definition of each next to the number. The same
+endpoint produces the one-line traction sentence for an investor or accelerator
+application, so the dashboard and the application cannot disagree. See
+`docs/YC_APPLICATION.md` for how each number is used.
+
+## 9. Go-to-market (no ad budget)
 
 1. **The bookkeeper channel.** One bookkeeper with 30 clients is worth more than
    1,000 impressions. They are also the person who has to fix bad books, so an
@@ -218,7 +229,7 @@ without selling it.
 5. **One launch, once.** Product Hunt / Hacker News "Show HN" when the offline
    demo exists. A launch without a demo video wastes the only free spike you get.
 
-## 9. What this pass changed in the product to match the plan
+## 10. What this pass changed in the product to match the plan
 
 Detailed in `docs/PRODUCT_MARKET_FIT_AUDIT.md`; summarised:
 
@@ -237,7 +248,7 @@ Detailed in `docs/PRODUCT_MARKET_FIT_AUDIT.md`; summarised:
    "Tax ID" and "Reg. no.", with the statutory citation generalised away from
    Nigeria-only wording.
 
-## 10. Risks, honestly
+## 11. Risks, honestly
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
@@ -251,7 +262,7 @@ Detailed in `docs/PRODUCT_MARKET_FIT_AUDIT.md`; summarised:
 | Time-zone support (WAT vs US hours) | medium | publish support hours; use async video answers |
 | Single founder, no runway | high | grants first, revenue second, fixed costs at zero |
 
-## 11. What we will not do
+## 12. What we will not do
 
 - No lending/credit product (needs a licence and capital).
 - No payment collection on behalf of the merchant (regulatory surface).

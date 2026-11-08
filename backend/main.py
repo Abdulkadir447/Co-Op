@@ -3238,6 +3238,25 @@ async def platform_overview(
     }
 
 
+@app.get("/platform/investor-metrics", tags=["Platform"])
+async def platform_investor_metrics(
+    window_days: int = Query(28, ge=7, le=365),
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """The five numbers every accelerator application asks for.
+
+    Computed from the ledgers that already exist (businesses, invoices,
+    audit_log, ai_usage, payments) — no new instrumentation and no analytics
+    vendor. Aggregates only: no business name, no email, no customer row.
+    ``headline`` is a ready-to-quote sentence whose every figure comes from the
+    same read, so the application and the dashboard can never disagree.
+    """
+    from . import investor_metrics
+
+    return await investor_metrics.snapshot(db, window_days=window_days)
+
+
 @app.get("/platform/feedback", tags=["Platform"])
 async def platform_feedback(
     limit: int = Query(50, ge=1, le=500),
