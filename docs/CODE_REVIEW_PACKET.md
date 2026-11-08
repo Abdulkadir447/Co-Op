@@ -182,9 +182,20 @@ answer without a token, and all six are justified —
 |---|---|
 | `GET /` | service banner, no data |
 | `GET /healthcheck` | liveness for the platform and CI |
-| `GET /billing/payment-config` | plan/price catalogue for the pre-login pricing page; no tenant data, no secret |
+| `GET /billing/payment-config` | the pricing page's own catalogue; no tenant data, no secret (see below) |
 | `POST /webhooks/paystack` | HMAC-SHA512 over the raw body; a bad signature is 401 |
 | `GET /admin/licenses`, `POST /admin/generate-license`, `POST /admin/licenses/revoke` | shared secret in `X-Admin-Token`; with no token configured they answer **503 (closed)**, never 200 |
+
+`/billing/payment-config` is the only one worth reading line by line, because a
+"config" endpoint is a classic place to leak a key. It returns
+`backend/paystack.py:public_config()` and nothing else: `provider`, `enabled`,
+`currency`, `intervals`, and per plan `checkout_url` + `prices_kobo` +
+`checkout_enabled`, plus a boolean `verification`. There is no
+`PAYSTACK_SECRET_KEY`, no `public key` either — checkout is a redirect to a
+hosted page, so the browser never needs one. The hosted page URL
+(`paystack.com/pay/<code>`) and the prices are both already public on the
+pricing page; `verification` is a bare boolean saying whether the backend can
+confirm a charge. **No tenant data, no secret, no enumeration.**
 
 ### 3.3 `backend/team.py` (157)
 
