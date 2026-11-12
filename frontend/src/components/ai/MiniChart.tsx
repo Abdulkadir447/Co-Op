@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ApexOptions } from 'apexcharts';
-import Chart from '../dashboard/chart';
+import Chart from '../dashboard/LazyChart';
 import { useCoopTheme } from '../../theme-provider';
 
 export interface MiniChartProps {

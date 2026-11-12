@@ -3,8 +3,11 @@
  * PageHeader · CoopCard section menu · one real section per entry.
  *
  * Every section in the menu is implemented (no "coming soon" panels):
- *   Company · Licence · Appearance · AI · Notifications · Security
+ *   Company · Licence · Team · Appearance · AI · Notifications · Security
  *   · Backup & Restore · Sync · Audit Log · About
+ *
+ * There is deliberately no "what Zeno learned" panel: adaptation is not a
+ * surface the owner administers, it is behaviour they notice.
  *
  * Company + AI read/write the tenant settings through the shared hook here;
  * the other sections own their state (theme, device prefs, Clerk, sync

@@ -49,6 +49,23 @@ class AiChatResponse(BaseModel):
     follow_ups: list[str] = Field(default_factory=list)
     links: list[AiLink] = Field(default_factory=list)
     actions: list[AiAction] = Field(default_factory=list)
+    # Internal, never returned to the client: habits the model noticed this turn
+    # ("prefers figures in thousands"). They go to the lesson ledger, where two
+    # independent mentions are required before one may shape an answer.
+    preferences: list[str] = Field(default_factory=list)
+
+    @field_validator("preferences", mode="before")
+    @classmethod
+    def _trim_preferences(cls, v: Any) -> list[str]:
+        if not isinstance(v, list):
+            return []
+        out: list[str] = []
+        for item in v:
+            if isinstance(item, str) and item.strip():
+                out.append(item.strip()[:200])
+            if len(out) >= 2:
+                break
+        return out
 
     @field_validator("kind")
     @classmethod

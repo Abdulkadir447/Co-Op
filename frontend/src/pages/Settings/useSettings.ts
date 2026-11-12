@@ -15,10 +15,16 @@ export interface BusinessSettings {
   address: string | null;
   phone: string | null;
   tax_id: string | null;
+  /** Company/LLC registration number — printed on the invoice. */
+  registration_number: string | null;
   website: string | null;
   timezone: string | null;
   /** Ask Zeno answer style (concise | standard | detailed). */
   ai_response_style: string;
+  /** Tax presentation (0021) — exclusive: added on top of the line subtotal. */
+  tax_enabled: boolean;
+  tax_rate: number;
+  tax_label: string;
   created_at: string;
   updated_at: string | null;
 }

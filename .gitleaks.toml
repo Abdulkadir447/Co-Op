@@ -1,0 +1,41 @@
+# gitleaks — secret scanning for a PUBLIC repository.
+#
+# The default ruleset is kept in full. The only relaxations are *literal
+# placeholders*, listed by regex rather than by file: excluding whole files
+# (e.g. `.env.example` by path) would hide the exact mistake this scan exists to
+# catch — somebody pasting a real key into the template.
+#
+# Each entry below is a value that appears in docs or `.env.example` to teach
+# someone what to fill in. None of them grants access to anything.
+
+title = "Co-op"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation placeholders and local-only development values"
+regexes = [
+  # Connection strings whose password is the literal word `password`, or an
+  # angle-bracket placeholder — never a real credential.
+  '''postgres(?:ql)?://[^:\s"'@]+:(?:password|<password>)@''',
+  '''postgres(?:ql)?://[^:\s"'@]+:coop_password@''',
+  # Provider key placeholders (Paystack, OpenRouter, generic Clerk/Supabase).
+  '''sk_test_your-secret-key''',
+  '''pk_test_your-public-key''',
+  '''sk-or-your-key''',
+  '''pk_test_\.\.\.''',
+  '''sk_test_\.\.\.''',
+  '''eyJ\.\.\.''',
+  # Host placeholders.
+  '''your-instance\.clerk\.accounts\.dev''',
+  '''your-project-ref\.supabase\.co''',
+  '''db\.host\.supabase\.co''',
+  '''app\.coop\.example''',
+  '''<your-api>''',
+  '''<instance>\.clerk\.accounts\.dev''',
+  # Documentation angle-brackets.
+  '''<service_role key>''',
+  '''<secret>''',
+  '''<token>''',
+]

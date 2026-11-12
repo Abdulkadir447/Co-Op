@@ -294,3 +294,38 @@ async def test_imported_history_feeds_the_reports(api):
     # Totals straight off the sample file: 222 units, ₦3,603,300 across 18 lines.
     assert kpis["units"] == 222
     assert kpis["revenue"] == 3603300
+
+
+# ---------------------------------------------------------------------------
+# Bounds: the parsers are CPU-heavy and the upload used to be buffered whole.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_a_file_over_the_size_cap_is_refused(api):
+    big = b"name,sku,price\n" + b"Widget,SKU-1,10\n" * 400_000  # ~6 MB
+    assert len(big) > 5 * 1024 * 1024
+    r = await api.client.post(
+        "/imports/preview", files={"file": ("big.csv", big)}
+    )
+    assert r.status_code == 400
+    assert "too large" in r.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_a_file_over_the_row_cap_is_refused(api):
+    from backend import importer
+
+    rows = ["name,sku,price"] + [f"Widget {i},SKU-{i},10" for i in range(20_001)]
+    parsed = importer.parse_file("huge.csv", "\n".join(rows).encode())
+    assert parsed.error and "20,000 rows" in parsed.error
+    assert parsed.rows == []
+
+
+@pytest.mark.asyncio
+async def test_the_row_cap_is_enforced_through_the_route(api):
+    rows = ["name,sku,price"] + [f"Widget {i},SKU-{i},10" for i in range(20_001)]
+    r = await api.client.post(
+        "/imports/preview", files={"file": ("huge.csv", "\n".join(rows).encode())}
+    )
+    assert r.status_code == 400
+    assert "20,000 rows" in r.json()["detail"]

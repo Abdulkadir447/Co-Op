@@ -60,7 +60,7 @@ class PaystackConfig:
     """The non-secret Paystack settings for this environment."""
 
     enabled: bool = False
-    currency: str = "NGN"
+    currency: str = "USD"
     api_base: str = API_BASE
     callback_url: Optional[str] = None
     secret_key_env: str = DEFAULT_SECRET_ENV
@@ -70,8 +70,10 @@ class PaystackConfig:
     allowed_callback_hosts: tuple[str, ...] = ()
     # plan -> hosted payment page URL (created in the Paystack dashboard)
     payment_pages: dict[str, str] = field(default_factory=dict)
-    # plan -> {"monthly": kobo, "annual": kobo}. Absent = the hosted page
-    # carries its own amount, so none is sent.
+    # plan -> {"monthly": minor units, "annual": minor units} of ``currency``
+    # (cents for USD — the historical name "kobo" is kept because the payments
+    # ledger column is amount_kobo). Absent = the hosted page carries its own
+    # amount, so none is sent.
     prices_kobo: dict[str, dict[str, int]] = field(default_factory=dict)
 
     @property
@@ -148,7 +150,7 @@ def paystack_config() -> PaystackConfig:
 
     return PaystackConfig(
         enabled=bool(raw.get("enabled", False)),
-        currency=str(raw.get("currency", "NGN")).upper(),
+        currency=str(raw.get("currency", "USD")).upper(),
         api_base=str(raw.get("api_base", API_BASE)).rstrip("/"),
         callback_url=callback_url,
         secret_key_env=str(raw.get("secret_key_env", DEFAULT_SECRET_ENV)),
@@ -334,7 +336,7 @@ class PaystackClient:
         reference: str,
         callback_url: Optional[str] = None,
         metadata: Optional[dict[str, Any]] = None,
-        currency: str = "NGN",
+        currency: str = "USD",
     ) -> dict[str, Any]:
         """Start a charge; returns ``{authorization_url, access_code, reference}``.
 

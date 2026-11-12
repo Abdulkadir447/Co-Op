@@ -1,5 +1,5 @@
 import React from 'react';
-import Chart from './chart';
+import Chart from './LazyChart';
 import { radius, spacing, type as typeScale } from '../../theme';
 import { useCoopTheme } from '../../theme-provider';
 import type {

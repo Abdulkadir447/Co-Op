@@ -105,7 +105,7 @@
     }
   },
   "rate_limits": {
-    "_comment": "Per-tenant limits for the expensive non-AI endpoints. requests <= 0 disables a section.",
+    "_comment": "Per-tenant limits for the expensive endpoints. requests <= 0 disables a section. `admin` is keyed by peer address because the /admin licence routes have no user identity.",
     "imports": {
       "requests": 20,
       "window_seconds": 300
@@ -113,10 +113,18 @@
     "exports": {
       "requests": 30,
       "window_seconds": 60
+    },
+    "writes": {
+      "requests": 60,
+      "window_seconds": 60
+    },
+    "admin": {
+      "requests": 30,
+      "window_seconds": 60
     }
   },
   "paystack": {
-    "_comment": "Paystack. The three hosted payment pages below map to plans in the order they were supplied (starter, professional, enterprise) \u2014 CONFIRM and swap if the dashboard says otherwise. The secret key is read from the PAYSTACK_SECRET_KEY environment variable, never from this file; the hosted pages need no key to redirect, but PAYSTACK_SECRET_KEY is required to verify a charge or receive webhooks. prices_kobo is empty on purpose: each hosted page carries the amount set when it was created.",
+    "_comment": "Paystack. Charges go through the API (POST /transaction/initialize) using prices_kobo, so PAYSTACK_SECRET_KEY is REQUIRED - without it no checkout can start and no webhook can be verified. The shipped catalogue is USD (Co-op's market is dollar-billed): starter $29/mo ($278.40/yr), professional $99/mo ($950.40/yr) - both 20% off annual, matching frontend/src/billing/plans.ts. Amounts are in minor units of \"currency\" (cents for USD; the key keeps its historical name, kobo, because the payments ledger column does). Selling in USD from a Nigerian Paystack account needs USD enabled on the account and a domiciliary settlement bank; Paystack charges 3.9% on international/USD transactions versus 1.5% + N100 local. See docs/BUSINESS_PLAN.md section 5. Enterprise has no price on purpose: it is Contact Sales. Set paystack.callback_url (or the PAYSTACK_CALLBACK_URL env var) to the absolute URL of the deployed Billing page.",
     "enabled": true,
     "currency": "USD",
     "api_base": "https://api.paystack.co",
@@ -130,8 +138,14 @@
     ],
     "payment_pages": {},
     "prices_kobo": {
-      "starter": { "monthly": 2900, "annual": 27600 },
-      "professional": { "monthly": 9900, "annual": 94800 }
+      "starter": {
+        "monthly": 2900,
+        "annual": 27840
+      },
+      "professional": {
+        "monthly": 9900,
+        "annual": 95040
+      }
     }
   }
 }

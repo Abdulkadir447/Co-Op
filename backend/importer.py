@@ -236,6 +236,12 @@ DATASETS: dict[str, DatasetSpec] = {
 # File parsing
 # ---------------------------------------------------------------------------
 
+# A 5 MB CSV is millions of rows; parsing them holds the whole thing in memory
+# and takes seconds of CPU per request. 20k rows is far more than a small shop
+# imports and keeps the endpoint bounded.
+MAX_IMPORT_ROWS = 20_000
+
+
 @dataclass
 class ParsedFile:
     filename: str
@@ -279,7 +285,19 @@ def _parse_csv(data: bytes) -> ParsedFile:
         delimiter = max({",", ";", "\t"}, key=header_line.count, default=",")
 
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
-    rows = [r for r in reader if any(c.strip() for c in r)]
+    rows = []
+    for row in reader:
+        if not any(c.strip() for c in row):
+            continue
+        rows.append(row)
+        if len(rows) > MAX_IMPORT_ROWS + 1:  # +1 for the header row
+            return ParsedFile(
+                "file", "csv", [], [],
+                error=(
+                    f"The file has more than {MAX_IMPORT_ROWS:,} rows. Split it "
+                    "into smaller files — nothing was imported."
+                ),
+            )
     if not rows:
         return ParsedFile("file", "csv", [], [], error="The file appears to be empty.")
     headers = [_clean_header(h) for h in rows[0]]
@@ -295,9 +313,21 @@ def _parse_xlsx(data: bytes) -> ParsedFile:
 
     wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     ws = wb.worksheets[0]  # v1: first worksheet only
-    rows = [[("" if c is None else str(c)) for c in row] for row in ws.iter_rows(values_only=True)]
+    rows = []
+    for row in ws.iter_rows(values_only=True):
+        if not any(str(c).strip() for c in row if c is not None):
+            continue
+        rows.append([("" if c is None else str(c)) for c in row])
+        if len(rows) > MAX_IMPORT_ROWS + 1:
+            wb.close()
+            return ParsedFile(
+                "file", "xlsx", [], [],
+                error=(
+                    f"The file has more than {MAX_IMPORT_ROWS:,} rows. Split it "
+                    "into smaller files — nothing was imported."
+                ),
+            )
     wb.close()
-    rows = [r for r in rows if any(c.strip() for c in r)]
     if not rows:
         return ParsedFile("file", "xlsx", [], [], error="The first worksheet appears to be empty.")
     headers = [_clean_header(h) for h in rows[0]]

@@ -198,3 +198,33 @@ async def test_an_accountant_may_raise_an_invoice(api):
     assert (await api.client.get("/invoices")).status_code == 200
     denied = await api.client.post("/invoices", json={"order_id": seed["order"]["id"]})
     assert denied.status_code == 403, denied.text
+
+
+async def test_invoice_compliance_fields_reach_the_document(api) -> None:
+    """Nigeria Tax Act 2025 s.153: a VAT invoice carries the supplier's Tax ID
+    and business registration number, and an invoice number from a sequence.
+    The settings must accept both, and the order must expose the invoice
+    number once the invoice exists."""
+    saved = await api.client.patch(
+        "/business/settings",
+        json={"tax_id": "TIN-12345678", "registration_number": "RC 7654321"},
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["tax_id"] == "TIN-12345678"
+    assert saved.json()["registration_number"] == "RC 7654321"
+
+    seed = await _seed_order(api, email="compliance@example.com", sku="COMP-1")
+    order_id = seed["order"]["id"]
+    detail = (await api.client.get(f"/orders/{order_id}")).json()
+    assert detail["invoice_number"] is None, "an un-invoiced order has no document number"
+
+    created = await api.client.post("/invoices", json={"order_id": order_id})
+    assert created.status_code == 201, created.text
+    number = created.json()["number"]
+
+    detail = (await api.client.get(f"/orders/{order_id}")).json()
+    assert detail["invoice_number"] == number
+
+    # Another tenant cannot see either the number or the settings.
+    api.set_user("invoice-other-tenant")
+    assert (await api.client.get(f"/orders/{order_id}")).status_code == 404

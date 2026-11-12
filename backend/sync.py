@@ -20,6 +20,7 @@ from datetime import datetime
 import re
 from typing import Any, Optional
 
+from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import select
 
 from .audit import record_audit
@@ -69,6 +70,9 @@ class SyncConflict(SyncError):
       not_found          — the op targets a client_id with no server row
       invalid_transition — order status jump not in ALLOWED_ORDER_TRANSITIONS
       insufficient_stock — applying the movement would drive stock negative
+      invalid_payload    — a field the server cannot accept (bad email, a
+                           non-numeric amount). Retrying the same op cannot
+                           help; the row waits for the user to fix it.
     """
 
     def __init__(
@@ -142,13 +146,107 @@ def _product_snapshot(row) -> dict:
     }
 
 
-async def _resolve_client_id(db, model, client_id: str) -> Optional[int]:
+_EMAIL = TypeAdapter(EmailStr)
+
+# Placeholder domain for an offline customer created without an email. It has
+# to be a domain the response schema accepts: `@coop.local` and `.invalid` are
+# reserved names, and pydantic's EmailStr REJECTS them — so a row created that
+# way made GET /customers fail validation for the whole tenant.
+_PLACEHOLDER_DOMAIN = "customers.example.com"
+
+
+def _valid_email(value: str, client_id: str, field: str = "email") -> str:
+    """Accept only an email the response schema can render back.
+
+    The HTTP routes validate with EmailStr; the sync path used to store the
+    payload verbatim, so one bad row poisoned the tenant's whole list.
+    """
+    try:
+        return str(_EMAIL.validate_python(value))
+    except (ValidationError, TypeError):
+        raise SyncConflict(
+            f"{field} {value!r} is not a valid email address",
+            reason="invalid_payload",
+            entity="customer",
+            client_id=client_id,
+            local={field: value},
+        )
+
+
+def _as_float(value: Any, client_id: str, entity: str, field: str) -> float:
+    """Coerce a client-supplied number, or conflict — never raise ValueError.
+
+    `int(payload.get("change") or 0)` on "abc" used to escape as a 500 and
+    abort the whole batch, so one malformed op cost every op behind it.
+    """
+    if isinstance(value, bool) or value is None:
+        raise SyncConflict(
+            f"{field} must be a number (got {value!r})",
+            reason="invalid_payload", entity=entity, client_id=client_id,
+            local={field: value},
+        )
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise SyncConflict(
+            f"{field} must be a number (got {value!r})",
+            reason="invalid_payload", entity=entity, client_id=client_id,
+            local={field: value},
+        )
+
+
+def _as_int(value: Any, client_id: str, entity: str, field: str) -> int:
+    if isinstance(value, bool):
+        raise SyncConflict(
+            f"{field} must be a whole number (got {value!r})",
+            reason="invalid_payload", entity=entity, client_id=client_id,
+            local={field: value},
+        )
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise SyncConflict(
+            f"{field} must be a whole number (got {value!r})",
+            reason="invalid_payload", entity=entity, client_id=client_id,
+            local={field: value},
+        )
+    if number != int(number):
+        raise SyncConflict(
+            f"{field} must be a whole number (got {value!r})",
+            reason="invalid_payload", entity=entity, client_id=client_id,
+            local={field: value},
+        )
+    return int(number)
+
+
+async def _resolve_client_id(
+    db, model, client_id: str, business_id: int
+) -> Optional[int]:
+    """Map a client-generated id to a server id, **inside this tenant**.
+
+    The id is globally unique, so an unscoped lookup also resolves rows that
+    belong to somebody else — and every caller below then trusts the result.
+    Scoping here is what makes a cross-tenant client_id simply not found.
+    """
     if not client_id:
         return None
     row = (
-        await db.execute(select(model.id).where(model.client_id == client_id))
+        await db.execute(
+            select(model.id).where(
+                model.client_id == client_id, model.business_id == business_id
+            )
+        )
     ).scalars().first()
     return row
+
+
+async def _load(db, model, row_id: int, business_id: int):
+    """Load one row, tenant-scoped. None means "not yours or not there"."""
+    return (
+        await db.execute(
+            select(model).where(model.id == row_id, model.business_id == business_id)
+        )
+    ).scalars().first()
 
 
 async def _resolve_ref(
@@ -163,7 +261,7 @@ async def _resolve_ref(
     resolution).
     """
     if client_id:
-        row = await _resolve_client_id(db, model, client_id)
+        row = await _resolve_client_id(db, model, client_id, business_id)
         if row is not None:
             return row
     if server_id is not None:
@@ -213,6 +311,12 @@ async def apply_push(db, business_id: int, operations: list[dict[str, Any]]) -> 
         client_id = op.get("client_id")
         operation = op.get("operation")
         payload = op.get("payload") or {}
+        if not isinstance(payload, dict):
+            failed.append({
+                "client_id": client_id or "", "entity": entity or "",
+                "error": "payload must be an object",
+            })
+            continue
         try:
             if entity == "customer":
                 server_id, created = await _apply_customer(
@@ -250,6 +354,15 @@ async def apply_push(db, business_id: int, operations: list[dict[str, Any]]) -> 
         except SyncError as e:
             failed.append({"client_id": client_id or "", "entity": entity or "", "error": str(e)})
             continue
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
+            # Defence in depth: a coercion the helpers above did not cover must
+            # not 500 the request and discard every operation queued behind it.
+            failed.append({
+                "client_id": client_id or "",
+                "entity": entity or "",
+                "error": f"malformed operation: {e}",
+            })
+            continue
         # Success path: applied or idempotent-skip.
         if created:
             applied += 1
@@ -282,15 +395,18 @@ async def apply_push(db, business_id: int, operations: list[dict[str, Any]]) -> 
 # ---------------------------------------------------------------------------
 
 async def _apply_customer(db, business_id, client_id, operation, payload):
-    existing_id = await _resolve_client_id(db, Customer, client_id)
+    existing_id = await _resolve_client_id(db, Customer, client_id, business_id)
     if existing_id is not None:
-        if operation == "update":
-            c = (
-                (await db.execute(select(Customer).where(Customer.id == existing_id)))
-                .scalars()
-                .first()
+        c = await _load(db, Customer, existing_id, business_id)
+        if c is None:  # raced with a hard delete between resolve and load
+            raise SyncConflict(
+                f"customer {client_id}: row disappeared",
+                reason="not_found", entity="customer", client_id=client_id,
             )
+        if operation == "update":
             new_email = payload.get("email")
+            if new_email is not None:
+                new_email = _valid_email(new_email, client_id)
             if new_email is not None and new_email != c.email:
                 owner = await _email_owner(db, business_id, new_email)
                 if owner is not None and owner.id != existing_id:
@@ -303,17 +419,15 @@ async def _apply_customer(db, business_id, client_id, operation, payload):
                         local={"email": new_email, "full_name": payload.get("full_name")},
                         server=_customer_snapshot(owner),
                     )
-            for f in ("full_name", "email", "phone", "company", "address"):
+            for f in ("full_name", "phone", "company", "address"):
                 if payload.get(f) is not None:
                     setattr(c, f, payload[f])
+            if new_email is not None:
+                # The VALIDATED address, not the raw payload value.
+                c.email = new_email
             await db.flush()
             return existing_id, True
         if operation == "delete":
-            c = (
-                (await db.execute(select(Customer).where(Customer.id == existing_id)))
-                .scalars()
-                .first()
-            )
             c.deleted_at = datetime.utcnow()
             await db.flush()
             return existing_id, True
@@ -327,6 +441,8 @@ async def _apply_customer(db, business_id, client_id, operation, payload):
     name = payload.get("full_name") or "Unknown"
     email = payload.get("email")
     if email:
+        # Never store something the response schema would refuse to render.
+        email = _valid_email(email, client_id)
         # A DIFFERENT customer already owns this email -> conflict. (An exact
         # NAME match is NOT identity: same name, different email is simply a
         # different customer and is created as such — never auto-merged.)
@@ -343,7 +459,7 @@ async def _apply_customer(db, business_id, client_id, operation, payload):
         # email, so derive a stable placeholder (as the importer does) rather
         # than failing the sync.
         slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:24] or "customer"
-        email = f"{slug}-{client_id[-6:].lower()}@coop.local"
+        email = f"{slug}-{client_id[-6:].lower()}@{_PLACEHOLDER_DOMAIN}"
     c = Customer(
         business_id=business_id,
         client_id=client_id,
@@ -360,14 +476,15 @@ async def _apply_customer(db, business_id, client_id, operation, payload):
 
 
 async def _apply_product(db, business_id, client_id, operation, payload):
-    existing_id = await _resolve_client_id(db, Product, client_id)
+    existing_id = await _resolve_client_id(db, Product, client_id, business_id)
     if existing_id is not None:
-        if operation == "update":
-            p = (
-                (await db.execute(select(Product).where(Product.id == existing_id)))
-                .scalars()
-                .first()
+        p = await _load(db, Product, existing_id, business_id)
+        if p is None:
+            raise SyncConflict(
+                f"product {client_id}: row disappeared",
+                reason="not_found", entity="product", client_id=client_id,
             )
+        if operation == "update":
             new_sku = payload.get("sku")
             if new_sku is not None and new_sku != p.sku:
                 owner = await _sku_owner(db, business_id, new_sku)
@@ -380,25 +497,15 @@ async def _apply_product(db, business_id, client_id, operation, payload):
                         local={"sku": new_sku, "name": payload.get("name")},
                         server=_product_snapshot(owner),
                     )
-            for f in (
-                "name",
-                "sku",
-                "category",
-                "description",
-                "unit_price",
-                "cost_price",
-                "reorder_level",
-            ):
+            for f in ("name", "sku", "category", "description"):
                 if payload.get(f) is not None:
                     setattr(p, f, payload[f])
+            for f in ("unit_price", "cost_price", "reorder_level"):
+                if payload.get(f) is not None:
+                    setattr(p, f, _as_float(payload[f], client_id, "product", f))
             await db.flush()
             return existing_id, True
         if operation == "delete":
-            p = (
-                (await db.execute(select(Product).where(Product.id == existing_id)))
-                .scalars()
-                .first()
-            )
             p.deleted_at = datetime.utcnow()
             await db.flush()
             return existing_id, True
@@ -426,8 +533,14 @@ async def _apply_product(db, business_id, client_id, operation, payload):
         sku=new_sku,
         category=payload.get("category"),
         description=payload.get("description"),
-        unit_price=payload.get("unit_price") or 0.0,
-        cost_price=payload.get("cost_price"),
+        unit_price=_as_float(
+            payload.get("unit_price") or 0.0, client_id, "product", "unit_price"
+        ),
+        cost_price=(
+            _as_float(payload["cost_price"], client_id, "product", "cost_price")
+            if payload.get("cost_price") is not None
+            else None
+        ),
         # ADR-002 rule 5: stock syncs as OPERATIONS, never as a value. The
         # client's current_stock in the create payload is ignored on purpose:
         # initial stock arrives as the paired 'initial' stock movement (which
@@ -435,7 +548,9 @@ async def _apply_product(db, business_id, client_id, operation, payload):
         # client's value AND applying the initial movement would double-count
         # (proven by the OFFLINE 6 E2E: lamp 10 -> 18 instead of 8).
         current_stock=0,
-        reorder_level=payload.get("reorder_level") or 0,
+        reorder_level=_as_float(
+            payload.get("reorder_level") or 0, client_id, "product", "reorder_level"
+        ),
         created_by="offline-sync",
     )
     db.add(p)
@@ -444,7 +559,7 @@ async def _apply_product(db, business_id, client_id, operation, payload):
 
 
 async def _apply_order(db, business_id, client_id, operation, payload):
-    existing_id = await _resolve_client_id(db, Order, client_id)
+    existing_id = await _resolve_client_id(db, Order, client_id, business_id)
     if existing_id is not None:
         if operation == "update":
             # Offline status changes (v1 offline boundary includes order
@@ -453,11 +568,12 @@ async def _apply_order(db, business_id, client_id, operation, payload):
             # as its own stock_movement operation (ADR-002 rule 5 — stock
             # syncs as operations), so it is applied exactly once there and
             # never re-restored here (no double restore).
-            order = (
-                (await db.execute(select(Order).where(Order.id == existing_id)))
-                .scalars()
-                .first()
-            )
+            order = await _load(db, Order, existing_id, business_id)
+            if order is None:
+                raise SyncConflict(
+                    f"order {client_id}: row disappeared",
+                    reason="not_found", entity="order", client_id=client_id,
+                )
             current = order.status.value if hasattr(order.status, "value") else str(order.status)
             requested = payload.get("status")
             if not requested or requested == current:
@@ -508,7 +624,9 @@ async def _apply_order(db, business_id, client_id, operation, payload):
         client_id=client_id,
         customer_id=customer_id,
         status=OrderStatus(status),
-        total_amount=payload.get("total_amount") or 0.0,
+        total_amount=_as_float(
+            payload.get("total_amount") or 0.0, client_id, "order", "total_amount"
+        ),
         order_date=_parse_dt(payload.get("order_date")),
         created_by="offline-sync",
     )
@@ -518,7 +636,7 @@ async def _apply_order(db, business_id, client_id, operation, payload):
 
 
 async def _apply_order_item(db, business_id, client_id, operation, payload):
-    existing_id = await _resolve_client_id(db, OrderItem, client_id)
+    existing_id = await _resolve_client_id(db, OrderItem, client_id, business_id)
     if existing_id is not None:
         return existing_id, False
     if operation != "create":
@@ -559,8 +677,15 @@ async def _apply_order_item(db, business_id, client_id, operation, payload):
                 "product_server_id": payload.get("product_server_id"),
             },
         )
-    qty = payload.get("quantity") or 0
-    price = payload.get("unit_price") or 0.0
+    qty = _as_int(payload.get("quantity") or 0, client_id, "order_item", "quantity")
+    price = _as_float(
+        payload.get("unit_price") or 0.0, client_id, "order_item", "unit_price"
+    )
+    total = (
+        _as_float(payload["total_price"], client_id, "order_item", "total_price")
+        if payload.get("total_price") is not None
+        else qty * price
+    )
     it = OrderItem(
         business_id=business_id,
         client_id=client_id,
@@ -568,7 +693,7 @@ async def _apply_order_item(db, business_id, client_id, operation, payload):
         product_id=product_id,
         quantity=qty,
         unit_price=price,
-        total_price=payload.get("total_price") or qty * price,
+        total_price=total,
         created_by="offline-sync",
     )
     db.add(it)
@@ -580,7 +705,7 @@ async def _apply_stock_movement(db, business_id, client_id, operation, payload):
     """Apply a stock movement at most once (keyed by client_id). The signed
     change updates product.current_stock; the server never trusts a final
     value from the client."""
-    existing_id = await _resolve_client_id(db, StockMovement, client_id)
+    existing_id = await _resolve_client_id(db, StockMovement, client_id, business_id)
     if existing_id is not None:
         return existing_id, False  # idempotent: the change is applied exactly once
     if operation != "create":
@@ -605,11 +730,16 @@ async def _apply_stock_movement(db, business_id, client_id, operation, payload):
                 "product_server_id": payload.get("product_server_id"),
             },
         )
-    change = int(payload.get("change") or 0)
+    change = _as_int(payload.get("change") or 0, client_id, "stock_movement", "change")
     reason = payload.get("reason") or "correction"
     if reason not in _VALID_REASONS:
         raise SyncError(f"stock_movement {client_id}: invalid reason {reason}")
-    p = (await db.execute(select(Product).where(Product.id == product_id))).scalars().first()
+    p = await _load(db, Product, product_id, business_id)
+    if p is None:
+        raise SyncConflict(
+            f"stock_movement {client_id}: unknown product",
+            reason="not_found", entity="stock_movement", client_id=client_id,
+        )
     new_stock = (p.current_stock or 0) + change
     if new_stock < 0:
         # Server re-validation (ADR-002 rule 7): refuse to drive stock

@@ -239,12 +239,84 @@ class OrderOut(BaseModel):
     # (Task 12 / M4). The frontend renders the status control from this instead
     # of maintaining its own copy of the rules.
     allowed_transitions: List[OrderStatus] = []
-    total_amount: float
+    total_amount: float          # NET subtotal (excludes tax)
+    # Tax, snapshotted on the order when it was raised (0021). None = tax was
+    # off for this order, so grand_total == total_amount for legacy rows.
+    tax_rate: Optional[float] = None
+    tax_amount: float = 0.0
+    grand_total: float = 0.0
+    # Receivables (0020): what came in, what is still owed. Computed from the
+    # payment ledger on every read — never stored, so it cannot drift.
+    amount_paid: float = 0.0
+    balance_due: float = 0.0
+    payment_status: str = "unpaid"  # unpaid | partial | paid | overpaid
     order_date: datetime
     created_at: datetime
     items: List[OrderItemOut]
+    # The saved invoice number for this order, when one exists (0023). A tax
+    # invoice must show a number from a sequential series, not an order
+    # reference — the print view uses this when it is present.
+    invoice_number: Optional[str] = None
+
+
+class OrderPaymentCreate(BaseModel):
+    """One payment received against an order."""
+
+    amount: float = Field(..., gt=0)
+    method: Optional[str] = "cash"  # cash | transfer | card | pos | other
+    reference: Optional[str] = Field(None, max_length=120)
+    note: Optional[str] = Field(None, max_length=500)
+
+
+class OrderPaymentOut(BaseModel):
+    id: int
+    order_id: int
+    amount: float
+    method: str
+    reference: Optional[str] = None
+    note: Optional[str] = None
+    received_at: Optional[datetime] = None
+    created_by: Optional[str] = None
+
+
+class OrderPaymentsResponse(BaseModel):
+    """The payment ledger of one order plus its balance."""
+
+    order_id: int
+    items: List[OrderPaymentOut]
+    amount_paid: float
+    balance_due: float
+    payment_status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ReceivableRow(BaseModel):
+    """One unpaid/part-paid order in the receivables list."""
+
+    order_id: int
+    customer_id: int
+    customer_name: Optional[str] = None
+    order_date: Optional[datetime] = None
+    status: str
+    subtotal: float
+    tax_amount: float
+    total: float          # what the customer owes in full (net + tax)
+    amount_paid: float
+    balance_due: float
+    payment_status: str
+    age_days: int         # days since the order was placed
+
+
+class ReceivablesResponse(BaseModel):
+    """Outstanding money across the tenant, oldest first."""
+
+    items: List[ReceivableRow]
+    total_outstanding: float
+    total_collected: float
+    count: int
+    page: int
+    limit: int
 
 
 # ---------------------------------------------------------------------------
@@ -347,9 +419,15 @@ class BusinessSettingsUpdate(BaseModel):
     address: Optional[str] = Field(None, max_length=500)
     phone: Optional[str] = Field(None, max_length=20)
     tax_id: Optional[str] = Field(None, max_length=100)
+    # Company/LLC registration number — printed on the invoice.
+    registration_number: Optional[str] = Field(None, max_length=60)
     website: Optional[str] = Field(None, max_length=255)
     timezone: Optional[str] = Field(None, max_length=64)
     ai_response_style: Optional[str] = Field(None, max_length=20)
+    # Tax presentation (0021). Rate is a percentage: 8.25 means 8.25%.
+    tax_enabled: Optional[bool] = None
+    tax_rate: Optional[float] = Field(None, ge=0, le=100)
+    tax_label: Optional[str] = Field(None, min_length=1, max_length=20)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -364,6 +442,7 @@ class BusinessSettingsOut(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     tax_id: Optional[str] = None
+    registration_number: Optional[str] = None
     website: Optional[str] = None
     timezone: Optional[str] = None
     # Set only by POST /business/logo (a Storage upload), never by PATCH —
@@ -371,6 +450,9 @@ class BusinessSettingsOut(BaseModel):
     # logo at any external host.
     logo_url: Optional[str] = None
     ai_response_style: str = "standard"
+    tax_enabled: bool = False
+    tax_rate: float = 0.0
+    tax_label: str = "Tax"
     created_at: datetime
     updated_at: Optional[datetime] = None
 

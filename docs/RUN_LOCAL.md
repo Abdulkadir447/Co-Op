@@ -31,6 +31,39 @@ python -m venv .venv
 
 (`python` may be `py` on some installs.) PowerShell 7+ accepts `&&` if you prefer.
 
+## 1b. Which branch, which database (read this before switching)
+
+Running the app is identical on every branch — the commands below do not
+change. What changes is **the schema the code expects**, and a mismatch fails
+in confusing ways rather than at startup.
+
+| Code branch | Database state | Result |
+|---|---|---|
+| any branch, `COOP_ENV=testing` (SQLite) | created from the models at startup | ✅ always matches — the easy way to just poke at the app |
+| a branch with newer migrations (e.g. `0020_order_payments`, `0021_tax`) | old schema | ❌ 500s on orders/payments — missing columns |
+| an **older** branch (e.g. head `0019`) | already-migrated Supabase (`0021_tax`) | ⚠️ app runs, but the new columns are invisible and `alembic upgrade head` fails with *Can't locate revision '0021_tax'* (the DB is ahead of that branch's migration scripts) |
+
+So: **SQLite (`COOP_ENV=testing`) is branch-proof; Postgres is not.** Before
+running an older branch against the Supabase project, either switch back to a
+branch that contains those migrations or point `DATABASE_URL` at a scratch
+database.
+
+Getting a branch locally, without losing work on another one:
+
+```sh
+git status                 # commit or stash first if dirty
+git fetch origin
+git switch arena/06237ab6-co-op      # inspect/run it in place
+
+# or keep your own branch and bring the work onto it:
+git switch my-branch
+git merge arena/06237ab6-co-op
+```
+
+`node_modules/` and `.venv/` belong to the working tree, not the branch, so
+after switching **rebuild them if the dependency files changed** in that
+branch (`git diff --name-only <old> <new> | grep -E 'package\.json|requirements'`).
+
 ## 2. Environment
 
 ```sh
@@ -146,6 +179,63 @@ No C++ toolchain is involved: `@electron/rebuild` fetches the prebuilt
 `better-sqlite3` for Electron's own ABI (33.4.11 → ABI 130, which exists), so
 the compiler is never invoked. It does download the ~100 MB Electron binary on
 first run — on a metered connection that looks like a hang. It is not one.
+
+### 4b. The one-command path: podman (no Python, no Node, no uvicorn)
+
+Everything above needs three terminals and a host toolchain. If you only want
+the app running, use the containers instead — Postgres, the API and the
+frontend all start as services, and `uvicorn` is launched *inside* the backend
+image, so you never type it:
+
+```sh
+# pk_test_... from dashboard.clerk.com — baked into the bundle, so a change
+# needs --build. Put it in .env at the repo root (podman-compose reads it).
+echo "VITE_CLERK_PUBLISHABLE_KEY=pk_test_..." > .env
+
+podman-compose up -d --build     # docker compose up -d --build works identically
+podman-compose ps
+```
+
+Then open **http://localhost:3000**. nginx serves the built app and proxies
+`/api/` to the `backend` service, so there is no CORS setup and no second URL.
+
+```sh
+podman-compose logs -f backend   # what the API is doing
+podman-compose down              # stop  (add -v to also wipe the database)
+podman-compose up -d --build     # rebuild after a code change
+```
+
+| Port | Serves |
+|---|---|
+| 3000 | the app (nginx) — **use this one** |
+| 8000 | the API directly (`/healthcheck`, `/docs` for OpenAPI) |
+| 5432 | the local Postgres container |
+
+**Using Supabase instead of the container database:** the `db` service is a
+local Postgres. To point the stack at your Supabase project, set `DATABASE_URL`
+before starting (it is passed through in `podman-compose.yml`):
+
+```sh
+# .env
+DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+The app creates missing tables at startup (`create_all`, additive only) — it
+never alters existing ones, so the schema still comes from the Alembic
+migrations in `backend/alembic/`.
+
+**Two bugs this path had until now** (both fixed, and both silent failures
+before): `frontend/Dockerfile` ran `npm ci` but the repo only ships
+`pnpm-lock.yaml`, so the image failed with *"`npm ci` can only install with an
+existing package-lock.json"*; and it never copied `frontend/nginx.conf` into the
+image, so the stock nginx config would have listened on `:80` with **no `/api`
+proxy** and nothing answering on the published `:3000`. The build now also
+fails loudly if `VITE_CLERK_PUBLISHABLE_KEY` is empty, instead of shipping a
+blank white screen.
+
+**What pods cannot fix:** the desktop/Electron app is not containerised (it
+needs a real desktop session), and `better-sqlite3` is a native module — see
+section 4.
 
 ## 5. Run the website
 
