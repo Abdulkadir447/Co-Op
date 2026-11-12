@@ -297,8 +297,10 @@ const CurrencySeeder: React.FC = () => {
 // ---------------------------------------------------------------------------
 const RootGate: React.FC = () => {
   const api = useApiClient();
+  const { colors } = useCoopTheme();
   const [invite, setInvite] = useState<TeamInviteIdentity | null>(null);
   const [identityResolved, setIdentityResolved] = useState(false);
+  const [identityError, setIdentityError] = useState<string | null>(null);
   const [hasData, setHasData] = useState<boolean | null>(null);
 
   // The owner can explicitly choose "Start from scratch" on /welcome —
@@ -323,7 +325,15 @@ const RootGate: React.FC = () => {
         if (me.pending_invitation) setInvite(me.pending_invitation);
         setIdentityResolved(true);
       })
-      .catch(() => !cancelled && setIdentityResolved(true));
+      .catch((e) => {
+        if (cancelled) return;
+        // A refused identity is a configuration problem the user cannot work
+        // around (the common one: the Clerk session token has no `email`
+        // claim). Swallowing it sends them into an app where every page 403s,
+        // so say what is wrong once, here.
+        setIdentityError(e instanceof Error ? e.message : 'Could not load your account');
+        setIdentityResolved(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -342,6 +352,26 @@ const RootGate: React.FC = () => {
   }, [api, identityResolved, invite]);
 
   if (!identityResolved || hasData === null) return <RouteFallback />;
+  if (identityError) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          background: colors.surface,
+        }}
+      >
+        <div style={{ maxWidth: 480, textAlign: 'center' }}>
+          <InfoCircleFilled style={{ fontSize: 28, color: colors.primary }} />
+          <h2 style={{ margin: '16px 0 8px', color: colors.onSurface }}>We can’t sign you in yet</h2>
+          <p style={{ color: colors.onSurfaceVariant, lineHeight: 1.6 }}>{identityError}</p>
+        </div>
+      </div>
+    );
+  }
   if (invite) {
     return (
       <InviteJoinCard

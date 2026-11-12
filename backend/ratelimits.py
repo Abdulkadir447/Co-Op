@@ -36,12 +36,16 @@ DEFAULTS: dict[str, dict[str, float]] = {
     # lesson ledger). A loop here cannot move money, but it can flood the
     # prompt with noise, so it is bounded like everything else.
     "writes": {"requests": 60, "window_seconds": 60},
+    # The /admin licence routes are gated by a shared secret compared in
+    # constant time; unthrottled, that is still an unlimited guessing budget.
+    "admin": {"requests": 30, "window_seconds": 60},
 }
 
 _MESSAGES = {
     "imports": "Too many imports. Wait a few minutes and try again.",
     "exports": "Too many exports. Wait a moment and try again.",
     "writes": "Too many changes. Wait a moment and try again.",
+    "admin": "Too many admin attempts. Wait a minute and try again.",
 }
 
 _limiters: dict[str, SlidingWindowRateLimiter] = {}

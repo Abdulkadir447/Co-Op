@@ -77,6 +77,7 @@ from .models import (
     License,
     Order,
     OrderItem,
+    OrderStatus,
     Product,
     StockMovement,
     StockMovementReason,
@@ -136,6 +137,14 @@ async def lifespan(_app: FastAPI):
     # Fail fast in production when Clerk is not configured (Task 11 / audit
     # H5): get_frontend_api raises unless CLERK_FRONTEND_API is set there.
     get_frontend_api()
+    # The auth bypass must be a BOOT failure, not a first-request failure: a
+    # server that only refuses the seam when somebody logs in is a server that
+    # looks healthy while it cannot be used, and the message arrives too late.
+    if os.getenv("COOP_TEST_AUTH_USER") and get_env() == "production":
+        raise RuntimeError(
+            "COOP_TEST_AUTH_USER is set in production — refusing to start. "
+            "Unset it: it authenticates every request as one fixed user."
+        )
     # Additive dev bootstrap: CREATE TABLE IF NOT EXISTS via the ORM. Alembic
     # migrations (backend/alembic) are the real migration path; this never
     # alters existing tables.
@@ -144,10 +153,15 @@ async def lifespan(_app: FastAPI):
     await dispose_db()
 
 
+# The generated docs are a complete map of the API and are unauthenticated.
+# Useful while developing, free reconnaissance in production.
+_DOCS_ENABLED = get_env() != "production"
+
 app = FastAPI(
     title="Co-op",
-    openapi_url="/docs/openapi.json",
-    docs_url="/docs",
+    openapi_url="/docs/openapi.json" if _DOCS_ENABLED else None,
+    docs_url="/docs" if _DOCS_ENABLED else None,
+    redoc_url=None,
     lifespan=lifespan,
 )
 
@@ -291,6 +305,23 @@ async def get_current_business(
     request.state and every mutation is checked against the role matrix
     here — the single choke point all business endpoints pass through.
     """
+    # The email claim is not optional. Clerk's DEFAULT session token omits it,
+    # and every identity decision below degrades silently without it: a
+    # pending invitation is not seen (so the invitee is given a second, empty
+    # business) and an invitation cannot be bound to the person accepting it.
+    # Refusing here turns a silent mis-provisioning into a visible, fixable
+    # error (Clerk dashboard -> Sessions -> Customize session token -> add
+    # `email`).
+    if not user.email:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Your session token has no email claim. Add `email` to the "
+                "session token in Clerk (Sessions -> Customize session token), "
+                "then sign out and back in."
+            ),
+        )
+
     stmt = select(Business).where(
         Business.owner_id == user.user_id,
         Business.deleted_at.is_(None),
@@ -323,22 +354,21 @@ async def get_current_business(
                 )
             role = member.role
         else:
-            if user.email:
-                pending = (
-                    await db.execute(
-                        select(BusinessInvitation)
-                        .where(
-                            BusinessInvitation.email == user.email.lower(),
-                            BusinessInvitation.status == "pending",
-                        )
-                        .limit(1)
+            pending = (
+                await db.execute(
+                    select(BusinessInvitation)
+                    .where(
+                        BusinessInvitation.email == user.email.lower(),
+                        BusinessInvitation.status == "pending",
                     )
-                ).scalars().first()
-                if pending is not None:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail="You have a pending team invitation — accept it first",
-                    )
+                    .limit(1)
+                )
+            ).scalars().first()
+            if pending is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="You have a pending team invitation — accept it first",
+                )
             business = Business(
                 name="My Business",
                 owner_id=user.user_id,
@@ -637,7 +667,18 @@ async def accept_team_invite(
     ).scalars().first()
     if invite is None or invite.status != "pending":
         raise HTTPException(status_code=400, detail="Invitation not found or no longer pending")
-    if user.email and invite.email != user.email.lower():
+    if not user.email:
+        # Never skip the binding check: without an email claim anyone holding
+        # the token could claim the invitation at the invited role.
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Your session token has no email claim, so this invitation "
+                "cannot be tied to you. Enable the `email` claim in Clerk and "
+                "sign in again."
+            ),
+        )
+    if invite.email != user.email.lower():
         raise HTTPException(
             status_code=403, detail="This invitation was sent to a different email"
         )
@@ -931,6 +972,9 @@ async def audit_entries(
     offset: int = Query(0, ge=0),
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _role: str = Depends(
+        team_mod.require_any("owner", "manager", "accountant")
+    ),
 ) -> List[AuditEntryOut]:
     """The caller's activity log, newest first (tenant-scoped)."""
     rows = await audit_mod.list_entries(db, business.id, limit=limit, offset=offset)
@@ -948,9 +992,15 @@ async def audit_entries(
 async def backups_export(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
 ) -> JSONResponse:
     """Download the tenant's business data as a Co-op backup file."""
-    payload = backups_mod.encrypt_backup(await backups_mod.build_backup(db, business))
+    try:
+        payload = backups_mod.encrypt_backup(
+            await backups_mod.build_backup(db, business)
+        )
+    except backups_mod.BackupKeyMissing as e:
+        raise HTTPException(status_code=503, detail=str(e))
     stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     return JSONResponse(
         content=payload,
@@ -970,6 +1020,8 @@ async def backups_restore(
     try:
         payload = backups_mod.decrypt_backup(payload)
         result = await backups_mod.restore_backup(db, business, payload)
+    except backups_mod.BackupKeyMissing as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except backups_mod.RestoreRefused as e:
         raise HTTPException(status_code=409, detail=str(e))
     except backups_mod.BackupValidationError as e:
@@ -2182,6 +2234,9 @@ async def top_products(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> List[TopProductItem]:
+    # Scope every leg of the join to this tenant, and count only orders that
+    # still exist: a soft-deleted or cancelled order must not keep feeding the
+    # "top products" number the owner makes stocking decisions from.
     stmt = (
         select(
             Product.id,
@@ -2190,7 +2245,14 @@ async def top_products(
             func.sum(OrderItem.quantity * OrderItem.unit_price).label("total_revenue"),
         )
         .join(OrderItem, OrderItem.product_id == Product.id)
-        .where(Product.business_id == business.id)
+        .join(Order, Order.id == OrderItem.order_id)
+        .where(
+            Product.business_id == business.id,
+            OrderItem.business_id == business.id,
+            Order.business_id == business.id,
+            Order.deleted_at.is_(None),
+            Order.status != OrderStatus.cancelled,
+        )
         .group_by(Product.id, Product.name)
         .order_by(func.sum(OrderItem.quantity).desc())
         .limit(limit)
@@ -2222,11 +2284,28 @@ MAX_IMPORT_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_SAMPLE_ROWS = 50
 
 
+_UPLOAD_CHUNK = 256 * 1024
+
+
 async def _read_upload(file: UploadFile) -> bytes:
-    data = await file.read()
-    if len(data) > MAX_IMPORT_BYTES:
-        raise HTTPException(status_code=400, detail="File is too large (max 5 MB).")
-    return data
+    """Read an upload with the size cap enforced WHILE reading.
+
+    ``await file.read()`` buffers the whole body before the length check, so a
+    100 MB upload cost 100 MB of RAM (and nginx allows 10 MB through) before it
+    was rejected. Reading in chunks and aborting at the cap means a hostile or
+    careless client cannot grow the process past the limit.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(_UPLOAD_CHUNK)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_IMPORT_BYTES:
+            raise HTTPException(status_code=400, detail="File is too large (max 5 MB).")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def _parsed_or_400(filename: str, data: bytes) -> importer.ParsedFile:
@@ -2251,6 +2330,7 @@ async def imports_schema(
 async def imports_preview(
     file: UploadFile = File(...),
     business: Business = Depends(get_current_business),
+    _rate: None = Depends(enforce_import_rate_limit),
 ) -> dict:
     """Parse the file and detect its dataset. No mapping yet, no writes."""
     data = await _read_upload(file)
@@ -2339,6 +2419,7 @@ async def imports_validate(
     mapping: str = Form("{}"),
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_import_rate_limit),
 ) -> dict:
     """Read-only validation pass BEFORE any database writes (spec item 6):
     "1,248 rows received — 1,201 valid, 23 duplicates, 7 missing dates…"."""
@@ -3396,12 +3477,19 @@ async def require_admin_token(request: Request) -> str:
     """Team-only gate for the licence-issuing routes (see block comment)."""
     from . import licensing as licensing_mod
 
+    from . import ratelimits as ratelimits_mod
+
     tokens = licensing_mod.admin_tokens()
     if not tokens:
         raise HTTPException(
             status_code=503,
             detail="Licence issuing is not configured on this server",
         )
+    # Throttle before comparing: a constant-time compare stops timing attacks,
+    # not a brute-force loop. Keyed by peer address because these routes have
+    # no user identity to key on.
+    client = request.client.host if request.client else "unknown"
+    ratelimits_mod.limiter_for("admin").check(f"admin-ip:{client}")
     presented = request.headers.get("x-admin-token", "")
     if not presented or not any(secrets.compare_digest(presented, t) for t in tokens):
         from .security_events import security_event

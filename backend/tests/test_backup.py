@@ -225,3 +225,67 @@ async def test_export_hides_plaintext_and_tampered_ciphertext_is_rejected(api):
     api.set_user("user-b")
     resp = await api.client.post("/backups/restore", json=bad)
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_export_refuses_without_a_key_in_production(api, monkeypatch):
+    """The dev fallback key is in the source tree, so "encrypted" with it is
+    encrypted for nobody. In production a missing key is a refusal."""
+    monkeypatch.setenv("COOP_ENV", "production")
+    monkeypatch.delenv("BACKUP_ENCRYPTION_KEY", raising=False)
+    monkeypatch.delenv("SECRET", raising=False)
+
+    resp = await api.client.get("/backups/export")
+    assert resp.status_code == 503
+    assert "BACKUP_ENCRYPTION_KEY" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_export_still_works_when_the_key_is_set(api, monkeypatch):
+    monkeypatch.setenv("COOP_ENV", "production")
+    monkeypatch.setenv("BACKUP_ENCRYPTION_KEY", "a-real-deployment-key")
+    resp = await api.client.get("/backups/export")
+    assert resp.status_code == 200
+    assert resp.json()["encrypted"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_non_numeric_value_in_a_backup_is_a_400(api):
+    """`float("abc")` used to escape as an unhandled ValueError -> 500."""
+    backup = {
+        "app": "coop",
+        "version": 1,
+        "entities": {
+            "products": [
+                {"sku": "P1", "name": "Widget", "unit_price": "abc", "current_stock": 0}
+            ]
+        },
+    }
+    resp = await api.client.post("/backups/restore", json=backup)
+    assert resp.status_code == 400, resp.text
+    assert "number" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_restore_recomputes_stock_from_the_ledger(api):
+    """`current_stock` in the file is not trusted: the movements are the truth,
+    so a backup whose two disagree restores a reconciling product."""
+    backup = {
+        "app": "coop",
+        "version": 1,
+        "entities": {
+            "products": [
+                {"id": 1, "sku": "SKU-1", "name": "Widget", "unit_price": 10.0,
+                 "current_stock": 999},  # wrong on purpose
+            ],
+            "stock_movements": [
+                {"product_id": 1, "change": 7, "reason": "initial"},
+                {"product_id": 1, "change": -2, "reason": "sale"},
+            ],
+        },
+    }
+    resp = await api.client.post("/backups/restore", json=backup)
+    assert resp.status_code == 200, resp.text
+
+    products = (await api.client.get("/products")).json()["items"]
+    assert products[0]["current_stock"] == 5, "7 - 2, not the 999 in the file"

@@ -63,8 +63,8 @@ is missing, is in **`docs/APP_OVERVIEW.md`**. The file tree is in
 
 ```
 Co-Op/
-├── backend/                     135 files — FastAPI, SQLAlchemy (async), 448 tests
-│   ├── main.py                  3,950 lines · 97 routes · the whole HTTP surface
+├── backend/                     135 files — FastAPI, SQLAlchemy (async), 471 tests
+│   ├── main.py                  3,950 lines · 92 routes · the whole HTTP surface
 │   ├── models.py                  878 lines · 25 tables · the schema
 │   ├── schemas.py                  ~500 lines · Pydantic request/response contracts
 │   ├── clerk_auth.py              199 · JWKS verification, token claims
@@ -92,7 +92,7 @@ Co-Op/
 │   ├── backups.py                · encrypted export / restore
 │   ├── audit.py                  · append-only mutation log
 │   ├── alembic/versions/         24 migrations (0001 … 0024_tax_defaults)
-│   └── tests/                   48 modules · 448 passed, 6 skipped
+│   └── tests/                   48 modules · 471 passed, 6 skipped
 ├── frontend/                    180 files — React + TS + Vite + Ant Design
 │   └── src/
 │       ├── App.tsx               · router, Clerk provider, guards
@@ -238,7 +238,7 @@ first; and nothing about any of it appears in the UI.
   HMAC-SHA512 over the raw body, and a charge only becomes `success` after
   verification. A browser return proves nothing.
 
-### 3.6 `backend/main.py` (3,950) — 97 routes
+### 3.6 `backend/main.py` (3,950) — 92 routes
 
 Read the decorators for shape, then these handlers for substance:
 `POST /orders` (price snapshot + stock move), `POST /invoices`,
@@ -264,14 +264,23 @@ Read the decorators for shape, then these handlers for substance:
 
 ---
 
-## 4. Three findings worth your attention before you read anything else
+## 4. Findings worth your attention before you read anything else
+
+> An external security review was run against this code on 2026-10-23 and every
+> finding was worked through — ten numbered, six low, each with the test that
+> now pins it. The disposition, including three recommendations deliberately
+> left open, is in **`docs/SECURITY_FIXES_2026-10-23.md`**. Read it alongside
+> this section; the items below are what remains.
 
 1. **Dead feature flags** (§3.7). Config promises per-environment switches that
    no code consults. *Not fixed* — wiring them changes behaviour per environment,
    which is a product decision, not a cleanup.
-2. **`backend/main.py` is 3,950 lines and holds 97 routes.** Logic lives in
+2. **`backend/main.py` is 3,950 lines and holds 92 routes.** Logic lives in
    modules, but the HTTP layer is one file; that is a merge-conflict and
-   navigation cost, not a correctness bug.
+   navigation cost, not a correctness bug. It also *caused* a real
+   authorization bug (a path-prefix check that never matched
+   `/business/settings`), which is why splitting it is the next structural
+   change rather than a tidy-up.
 3. ~~The unauthenticated surface is not pinned by a test.~~ **Fixed in this
    pass** (`backend/tests/test_public_surface.py`), after the sweep showed the
    surface is sound. See §3.2.

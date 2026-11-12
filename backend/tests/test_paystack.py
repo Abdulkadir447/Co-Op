@@ -47,7 +47,10 @@ TEST_CONFIG = PaystackConfig(
     callback_url="https://app.example.test/billing",
     allowed_callback_hosts=("localhost", "127.0.0.1"),
     payment_pages={"starter": PAGE_STARTER, "professional": PAGE_PRO},
-    prices_kobo={"starter": {"monthly": 2_900_000, "annual": 27_840_000}},
+    prices_kobo={
+        "starter": {"monthly": 2_900_000, "annual": 27_840_000},
+        "professional": {"monthly": 9_900_000, "annual": 95_040_000},
+    },
 )
 
 
@@ -214,8 +217,10 @@ def test_public_config_reports_disabled_cleanly():
 def test_price_lookup_is_per_plan_and_interval(paystack):
     assert TEST_CONFIG.price_kobo("starter", "monthly") == 2_900_000
     assert TEST_CONFIG.price_kobo("starter", "annual") == 27_840_000
-    # professional has a page but no Co-op price: the page's amount stands
-    assert TEST_CONFIG.price_kobo("professional", "monthly") is None
+    assert TEST_CONFIG.price_kobo("professional", "monthly") == 9_900_000
+    # Enterprise is Contact Sales: no price exists, so a charge claiming it can
+    # never be verified — and is therefore never auto-granted.
+    assert TEST_CONFIG.price_kobo("enterprise", "monthly") is None
 
 
 def test_return_url_must_be_an_allowed_host():
@@ -568,7 +573,9 @@ async def test_a_charge_paid_straight_on_the_page_still_upgrades(api, paystack):
     reference = make_reference()
     expected = await business_id(api)
     r = await post_webhook(
-        api, charge_success(reference, expected, plan="professional"))
+        api,
+        charge_success(reference, expected, plan="professional", amount=9_900_000),
+    )
     assert r.status_code == 200, r.text
     assert r.json()["applied"] is True
     assert r.json()["business_id"] == expected
@@ -804,3 +811,48 @@ async def test_enterprise_cannot_be_checked_out(api, monkeypatch):
     r = await api.client.post("/billing/checkout", json={"plan": "enterprise"})
     assert r.status_code == 422, r.text
     assert "No amount is configured" in r.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_a_page_charge_cannot_be_upgraded_by_editing_metadata(api, paystack):
+    """The hosted page carries plan/business in the URL, and the payer can
+    edit that URL before paying. The amount must be checked against the
+    published price, exactly as a checkout row's amount is."""
+    expected = await business_id(api)
+    reference = make_reference()
+    r = await post_webhook(
+        api,
+        charge_success(reference, expected, plan="professional", amount=100),
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ignored"] == "underpayment"
+    assert body["expected"] == 9_900_000
+
+    summary = await api.client.get("/billing/summary")
+    assert summary.json()["plan"] == "free"
+    history = await api.client.get("/billing/payments")
+    assert history.json()["items"] == [], "a refused charge records no row"
+
+
+@pytest.mark.asyncio
+async def test_an_unpriced_plan_is_never_granted(api, paystack):
+    """No published price means nothing to verify against — reconcile by hand."""
+    expected = await business_id(api)
+    r = await post_webhook(
+        api,
+        charge_success(make_reference(), expected, plan="enterprise", amount=1),
+    )
+    assert r.status_code == 200
+    assert r.json()["ignored"] == "unverifiable_amount"
+    assert (await api.client.get("/billing/summary")).json()["plan"] == "free"
+
+
+@pytest.mark.asyncio
+async def test_a_charge_in_another_currency_is_not_applied(api, paystack):
+    expected = await business_id(api)
+    payload = charge_success(make_reference(), expected, amount=2_900_000)
+    payload["data"]["currency"] = "USD"  # config charges NGN
+    r = await post_webhook(api, payload)
+    assert r.status_code == 200
+    assert r.json()["ignored"] == "currency_mismatch"

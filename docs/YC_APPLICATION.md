@@ -79,7 +79,7 @@ does not demonstrate.
 
 Do not undersell this, because it is rare at the application stage:
 
-- **448 backend tests, 26 frontend tests, all green** — most pre-seed applicants
+- **471 backend tests, 26 frontend tests, all green** — most pre-seed applicants
   cannot say what their code does.
 - **A real security posture**: tenant isolation proven by test, an append-only
   audit trail, owner-only licence routes, webhook signature verification, and a

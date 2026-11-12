@@ -36,7 +36,7 @@ That is the intent. If the code does not match it, the code is wrong.
 | Marketing site | Static React site | `website/` |
 
 **Size:** 97 API routes, 18 page areas, 25 database tables, 24 migrations,
-**448 backend tests**, 26 frontend tests, 82 Electron tests.
+**471 backend tests**, 26 frontend tests, 91 Electron tests (2 skipped).
 
 ---
 
@@ -254,7 +254,7 @@ Postgres/Supabase  ⇄  Electron SQLite mirror (sync queue, idempotent client_id
 | No email means an invoice is a download, not a conversation | activation: the customer's customer never sees the invoice |
 | Session lifetime on Clerk's free plan caps offline use | the headline differentiator is weakened by an auth vendor's pricing |
 | No supplier/purchase order chain | a wholesaler's stock history is half-recorded |
-| Solo maintenance | 97 routes, 25 tables, 448 tests: real, but one person's attention |
+| Solo maintenance | 92 routes, 25 tables, 471 tests: real, but one person's attention |
 
 ---
 
@@ -264,7 +264,7 @@ Postgres/Supabase  ⇄  Electron SQLite mirror (sync queue, idempotent client_id
 |---|---|---|
 | 1 | `backend/models.py` | 25 tables in one file; the schema is the design |
 | 2 | `backend/clerk_auth.py` + `backend/team.py` | token verification, tenant resolution, roles |
-| 3 | `backend/main.py` | 97 routes; read the decorators, then the handlers that touch money |
+| 3 | `backend/main.py` | 92 routes; read the decorators, then the handlers that touch money |
 | 4 | `backend/ai/prompts.py` → `backend/ai/service.py` → `backend/ai/actions.py` | the AI's contract, its context builder, and the only action it can propose |
 | 5 | `backend/invoicing.py`, `backend/receivables.py`, `backend/billing.py` | the three "money must never drift" modules |
 | 6 | `backend/alembic/versions/` | 24 migrations, forward-only, guarded DDL |

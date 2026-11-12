@@ -31,6 +31,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .config import get_env
 from .models import (
     Business,
     Customer,
@@ -53,10 +54,26 @@ _BACKUP_KEY_ENV = "BACKUP_ENCRYPTION_KEY"
 _DEV_FALLBACK = "coop-backup-default-key-not-for-production"
 
 
+class BackupKeyMissing(RuntimeError):
+    """No backup key is configured, and guessing one is not acceptable."""
+
+
 def _fernet_key() -> bytes:
-    """Derive a Fernet key from BACKUP_ENCRYPTION_KEY, else SECRET, else a dev
-    constant. The same key must be present at export and restore time."""
-    raw = os.getenv(_BACKUP_KEY_ENV) or os.getenv("SECRET") or _DEV_FALLBACK
+    """Derive a Fernet key from BACKUP_ENCRYPTION_KEY, else SECRET.
+
+    The dev constant exists so tests and local runs work. In production a
+    missing key is a REFUSAL, not a fallback: the constant is in the source, so
+    "encrypted" with it means anyone who has read this repo can decrypt the
+    file — and mint a restore file of their own.
+    """
+    raw = os.getenv(_BACKUP_KEY_ENV) or os.getenv("SECRET")
+    if not raw:
+        if get_env() == "production":
+            raise BackupKeyMissing(
+                "BACKUP_ENCRYPTION_KEY (or SECRET) must be set in production: "
+                "backups cannot be encrypted with the built-in development key."
+            )
+        raw = _DEV_FALLBACK
     return base64.urlsafe_b64encode(hashlib.sha256(raw.encode()).digest())
 
 
@@ -414,12 +431,43 @@ async def restore_backup(
             )
         restored["stock_movements"] = len(_rows_for(payload, "stock_movements"))
 
+        # The ledger is the source of truth (ADR-002), so the restored
+        # `current_stock` is RECOMPUTED from it rather than trusted from the
+        # file. A backup written while the two disagreed would otherwise
+        # restore a product whose stock cannot be explained by its movements.
         await db.flush()
+        for old_id, new_id in id_map["products"].items():
+            total = (
+                await db.execute(
+                    select(func.coalesce(func.sum(StockMovement.change), 0)).where(
+                        StockMovement.product_id == new_id,
+                        StockMovement.business_id == business.id,
+                    )
+                )
+            ).scalar_one()
+            product = (
+                await db.execute(
+                    select(Product).where(
+                        Product.id == new_id, Product.business_id == business.id
+                    )
+                )
+            ).scalars().first()
+            if product is not None:
+                product.current_stock = int(total or 0)
     except IntegrityError:
         # e.g. a backup with duplicate client_ids — nothing may half-restore.
         await db.rollback()
         raise BackupValidationError(
             "The backup contains duplicate client ids and cannot be restored safely."
+        )
+    except (BackupValidationError, RestoreRefused):
+        raise  # both subclass ValueError — let the specific refusal through
+    except (ValueError, TypeError) as e:
+        # A money/quantity field that is not a number ("12,50", "abc") used to
+        # escape as an unhandled ValueError -> 500. It is a malformed FILE.
+        await db.rollback()
+        raise BackupValidationError(
+            f"The backup contains a value that is not a valid number: {e}"
         )
     return {"restored": restored}
 

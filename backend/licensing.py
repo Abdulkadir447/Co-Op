@@ -48,7 +48,7 @@ from typing import Any, Optional
 from sqlalchemy import select
 
 from . import billing as billing_mod
-from .config import load_config
+from .config import get_env, load_config
 from .models import Business, License, Subscription  # noqa: F401  (Subscription re-exported)
 
 #: Prefix group of a printed key. It is dropped on normalisation, so the
@@ -122,7 +122,10 @@ def admin_tokens() -> list[str]:
     """
     raw = os.environ.get("LICENSE_ADMIN_TOKENS", "").strip()
     tokens = [t.strip() for t in raw.split(",") if t.strip()] if raw else []
-    if not tokens:
+    if not tokens and get_env() != "production":
+        # Config-file fallback is a convenience for local runs. In production
+        # the secret comes from the environment only: a token in a JSON file is
+        # a token in the repository.
         cfg = licensing_config().get("admin_tokens", []) or []
         tokens = [str(t).strip() for t in cfg if str(t).strip()]
     return tokens

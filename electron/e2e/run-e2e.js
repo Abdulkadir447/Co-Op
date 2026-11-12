@@ -80,6 +80,9 @@ function startCloud() {
       COOP_ENV: 'testing',
       DATABASE_URL: sqliteUrl(CLOUD_DB, { platform: process.platform }),
       COOP_TEST_AUTH_USER: 'e2e-owner',
+      // The backend refuses a session with no email claim (it cannot bind an
+      // invitation or spot a pending one without it), so the seam supplies one.
+      COOP_TEST_AUTH_EMAIL: 'e2e-owner@example.com',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

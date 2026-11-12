@@ -113,6 +113,10 @@
     "writes": {
       "requests": 0,
       "window_seconds": 60
+    },
+    "admin": {
+      "requests": 0,
+      "window_seconds": 60
     }
   },
   "paystack": {

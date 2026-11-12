@@ -1,6 +1,6 @@
 # File tree — every tracked file (`git ls-files`)
 
-635 files are tracked. 468 of them are source, config, tests and docs — that is
+636 files are tracked. 469 of them are source, config, tests and docs — that is
 the review surface, listed below. The other 167 are reference material, not
 code: 100 under `Documents/` (PRD, TRD, BSD, AFD, IPD, UXDS) and 67 under
 `stitch_coop_design_system_foundation/` (design exports), listed at the end.
@@ -216,6 +216,7 @@ docs/RUN_LOCAL.md
 docs/SECURITY_AUDIT.md
 docs/SECURITY_AUDIT_2026-10-22_OWASP.md
 docs/SECURITY_CHECKLIST_STATUS.md
+docs/SECURITY_FIXES_2026-10-23.md
 docs/SUPABASE_PROVISIONING.md
 docs/TEST_INVENTORY.md
 docs/YC_APPLICATION.md
