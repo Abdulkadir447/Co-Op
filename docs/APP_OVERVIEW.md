@@ -267,5 +267,5 @@ Postgres/Supabase  ⇄  Electron SQLite mirror (sync queue, idempotent client_id
 | 3 | `backend/main.py` | 92 routes; read the decorators, then the handlers that touch money |
 | 4 | `backend/ai/prompts.py` → `backend/ai/service.py` → `backend/ai/actions.py` | the AI's contract, its context builder, and the only action it can propose |
 | 5 | `backend/invoicing.py`, `backend/receivables.py`, `backend/billing.py` | the three "money must never drift" modules |
-| 6 | `backend/alembic/versions/` | 24 migrations, forward-only, guarded DDL |
+| 6 | `backend/alembic/versions/` | 26 migrations, forward-only, guarded DDL |
 | 7 | `docs/CODE_REVIEW_PACKET.md` | same list with inline excerpts and line numbers |

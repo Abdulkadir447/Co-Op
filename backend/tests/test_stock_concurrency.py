@@ -143,6 +143,9 @@ async def test_change_stock_stale_version_conflicts(engine, session_factory):
         business = Business(name="B", owner_id="user-a", currency="USD")
         db.add(business)
         await db.flush()
+        from backend import branches as branches_mod
+
+        br = (await branches_mod.default_branch(db, business.id)).id
         product = Product(
             business_id=business.id, sku="X-1", name="X", unit_price=1.0, current_stock=10
         )
@@ -151,7 +154,7 @@ async def test_change_stock_stale_version_conflicts(engine, session_factory):
 
         # A fresh change succeeds and bumps the version.
         await _change_stock(
-            db, business.id, product, -2, StockMovementReason.order, "user-a"
+            db, business.id, br, product, -2, StockMovementReason.order, "user-a"
         )
         assert product.current_stock == 8
         assert product.version == 2
@@ -160,7 +163,7 @@ async def test_change_stock_stale_version_conflicts(engine, session_factory):
         product.version = 1
         with pytest.raises(HTTPException) as exc_info:
             await _change_stock(
-                db, business.id, product, -2, StockMovementReason.order, "user-a"
+                db, business.id, br, product, -2, StockMovementReason.order, "user-a"
             )
         assert exc_info.value.status_code == 409
 

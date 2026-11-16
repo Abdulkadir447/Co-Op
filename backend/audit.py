@@ -28,6 +28,7 @@ async def record_audit(
     action: str,
     change: Optional[dict[str, Any]] = None,
     actor: Optional[str] = None,
+    device_id: Optional[int] = None,
 ) -> None:
     """Append one audit row to the caller's request transaction.
 
@@ -41,6 +42,7 @@ async def record_audit(
         record_id=record_id,
         action=action[:20],
         actor=(actor or "")[:255] or None,
+        device_id=device_id,
         # Redact anything that looks like a secret before it is persisted —
         # the audit ledger must describe the change, not leak credentials.
         change_json=json.dumps(deep_redact(change)) if change else None,

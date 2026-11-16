@@ -147,6 +147,7 @@ async def record_payment(
 
     payment = OrderPayment(
         business_id=business.id,
+        branch_id=order.branch_id,   # the sale's branch, not the caller's
         order_id=order.id,
         amount=value,
         method=_clean_method(method),

@@ -282,6 +282,13 @@ async def restore_backup(
             "Your current data is untouched — download the backup file to keep it."
         )
 
+    # D1: a restore targets a business, and every row it writes needs a
+    # location. A backup carries no branch dimension (it predates branches),
+    # so the whole file lands in the business's default branch.
+    from .branches import default_branch
+
+    branch_id = (await default_branch(db, business.id)).id
+
     id_map: dict[str, dict[int, int]] = {"customers": {}, "products": {}, "orders": {}}
     restored: dict[str, int] = {}
 
@@ -344,6 +351,7 @@ async def restore_backup(
                 )
             o = Order(
                 business_id=business.id,
+                branch_id=branch_id,
                 client_id=row.get("client_id"),
                 source_order_ref=row.get("source_order_ref"),
                 customer_id=id_map["customers"][old_customer],
@@ -374,6 +382,7 @@ async def restore_backup(
             db.add(
                 OrderItem(
                     business_id=business.id,
+                    branch_id=branch_id,
                     order_id=id_map["orders"][old_order],
                     product_id=id_map["products"][old_product],
                     quantity=int(row.get("quantity") or 0),
@@ -397,6 +406,7 @@ async def restore_backup(
             db.add(
                 OrderPayment(
                     business_id=business.id,
+                    branch_id=branch_id,
                     order_id=id_map["orders"][old_order],
                     amount=float(row.get("amount") or 0.0),
                     method=str(row.get("method") or "cash")[:20],
@@ -420,6 +430,7 @@ async def restore_backup(
             db.add(
                 StockMovement(
                     business_id=business.id,
+                    branch_id=branch_id,
                     client_id=row.get("client_id"),
                     product_id=id_map["products"][old_product],
                     order_id=id_map["orders"].get(int(old_order)) if old_order else None,

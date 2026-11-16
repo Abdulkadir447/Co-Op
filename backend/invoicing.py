@@ -109,6 +109,7 @@ async def create_for_order(
     for attempt in range(_MAX_RETRIES):
         row = Invoice(
             business_id=business.id,
+            branch_id=order.branch_id,   # a document follows its sale
             order_id=order.id,
             number=_number(seq + attempt),
             issue_date=issued,

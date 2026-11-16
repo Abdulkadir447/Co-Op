@@ -11,6 +11,7 @@ import pytest
 from openpyxl import load_workbook
 
 from backend.exports import export_report
+from backend import branches as branches_mod
 from backend.models import (
     Business, Customer, Order, OrderItem, OrderStatus, Product, StockMovement,
 )
@@ -35,6 +36,7 @@ async def _seed(session_factory):
         b = Business(name="Test", owner_id="u1")
         db.add(b)
         await db.flush()
+        br = (await branches_mod.default_branch(db, b.id)).id
         chair = Product(business_id=b.id, name="Chair", sku="CH1", category="Furniture",
                         unit_price=100, cost_price=40, current_stock=3, reorder_level=5)
         desk = Product(business_id=b.id, name="Desk", sku="DS1", category="Furniture",
@@ -47,7 +49,7 @@ async def _seed(session_factory):
         await db.flush()
 
         def order(cid, pid, qty, price, days_ago, oid_holder):
-            o = Order(business_id=b.id, customer_id=cid, status=OrderStatus.delivered,
+            o = Order(business_id=b.id, branch_id=br, customer_id=cid, status=OrderStatus.delivered,
                       total_amount=qty * price, order_date=_d(days_ago))
             db.add(o)
             oid_holder.append(o)
@@ -55,17 +57,19 @@ async def _seed(session_factory):
         oids = []
         order(alice.id, chair.id, 2, 100, 5, oids)
         await db.flush()
-        db.add(OrderItem(business_id=b.id, order_id=oids[0].id, product_id=chair.id,
+        db.add(OrderItem(business_id=b.id, branch_id=br, order_id=oids[0].id, product_id=chair.id,
                          quantity=2, unit_price=100, total_price=200))
         order(alice.id, desk.id, 1, 200, 10, oids)
         await db.flush()
-        db.add(OrderItem(business_id=b.id, order_id=oids[1].id, product_id=desk.id,
+        db.add(OrderItem(business_id=b.id, branch_id=br, order_id=oids[1].id, product_id=desk.id,
                          quantity=1, unit_price=200, total_price=200))
         order(bob.id, lamp.id, 4, 30, 40, oids)
         await db.flush()
-        db.add(OrderItem(business_id=b.id, order_id=oids[2].id, product_id=lamp.id,
+        db.add(OrderItem(business_id=b.id, branch_id=br, order_id=oids[2].id, product_id=lamp.id,
                          quantity=4, unit_price=30, total_price=120))
-        db.add(StockMovement(business_id=b.id, product_id=chair.id, change=-3, reason="order"))
+        db.add(StockMovement(
+            business_id=b.id, branch_id=br, product_id=chair.id, change=-3, reason="order"
+        ))
         await db.commit()
         return b.id, [chair.id, desk.id, lamp.id], [alice.id, bob.id]
 
@@ -330,21 +334,22 @@ async def test_report_chart_data_aligns_with_sorted_labels(session_factory):
         await db.flush()
         c.business_id = b.id
         p.business_id = b.id
+        br = (await branches_mod.default_branch(db, b.id)).id
 
         today = dt.date.today()
-        o_late = Order(business_id=b.id, customer_id=c.id,
+        o_late = Order(business_id=b.id, branch_id=br, customer_id=c.id,
                        order_date=dt.datetime.combine(today, dt.time.min),
                        status=OrderStatus.shipped, total_amount=210.0)
         db.add(o_late)
         await db.flush()
-        db.add(OrderItem(business_id=b.id, order_id=o_late.id, product_id=p.id,
+        db.add(OrderItem(business_id=b.id, branch_id=br, order_id=o_late.id, product_id=p.id,
                          quantity=2, unit_price=100.0, total_price=200.0))
-        o_early = Order(business_id=b.id, customer_id=c.id,
+        o_early = Order(business_id=b.id, branch_id=br, customer_id=c.id,
                         order_date=dt.datetime.combine(today - dt.timedelta(days=1), dt.time.min),
                         status=OrderStatus.shipped, total_amount=100.0)
         db.add(o_early)
         await db.flush()
-        db.add(OrderItem(business_id=b.id, order_id=o_early.id, product_id=p.id,
+        db.add(OrderItem(business_id=b.id, branch_id=br, order_id=o_early.id, product_id=p.id,
                          quantity=1, unit_price=100.0, total_price=100.0))
         await db.commit()
         assert o_late.id != o_early.id

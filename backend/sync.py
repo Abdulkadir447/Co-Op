@@ -278,7 +278,14 @@ async def _resolve_ref(
     return None
 
 
-async def apply_push(db, business_id: int, operations: list[dict[str, Any]]) -> dict[str, Any]:
+async def apply_push(
+    db,
+    business_id: int,
+    operations: list[dict[str, Any]],
+    branch_id: Optional[int] = None,
+    device_id: Optional[int] = None,
+    actor: Optional[str] = None,
+) -> dict[str, Any]:
     """Apply a batch of client operations idempotently. Returns a summary.
 
     Every op resolves to exactly one outcome (OFFLINE 4):
@@ -289,6 +296,19 @@ async def apply_push(db, business_id: int, operations: list[dict[str, Any]]) -> 
                    is returned so the queue can hold it for resolution
       * failed   — transient/unexpected refusal (retryable)
     """
+    # D1: every row written here belongs to a branch. The device's branch is
+    # passed in by the route; a caller without one (older clients, tests) gets
+    # the business's MAIN branch rather than rows with no location.
+    #
+    # Attribution: an offline write was made by a named person at a named
+    # machine, so the audit row carries (actor, device_id). "offline-sync" is
+    # only a fallback for a client that has not enrolled a device yet — it is
+    # not an identity and never should be presented as one.
+    from .branches import default_branch
+
+    if branch_id is None:
+        branch_id = (await default_branch(db, business_id)).id
+
     applied = 0
     skipped = 0
     ids: dict[str, int] = {}
@@ -320,23 +340,23 @@ async def apply_push(db, business_id: int, operations: list[dict[str, Any]]) -> 
         try:
             if entity == "customer":
                 server_id, created = await _apply_customer(
-                    db, business_id, client_id, operation, payload
+                    db, business_id, branch_id, client_id, operation, payload
                 )
             elif entity == "product":
                 server_id, created = await _apply_product(
-                    db, business_id, client_id, operation, payload
+                    db, business_id, branch_id, client_id, operation, payload
                 )
             elif entity == "order":
                 server_id, created = await _apply_order(
-                    db, business_id, client_id, operation, payload
+                    db, business_id, branch_id, client_id, operation, payload
                 )
             elif entity == "order_item":
                 server_id, created = await _apply_order_item(
-                    db, business_id, client_id, operation, payload
+                    db, business_id, branch_id, client_id, operation, payload
                 )
             elif entity == "stock_movement":
                 server_id, created = await _apply_stock_movement(
-                    db, business_id, client_id, operation, payload
+                    db, business_id, branch_id, client_id, operation, payload
                 )
             else:
                 raise SyncError(f"Unknown entity: {entity}")
@@ -366,12 +386,14 @@ async def apply_push(db, business_id: int, operations: list[dict[str, Any]]) -> 
         # Success path: applied or idempotent-skip.
         if created:
             applied += 1
-            # Every applied offline op lands in the owner's audit trail —
-            # same transaction, actor marked as the sync engine.
+            # Every applied offline op lands in the owner's audit trail — same
+            # transaction, attributed to the staff member and the machine that
+            # made the write.
             await record_audit(
                 db, business_id, entity or "", server_id, operation or "",
                 change={"via": "sync", "client_id": client_id or ""},
-                actor="offline-sync",
+                actor=actor or "offline-sync",
+                device_id=device_id,
             )
         else:
             skipped += 1
@@ -394,7 +416,7 @@ async def apply_push(db, business_id: int, operations: list[dict[str, Any]]) -> 
 # Per-entity application
 # ---------------------------------------------------------------------------
 
-async def _apply_customer(db, business_id, client_id, operation, payload):
+async def _apply_customer(db, business_id, branch_id, client_id, operation, payload):
     existing_id = await _resolve_client_id(db, Customer, client_id, business_id)
     if existing_id is not None:
         c = await _load(db, Customer, existing_id, business_id)
@@ -475,7 +497,7 @@ async def _apply_customer(db, business_id, client_id, operation, payload):
     return c.id, True
 
 
-async def _apply_product(db, business_id, client_id, operation, payload):
+async def _apply_product(db, business_id, branch_id, client_id, operation, payload):
     existing_id = await _resolve_client_id(db, Product, client_id, business_id)
     if existing_id is not None:
         p = await _load(db, Product, existing_id, business_id)
@@ -558,7 +580,7 @@ async def _apply_product(db, business_id, client_id, operation, payload):
     return p.id, True
 
 
-async def _apply_order(db, business_id, client_id, operation, payload):
+async def _apply_order(db, business_id, branch_id, client_id, operation, payload):
     existing_id = await _resolve_client_id(db, Order, client_id, business_id)
     if existing_id is not None:
         if operation == "update":
@@ -621,6 +643,7 @@ async def _apply_order(db, business_id, client_id, operation, payload):
         raise SyncError(f"order {client_id}: invalid status {status}")
     o = Order(
         business_id=business_id,
+        branch_id=branch_id,
         client_id=client_id,
         customer_id=customer_id,
         status=OrderStatus(status),
@@ -635,7 +658,7 @@ async def _apply_order(db, business_id, client_id, operation, payload):
     return o.id, True
 
 
-async def _apply_order_item(db, business_id, client_id, operation, payload):
+async def _apply_order_item(db, business_id, branch_id, client_id, operation, payload):
     existing_id = await _resolve_client_id(db, OrderItem, client_id, business_id)
     if existing_id is not None:
         return existing_id, False
@@ -688,6 +711,7 @@ async def _apply_order_item(db, business_id, client_id, operation, payload):
     )
     it = OrderItem(
         business_id=business_id,
+        branch_id=branch_id,
         client_id=client_id,
         order_id=order_id,
         product_id=product_id,
@@ -701,7 +725,7 @@ async def _apply_order_item(db, business_id, client_id, operation, payload):
     return it.id, True
 
 
-async def _apply_stock_movement(db, business_id, client_id, operation, payload):
+async def _apply_stock_movement(db, business_id, branch_id, client_id, operation, payload):
     """Apply a stock movement at most once (keyed by client_id). The signed
     change updates product.current_stock; the server never trusts a final
     value from the client."""
@@ -756,6 +780,7 @@ async def _apply_stock_movement(db, business_id, client_id, operation, payload):
     p.current_stock = new_stock
     mv = StockMovement(
         business_id=business_id,
+        branch_id=branch_id,
         product_id=product_id,
         change=change,
         reason=StockMovementReason(reason),

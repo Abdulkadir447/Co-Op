@@ -9,6 +9,7 @@ import datetime as dt
 
 from sqlalchemy import select
 
+from backend import branches as branches_mod
 from backend.models import Business, Customer, Order, OrderItem, OrderStatus, Product
 from backend.notifications import build_daily_summary
 
@@ -32,6 +33,7 @@ async def _seed(
         b = Business(name=business_name, owner_id="u-ds", currency="USD")
         db.add(b)
         await db.flush()
+        br = (await branches_mod.default_branch(db, b.id)).id
         prods = [
             Product(
                 business_id=b.id,
@@ -47,13 +49,14 @@ async def _seed(
         await db.flush()
         for ci, pi, qty, price, days_ago in (orders or []):
             o = Order(
-                business_id=b.id, customer_id=custs[ci].id, status=OrderStatus.delivered,
+                business_id=b.id, branch_id=br, customer_id=custs[ci].id,
+                status=OrderStatus.delivered,
                 total_amount=qty * price, order_date=_dt(days_ago),
             )
             db.add(o)
             await db.flush()
             db.add(OrderItem(
-                business_id=b.id, order_id=o.id, product_id=prods[pi].id,
+                business_id=b.id, branch_id=br, order_id=o.id, product_id=prods[pi].id,
                 quantity=qty, unit_price=price, total_price=qty * price,
             ))
         await db.commit()

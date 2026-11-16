@@ -102,8 +102,11 @@ backend/alembic/versions/0021_tax.py
 backend/alembic/versions/0022_zeno_lessons.py
 backend/alembic/versions/0023_invoice_compliance.py
 backend/alembic/versions/0024_tax_defaults.py
+backend/alembic/versions/0025_branches.py
+backend/alembic/versions/0026_devices.py
 backend/audit.py
 backend/backups.py
+backend/branches.py
 backend/billing.py
 backend/briefing.py
 backend/clerk_auth.py
@@ -152,6 +155,7 @@ backend/tests/test_ai_style.py
 backend/tests/test_audit.py
 backend/tests/test_backup.py
 backend/tests/test_billing.py
+backend/tests/test_branches.py
 backend/tests/test_config_auth.py
 backend/tests/test_contract.py
 backend/tests/test_cors.py

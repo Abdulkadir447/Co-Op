@@ -120,6 +120,11 @@ async def seed_business(
     owner = business.owner_id
     written = {"products": 0, "customers": 0, "orders": 0, "invoices": 0, "payments": 0}
 
+    # D1: demo data lands in the business's default branch, like real data.
+    from .branches import default_branch
+
+    branch_id = (await default_branch(db, business.id)).id
+
     products: list[Product] = []
     for sku, name, category, price, cost, stock in PRODUCTS:
         product = Product(
@@ -148,7 +153,7 @@ async def seed_business(
     # Opening stock, so the ledger explains the opening balance.
     for product in products:
         db.add(StockMovement(
-            business_id=business.id, product_id=product.id,
+            business_id=business.id, branch_id=branch_id, product_id=product.id,
             change=product.current_stock, reason=StockMovementReason.initial,
             note="Opening stock (demo)", actor=owner,
             created_at=now - dt.timedelta(days=weeks * 7),
@@ -169,7 +174,8 @@ async def seed_business(
             lines = rng.sample(products, k=rng.choice([1, 1, 2, 2, 3]))
 
             order = Order(
-                business_id=business.id, customer_id=customer.id,
+                business_id=business.id, branch_id=branch_id,
+                customer_id=customer.id,
                 order_date=placed_at, created_by=owner, created_at=placed_at,
                 status=rng.choice([
                     OrderStatus.delivered, OrderStatus.delivered, OrderStatus.delivered,
@@ -187,13 +193,15 @@ async def seed_business(
                 line_total = round(quantity * unit_price, 2)
                 subtotal += line_total
                 db.add(OrderItem(
-                    business_id=business.id, order_id=order.id, product_id=product.id,
+                    business_id=business.id, branch_id=branch_id,
+                    order_id=order.id, product_id=product.id,
                     quantity=quantity, unit_price=unit_price, total_price=line_total,
                     created_by=owner, created_at=placed_at,
                 ))
                 # Stock ledger: the sale is a negative movement on the product.
                 db.add(StockMovement(
-                    business_id=business.id, product_id=product.id, change=-quantity,
+                    business_id=business.id, branch_id=branch_id,
+                    product_id=product.id, change=-quantity,
                     reason=StockMovementReason.sale, order_id=order.id, actor=owner,
                     created_at=placed_at,
                 ))
@@ -219,7 +227,7 @@ async def seed_business(
                 invoice_seq += 1
                 invoice_at = placed_at + dt.timedelta(hours=rng.randint(1, 20))
                 db.add(Invoice(
-                    business_id=business.id, order_id=order.id,
+                    business_id=business.id, branch_id=branch_id, order_id=order.id,
                     number=f"INV-{invoice_seq:04d}", issue_date=invoice_at,
                     due_date=invoice_at + dt.timedelta(days=14), status="sent",
                     created_by=owner, created_at=invoice_at,
@@ -236,7 +244,7 @@ async def seed_business(
                 roll = rng.random()
                 if roll < 0.68:
                     db.add(OrderPayment(
-                        business_id=business.id, order_id=order.id,
+                        business_id=business.id, branch_id=branch_id, order_id=order.id,
                         amount=round(gross, 2), method=rng.choice(["transfer", "card"]),
                         reference=f"demo-{order.id}-full", created_by=owner,
                         received_at=invoice_at + dt.timedelta(days=rng.randint(1, 12)),
@@ -247,7 +255,7 @@ async def seed_business(
                     # A partial payment leaves a receivable — the dashboard and
                     # the receivables report both need some of these to be real.
                     db.add(OrderPayment(
-                        business_id=business.id, order_id=order.id,
+                        business_id=business.id, branch_id=branch_id, order_id=order.id,
                         amount=round(gross * 0.4, 2), method="transfer",
                         reference=f"demo-{order.id}-part", created_by=owner,
                         received_at=invoice_at + dt.timedelta(days=rng.randint(1, 9)),

@@ -128,6 +128,55 @@ class InventorySummary(BaseModel):
 # Customer schemas
 # ---------------------------------------------------------------------------
 
+# --- Branches (D1) ----------------------------------------------------------
+class BranchCreate(BaseModel):
+    """A new location. `code` is what staff say out loud, so it is short."""
+
+    code: str = Field(..., min_length=2, max_length=20, pattern="^[A-Za-z0-9_-]+$")
+    name: str = Field(..., min_length=1, max_length=255)
+    address: Optional[str] = Field(None, max_length=500)
+    timezone: Optional[str] = Field(None, max_length=64)
+
+
+class BranchOut(BaseModel):
+    id: int
+    code: str
+    name: str
+    address: Optional[str] = None
+    timezone: Optional[str] = None
+    is_default: bool
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DeviceEnrol(BaseModel):
+    """A client-generated device identity.
+
+    ``device_key`` is a UUID the app creates on first run, before it can reach
+    the server. Re-enrolling the same key is a conflict, not a second device:
+    the row is the machine.
+    """
+
+    device_key: str = Field(..., min_length=8, max_length=64, pattern="^[A-Za-z0-9_-]+$")
+    name: str = Field(..., min_length=1, max_length=255)
+    branch_id: Optional[int] = None
+    public_key: Optional[str] = Field(None, max_length=4000)
+
+
+class DeviceOut(BaseModel):
+    id: int
+    device_key: str
+    name: str
+    branch_id: int
+    enrolled_at: Optional[datetime] = None
+    last_seen_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
+    has_public_key: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CustomerBase(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=255)
     email: EmailStr = Field(..., max_length=255)

@@ -984,6 +984,7 @@ async def execute_import(
     parsed: ParsedFile,
     dataset_key: str,
     mapping: dict[str, Optional[str]],
+    branch_id: Optional[int] = None,
 ) -> ImportResult:
     from .models import Customer, ImportBatch, Order, OrderItem, OrderStatus, Product
     from sqlalchemy import select
@@ -991,6 +992,14 @@ async def execute_import(
     ds, field_col = _build_field_col(parsed, dataset_key, mapping)
     if parsed.error:
         raise ValueError(parsed.error)
+
+    # D1: imported orders are backfilled sales, so they land in a branch like
+    # every other sale. The route passes the caller's branch; a direct caller
+    # gets the business's default.
+    if branch_id is None:
+        from .branches import default_branch
+
+        branch_id = (await default_branch(db, business_id)).id
 
     # Provenance: one batch per committed import (spec item 9).
     batch = ImportBatch(business_id=business_id, dataset=dataset_key,
@@ -1253,6 +1262,7 @@ async def execute_import(
 
             o = Order(
                 business_id=business_id,
+                branch_id=branch_id,
                 customer_id=customer.id,
                 order_date=_dt.date.fromisoformat(rec["date"]),
                 status=OrderStatus.delivered,  # historic backfill
@@ -1265,6 +1275,7 @@ async def execute_import(
             await db.flush()  # assign o.id before the line items reference it
             db.add(OrderItem(
                 business_id=business_id,
+                branch_id=branch_id,
                 order_id=o.id,
                 product_id=product.id,
                 quantity=rec["qty"],

@@ -1,7 +1,7 @@
 -- Co-op schema snapshot — GENERATED, DO NOT EDIT BY HAND.
 --
 -- Regenerate with:  python supabase/scripts/export_schema.py
--- Source of truth:  backend/alembic/versions/ (revision 0024_tax_defaults (head))
+-- Source of truth:  backend/alembic/versions/ (revision 0026_devices (head))
 --
 -- Apply in the Supabase SQL editor, or with:
 --     supabase db push
@@ -2101,6 +2101,264 @@ ALTER TABLE public.zeno_lessons ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY tenant_isolation_zeno_lessons ON public.zeno_lessons USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
+
+
+--
+-- D1: branches — the location dimension (alembic 0025_branches)
+--
+
+CREATE TABLE public.branches (
+    id integer NOT NULL,
+    business_id integer NOT NULL,
+    code character varying(20) NOT NULL,
+    name character varying(255) NOT NULL,
+    address character varying(500),
+    timezone character varying(64),
+    is_default boolean DEFAULT false NOT NULL,
+    opened_at timestamp without time zone,
+    closed_at timestamp without time zone,
+    created_by character varying(255),
+    updated_by character varying(255),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    deleted_at timestamp without time zone,
+    version integer DEFAULT 1 NOT NULL
+);
+
+
+--
+-- Name: branches_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.branches_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: branches_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.branches_id_seq OWNED BY public.branches.id;
+
+
+--
+-- Name: branches id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branches ALTER COLUMN id SET DEFAULT nextval('public.branches_id_seq'::regclass);
+
+
+--
+-- Name: branches branches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branches
+    ADD CONSTRAINT branches_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ix_branches_business_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_branches_business_id ON public.branches USING btree (business_id);
+
+
+--
+-- Name: uq_branches_business_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_branches_business_code ON public.branches USING btree (business_id, code) WHERE (deleted_at IS NULL);
+
+
+--
+-- Name: branches fk_branches_business; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branches
+    ADD CONSTRAINT fk_branches_business FOREIGN KEY (business_id) REFERENCES public.businesses(id);
+
+
+--
+-- D1: one MAIN branch per existing business, then the location dimension on
+-- every transactional row.
+--
+
+INSERT INTO public.branches (business_id, code, name, is_default)
+SELECT b.id, 'MAIN', 'Main Branch', true
+FROM public.businesses b
+WHERE NOT EXISTS (SELECT 1 FROM public.branches x WHERE x.business_id = b.id);
+
+ALTER TABLE public.orders ADD COLUMN branch_id integer;
+ALTER TABLE public.order_items ADD COLUMN branch_id integer;
+ALTER TABLE public.order_payments ADD COLUMN branch_id integer;
+ALTER TABLE public.stock_movements ADD COLUMN branch_id integer;
+ALTER TABLE public.invoices ADD COLUMN branch_id integer;
+ALTER TABLE public.audit_log ADD COLUMN branch_id integer;
+ALTER TABLE public.import_batches ADD COLUMN branch_id integer;
+
+UPDATE public.orders t SET branch_id = b.id FROM public.branches b
+ WHERE t.branch_id IS NULL AND b.business_id = t.business_id AND b.is_default = true;
+UPDATE public.order_items t SET branch_id = b.id FROM public.branches b
+ WHERE t.branch_id IS NULL AND b.business_id = t.business_id AND b.is_default = true;
+UPDATE public.order_payments t SET branch_id = b.id FROM public.branches b
+ WHERE t.branch_id IS NULL AND b.business_id = t.business_id AND b.is_default = true;
+UPDATE public.stock_movements t SET branch_id = b.id FROM public.branches b
+ WHERE t.branch_id IS NULL AND b.business_id = t.business_id AND b.is_default = true;
+UPDATE public.invoices t SET branch_id = b.id FROM public.branches b
+ WHERE t.branch_id IS NULL AND b.business_id = t.business_id AND b.is_default = true;
+
+ALTER TABLE public.orders ALTER COLUMN branch_id SET NOT NULL;
+ALTER TABLE public.order_items ALTER COLUMN branch_id SET NOT NULL;
+ALTER TABLE public.order_payments ALTER COLUMN branch_id SET NOT NULL;
+ALTER TABLE public.stock_movements ALTER COLUMN branch_id SET NOT NULL;
+ALTER TABLE public.invoices ALTER COLUMN branch_id SET NOT NULL;
+
+CREATE INDEX ix_orders_branch_id ON public.orders USING btree (branch_id);
+CREATE INDEX ix_order_items_branch_id ON public.order_items USING btree (branch_id);
+CREATE INDEX ix_order_payments_branch_id ON public.order_payments USING btree (branch_id);
+CREATE INDEX ix_stock_movements_branch_id ON public.stock_movements USING btree (branch_id);
+CREATE INDEX ix_invoices_branch_id ON public.invoices USING btree (branch_id);
+CREATE INDEX ix_audit_log_branch_id ON public.audit_log USING btree (branch_id);
+CREATE INDEX ix_import_batches_branch_id ON public.import_batches USING btree (branch_id);
+
+ALTER TABLE ONLY public.orders
+    ADD CONSTRAINT fk_orders_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+ALTER TABLE ONLY public.order_items
+    ADD CONSTRAINT fk_order_items_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+ALTER TABLE ONLY public.order_payments
+    ADD CONSTRAINT fk_order_payments_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+ALTER TABLE ONLY public.stock_movements
+    ADD CONSTRAINT fk_stock_movements_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+ALTER TABLE ONLY public.invoices
+    ADD CONSTRAINT fk_invoices_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+ALTER TABLE ONLY public.audit_log
+    ADD CONSTRAINT fk_audit_log_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT fk_import_batches_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: branches; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: branches tenant_isolation_branches; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation_branches ON public.branches USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
+
+
+
+--
+-- D1: devices — the machine identity behind an offline write (alembic 0026_devices)
+--
+
+CREATE TABLE public.devices (
+    id integer NOT NULL,
+    business_id integer NOT NULL,
+    branch_id integer NOT NULL,
+    device_key character varying(64) NOT NULL,
+    name character varying(255) NOT NULL,
+    public_key character varying(4000),
+    enrolled_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at timestamp without time zone,
+    revoked_at timestamp without time zone,
+    created_by character varying(255),
+    updated_by character varying(255),
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    version integer DEFAULT 1 NOT NULL
+);
+
+
+--
+-- Name: devices_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.devices_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: devices_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.devices_id_seq OWNED BY public.devices.id;
+
+
+--
+-- Name: devices id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.devices ALTER COLUMN id SET DEFAULT nextval('public.devices_id_seq'::regclass);
+
+
+--
+-- Name: devices devices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.devices
+    ADD CONSTRAINT devices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: ix_devices_business_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_devices_business_id ON public.devices USING btree (business_id);
+
+
+--
+-- Name: ix_devices_branch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_devices_branch_id ON public.devices USING btree (branch_id);
+
+
+--
+-- Name: uq_devices_business_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_devices_business_key ON public.devices USING btree (business_id, device_key);
+
+
+--
+-- Name: devices fk_devices_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.devices
+    ADD CONSTRAINT fk_devices_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+
+ALTER TABLE public.audit_log ADD COLUMN device_id integer;
+
+ALTER TABLE ONLY public.audit_log
+    ADD CONSTRAINT fk_audit_log_device FOREIGN KEY (device_id) REFERENCES public.devices(id);
+
+CREATE INDEX ix_audit_log_device_id ON public.audit_log USING btree (device_id);
+
+
+--
+-- Name: devices; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.devices ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: devices tenant_isolation_devices; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation_devices ON public.devices USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
+
 
 
 --

@@ -14,7 +14,7 @@ Authentication model (this phase):
 import os
 import secrets
 from contextlib import asynccontextmanager
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, EmailStr, Field
@@ -69,7 +69,9 @@ from . import platform_admin
 from . import team as team_mod
 from .database import dispose_db, get_db, init_db
 from .models import (
+    Branch,
     Business,
+    Device,
     BusinessInvitation,
     BusinessMember,
     Customer,
@@ -82,6 +84,7 @@ from .models import (
     StockMovement,
     StockMovementReason,
 )
+from . import branches as branches_mod
 from . import timezones as tz_mod
 from .schemas import (
     ALLOWED_CURRENCIES,
@@ -89,6 +92,8 @@ from .schemas import (
     AdjustStockRequest,
     AuditEntryOut,
     AuthMeResponse,
+    BranchCreate,
+    BranchOut,
     BusinessSettingsOut,
     BusinessSettingsUpdate,
     CategoryValue,
@@ -97,6 +102,8 @@ from .schemas import (
     CustomerOut,
     CustomerUpdate,
     DashboardSummary,
+    DeviceEnrol,
+    DeviceOut,
     FeedbackOut,
     FeedbackStatusOut,
     FeedbackSubmitIn,
@@ -380,7 +387,33 @@ async def get_current_business(
 
     request.state.team_role = role
     request.state.is_owner = role == "owner"
+    # The person behind the request. Sync attribution needs it: an offline
+    # write was made by this staff member at a named device.
+    request.state.user_id = user.user_id
     team_mod.assert_can_write(role, request.method, request.url.path)
+
+    # D1: the location dimension. Resolved here, once, for the same reason the
+    # tenant and the role are — so no route has to remember to ask, and a
+    # branch id from another tenant cannot be smuggled in through a query
+    # parameter. Every business gets a MAIN branch, so this never returns None.
+    raw_branch = request.headers.get("x-branch-id")
+    requested_branch: Optional[int] = None
+    if raw_branch:
+        try:
+            requested_branch = int(raw_branch)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="X-Branch-Id must be an integer",
+            )
+    try:
+        branch = await branches_mod.resolve_branch(db, business.id, requested_branch)
+    except branches_mod.BranchNotInTenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found",
+        )
+    request.state.branch_id = branch.id
 
     # Database-side tenant backstop (Supabase RLS): carry the tenant in the
     # app.business_id GUC for this transaction. No-op on SQLite; the owner
@@ -421,6 +454,214 @@ async def read_root() -> dict:
 # ---------------------------------------------------------------------------
 # Authentication info
 # ---------------------------------------------------------------------------
+
+async def get_current_branch(request: Request) -> int:
+    """The branch id resolved by ``get_current_business``.
+
+    Declared as a dependency so a route's signature says out loud that it
+    writes branch-scoped rows — a route that only reads the tenant does not
+    need it, and one that creates a sale cannot forget it.
+    """
+    branch_id = getattr(request.state, "branch_id", None)
+    if branch_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Branch context missing (endpoint did not depend on the tenant)",
+        )
+    return branch_id
+
+
+@app.get("/branches", response_model=List[BranchOut], tags=["Branches"])
+async def list_branches(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> List[BranchOut]:
+    """The business's live branches. Every tenant has at least one (MAIN)."""
+    rows = (
+        await db.execute(
+            select(Branch)
+            .where(Branch.business_id == business.id, Branch.deleted_at.is_(None))
+            .order_by(Branch.is_default.desc(), Branch.id)
+        )
+    ).scalars().all()
+    return [BranchOut.model_validate(r) for r in rows]
+
+
+@app.post(
+    "/branches",
+    response_model=BranchOut,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Branches"],
+)
+async def create_branch(
+    payload: BranchCreate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
+) -> BranchOut:
+    """Add a location.
+
+    Owner-only: a branch is the dimension every ledger row hangs off, so it is
+    an organisational decision, not shop-floor operation.
+    """
+    exists = (
+        await db.execute(
+            select(Branch).where(
+                Branch.business_id == business.id,
+                Branch.code == payload.code.strip().upper(),
+                Branch.deleted_at.is_(None),
+            )
+        )
+    ).scalars().first()
+    if exists is not None:
+        raise HTTPException(status_code=409, detail="That branch code is already in use")
+
+    row = Branch(
+        business_id=business.id,
+        code=payload.code.strip().upper(),
+        name=payload.name,
+        address=payload.address,
+        timezone=payload.timezone,
+        is_default=False,
+        created_by=business.owner_id,
+    )
+    db.add(row)
+    await db.flush()
+    await audit_mod.record_audit(
+        db, business.id, "branches", row.id, "create",
+        change={"code": row.code, "name": row.name}, actor=business.owner_id,
+    )
+    return BranchOut.model_validate(row)
+
+
+def _device_out(row: Device) -> DeviceOut:
+    out = DeviceOut.model_validate(row)
+    out.has_public_key = bool(row.public_key)
+    return out
+
+
+@app.get("/devices", response_model=List[DeviceOut], tags=["Devices"])
+async def list_devices(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> List[DeviceOut]:
+    """Machines enrolled to post offline writes for this business.
+
+    Revoked devices are included: a revoked till is history, and a shop needs
+    to see which machine a disputed sale came from.
+    """
+    rows = (
+        await db.execute(
+            select(Device)
+            .where(Device.business_id == business.id)
+            .order_by(Device.revoked_at.isnot(None), Device.id)
+        )
+    ).scalars().all()
+    return [_device_out(r) for r in rows]
+
+
+@app.post(
+    "/devices",
+    response_model=DeviceOut,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Devices"],
+)
+async def enrol_device(
+    payload: DeviceEnrol,
+    request: Request,
+    business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
+    db: AsyncSession = Depends(get_db),
+) -> DeviceOut:
+    """Enrol the machine making this request.
+
+    Any member may enrol their own till — it is part of setting a machine up,
+    not an organisational decision. The device is bound to one branch and can
+    only ever post for that branch (``X-Branch-Id`` must agree).
+
+    Re-enrolling a ``device_key`` is a conflict: the key IS the machine. A
+    revoked key cannot be revived either — revocation means "stop trusting
+    this machine", so re-installing generates a new key.
+    """
+    target_branch = branch_id
+    if payload.branch_id is not None:
+        try:
+            target_branch = (
+                await branches_mod.resolve_branch(db, business.id, payload.branch_id)
+            ).id
+        except branches_mod.BranchNotInTenant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found"
+            )
+
+    existing = (
+        await db.execute(
+            select(Device).where(
+                Device.business_id == business.id,
+                Device.device_key == payload.device_key,
+            )
+        )
+    ).scalars().first()
+    if existing is not None:
+        if existing.revoked_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="That device was revoked — install a fresh device key",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="That device is already enrolled"
+        )
+
+    row = Device(
+        business_id=business.id,
+        branch_id=target_branch,
+        device_key=payload.device_key,
+        name=payload.name,
+        public_key=payload.public_key,
+        created_by=getattr(request.state, "user_id", None),
+    )
+    db.add(row)
+    await db.flush()
+    await audit_mod.record_audit(
+        db, business.id, "devices", row.id, "create",
+        change={"device_key": row.device_key, "branch_id": row.branch_id},
+        actor=getattr(request.state, "user_id", None),
+    )
+    return _device_out(row)
+
+
+@app.post("/devices/{device_id}/revoke", response_model=DeviceOut, tags=["Devices"])
+async def revoke_device(
+    device_id: int,
+    request: Request,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
+) -> DeviceOut:
+    """Stop trusting a machine.
+
+    Owner-only and idempotent. Revoked devices can no longer push; their
+    historic rows stay attributed to them.
+    """
+    row = (
+        await db.execute(
+            select(Device).where(
+                Device.id == device_id, Device.business_id == business.id
+            )
+        )
+    ).scalars().first()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found")
+    if row.revoked_at is None:
+        row.revoked_at = datetime.now(timezone.utc)
+        await db.flush()
+        await audit_mod.record_audit(
+            db, business.id, "devices", row.id, "revoke",
+            change={"device_key": row.device_key},
+            actor=getattr(request.state, "user_id", None),
+        )
+    return _device_out(row)
+
 
 @app.get("/auth/me", response_model=AuthMeResponse, tags=["Authentication"])
 async def auth_me(
@@ -1040,6 +1281,7 @@ async def backups_restore(
 def _log_movement(
     db: AsyncSession,
     business_id: int,
+    branch_id: int,
     product_id: int,
     change: int,
     reason: StockMovementReason,
@@ -1051,6 +1293,7 @@ def _log_movement(
     db.add(
         StockMovement(
             business_id=business_id,
+            branch_id=branch_id,
             product_id=product_id,
             change=change,
             reason=reason,
@@ -1064,6 +1307,7 @@ def _log_movement(
 async def _change_stock(
     db: AsyncSession,
     business_id: int,
+    branch_id: int,
     product: Product,
     delta: int,
     reason: StockMovementReason,
@@ -1112,7 +1356,7 @@ async def _change_stock(
     product.updated_by = actor
 
     _log_movement(
-        db, business_id, product.id, delta, reason, actor,
+        db, business_id, branch_id, product.id, delta, reason, actor,
         note=note, order_id=order_id,
     )
 
@@ -1126,6 +1370,7 @@ async def _change_stock(
 async def create_product(
     product: ProductCreate,
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
 ) -> ProductOut:
     # Duplicate check: live rows only — a soft-deleted product's SKU is
@@ -1154,7 +1399,7 @@ async def create_product(
     # Initial stock (if any) is the first ledger entry (UXDS 11.9).
     if new_product.current_stock:
         _log_movement(
-            db, business.id, new_product.id, new_product.current_stock,
+            db, business.id, branch_id, new_product.id, new_product.current_stock,
             StockMovementReason.initial, business.owner_id,
         )
     await db.refresh(new_product)
@@ -1272,6 +1517,7 @@ async def adjust_stock(
     id: int,
     req: AdjustStockRequest,
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
 ) -> ProductOut:
     """Apply a signed stock adjustment and log it to the ledger (UXDS 11.11)."""
@@ -1280,7 +1526,7 @@ async def adjust_stock(
 
     product = await get_product(id, business, db)
     await _change_stock(
-        db, business.id, product, req.change,
+        db, business.id, branch_id, product, req.change,
         StockMovementReason(req.reason.value), business.owner_id, note=req.note,
     )
     await db.flush()
@@ -1568,7 +1814,7 @@ async def _restore_stock(
     for item in order.items:
         if item.product is not None:
             await _change_stock(
-                db, order.business_id, item.product, item.quantity,
+                db, order.business_id, order.branch_id, item.product, item.quantity,
                 reason, actor, order_id=order.id,
             )
 
@@ -1577,6 +1823,7 @@ async def _restore_stock(
 async def create_order(
     order: OrderCreate,
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
 ) -> OrderOut:
     customer = await get_customer(order.customer_id, business, db)
@@ -1611,6 +1858,7 @@ async def create_order(
         item_models.append(
             OrderItem(
                 business_id=business.id,
+                branch_id=branch_id,
                 product_id=product.id,
                 quantity=item.quantity,
                 unit_price=item.unit_price,  # snapshot price (Task 7 policy)
@@ -1629,6 +1877,7 @@ async def create_order(
 
     new_order = Order(
         business_id=business.id,
+        branch_id=branch_id,
         customer_id=customer.id,
         status=order.status or "pending",
         total_amount=net_total,
@@ -1646,7 +1895,7 @@ async def create_order(
     # leaving both the order and all stock untouched.
     for product, item in lines:
         await _change_stock(
-            db, business.id, product, -item.quantity,
+            db, business.id, branch_id, product, -item.quantity,
             StockMovementReason.order, business.owner_id, order_id=new_order.id,
         )
     await audit_mod.record_audit(
@@ -2457,6 +2706,7 @@ async def imports_commit(
     entity: str = Form("products"),
     mapping: str = Form("{}"),
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
     _rate: None = Depends(enforce_import_rate_limit),
 ) -> dict:
@@ -2476,7 +2726,9 @@ async def imports_commit(
         db,
     )
     try:
-        result = await importer.execute_import(db, business.id, parsed, entity, mapping_dict)
+        result = await importer.execute_import(
+            db, business.id, parsed, entity, mapping_dict, branch_id=branch_id
+        )
     except ValueError as e:
         await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -3916,13 +4168,59 @@ class SyncPushRequest(BaseModel):
 @app.post("/sync/push", tags=["Sync"])
 async def sync_push(
     req: SyncPushRequest,
+    request: Request,
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Apply a batch of offline operations idempotently. Returns applied /
-    skipped counts, a client_id -> server id map, and any per-op errors."""
+    skipped counts, a client_id -> server id map, and any per-op errors.
+
+    D1: the operations are attributed to the branch the device is posting for
+    (``X-Branch-Id``, default MAIN), so an offline sale from Shop 4 lands in
+    Shop 4's ledger even though the device could not reach the server.
+
+    ``X-Device-Id`` is the client-generated device key. When it is present the
+    device must be enrolled, live, and bound to the branch being posted for —
+    a till cannot file its sales under another shop. When it is absent the
+    batch still applies (older clients) but the audit rows say only
+    "offline-sync", which is a breadcrumb, not an identity.
+    """
     ops = [o.model_dump() for o in req.operations]
-    return await apply_push(db, business.id, ops)
+    device: Optional[Device] = None
+    raw_device = request.headers.get("x-device-id")
+    if raw_device:
+        device = (
+            await db.execute(
+                select(Device).where(
+                    Device.business_id == business.id,
+                    Device.device_key == raw_device.strip(),
+                )
+            )
+        ).scalars().first()
+        if device is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Device not enrolled"
+            )
+        if device.revoked_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="This device has been revoked"
+            )
+        if device.branch_id != branch_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This device is enrolled at a different branch",
+            )
+        device.last_seen_at = datetime.now(timezone.utc)
+
+    return await apply_push(
+        db,
+        business.id,
+        ops,
+        branch_id=branch_id,
+        device_id=device.id if device is not None else None,
+        actor=getattr(request.state, "user_id", None),
+    )
 
 
 @app.get("/sync/pull", tags=["Sync"])

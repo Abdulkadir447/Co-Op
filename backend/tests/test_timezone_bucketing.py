@@ -12,6 +12,7 @@ from datetime import date, datetime, time, timedelta, timezone as dtz
 import pytest
 
 from backend import timezones as tz_mod
+from backend import branches as branches_mod
 from backend.models import Business, Customer, Order, OrderItem, OrderStatus, Product
 from backend.reports import ReportFilters, build_report
 
@@ -27,7 +28,8 @@ async def _add_delivered_order(session_factory, business_id, order_date, amount=
         cust = Customer(business_id=business_id, full_name="Buyer", email="buyer@x.com")
         db.add(cust)
         await db.flush()
-        db.add(Order(business_id=business_id, customer_id=cust.id,
+        br = (await branches_mod.default_branch(db, business_id)).id
+        db.add(Order(business_id=business_id, branch_id=br, customer_id=cust.id,
                      status=OrderStatus.delivered, total_amount=amount,
                      order_date=order_date))
         await db.commit()
@@ -113,16 +115,17 @@ async def _seed_one_order(session_factory, owner_id, tz_name, order_date, sku):
         b = Business(name=f"Co {owner_id}", owner_id=owner_id, timezone=tz_name)
         db.add(b)
         await db.flush()
+        br = (await branches_mod.default_branch(db, b.id)).id
         prod = Product(business_id=b.id, name="Widget", sku=sku, category="General",
                        unit_price=100, cost_price=40, current_stock=10, reorder_level=2)
         cust = Customer(business_id=b.id, full_name="Buyer", email=f"{owner_id}@x.com")
         db.add_all([prod, cust])
         await db.flush()
-        o = Order(business_id=b.id, customer_id=cust.id, status=OrderStatus.delivered,
+        o = Order(business_id=b.id, branch_id=br, customer_id=cust.id, status=OrderStatus.delivered,
                   total_amount=100.0, order_date=order_date)
         db.add(o)
         await db.flush()
-        db.add(OrderItem(business_id=b.id, order_id=o.id, product_id=prod.id,
+        db.add(OrderItem(business_id=b.id, branch_id=br, order_id=o.id, product_id=prod.id,
                          quantity=1, unit_price=100, total_price=100))
         await db.commit()
         return b.id
