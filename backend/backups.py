@@ -18,6 +18,7 @@ so the backup format is a stable, reviewed contract.
 
 from __future__ import annotations
 
+from .money import CURRENCY
 import base64
 import hashlib
 import json
@@ -31,6 +32,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from . import money
 from .config import get_env
 from .models import (
     Business,
@@ -201,7 +203,7 @@ async def build_backup(db: AsyncSession, business: Business) -> dict[str, Any]:
         "app": BACKUP_APP,
         "version": BACKUP_VERSION,
         "exported_at": datetime.utcnow().isoformat(),
-        "business": {"name": business.name, "currency": business.currency or "USD"},
+        "business": {"name": business.name, "currency": business.currency or CURRENCY},
         "entities": data,
     }
 
@@ -303,12 +305,15 @@ async def restore_backup(
                 name=str(row["name"])[:255],
                 description=row.get("description"),
                 category=row.get("category"),
-                unit_price=float(row.get("unit_price") or 0.0),
+                unit_price=money.as_money(row.get("unit_price") or 0),
                 # cost_price is nullable, so cast only when present. The export
                 # stringifies every value (_iso), and SQLite coerces "4.0" back
                 # to a number silently — Postgres/asyncpg does not, so an
                 # uncast string here fails the insert on the real database.
-                cost_price=float(row["cost_price"]) if row.get("cost_price") is not None else None,
+                cost_price=(
+                    money.as_money(row["cost_price"])
+                    if row.get("cost_price") is not None else None
+                ),
                 current_stock=int(row.get("current_stock") or 0),
                 reorder_level=int(row.get("reorder_level") or 0),
                 deleted_at=_parse_dt(row.get("deleted_at")),
@@ -357,10 +362,13 @@ async def restore_backup(
                 customer_id=id_map["customers"][old_customer],
                 order_date=_parse_dt(row.get("order_date")),
                 status=OrderStatus(_check_status(row.get("status") or "pending")),
-                total_amount=float(row.get("total_amount") or 0.0),
+                total_amount=money.as_money(row.get("total_amount") or 0),
                 # Old backups predate tax (0021): absent -> no tax recorded.
-                tax_rate=(float(row["tax_rate"]) if row.get("tax_rate") is not None else None),
-                tax_amount=float(row.get("tax_amount") or 0.0),
+                tax_rate=(
+                    money.as_rate(row["tax_rate"])
+                    if row.get("tax_rate") is not None else None
+                ),
+                tax_amount=money.as_money(row.get("tax_amount") or 0),
                 deleted_at=_parse_dt(row.get("deleted_at")),
                 created_by="backup-restore",
             )
@@ -386,8 +394,8 @@ async def restore_backup(
                     order_id=id_map["orders"][old_order],
                     product_id=id_map["products"][old_product],
                     quantity=int(row.get("quantity") or 0),
-                    unit_price=float(row.get("unit_price") or 0.0),
-                    total_price=float(row.get("total_price") or 0.0),
+                    unit_price=money.as_money(row.get("unit_price") or 0),
+                    total_price=money.as_money(row.get("total_price") or 0),
                     created_by="backup-restore",
                 )
             )
@@ -408,7 +416,7 @@ async def restore_backup(
                     business_id=business.id,
                     branch_id=branch_id,
                     order_id=id_map["orders"][old_order],
-                    amount=float(row.get("amount") or 0.0),
+                    amount=money.as_money(row.get("amount") or 0),
                     method=str(row.get("method") or "cash")[:20],
                     reference=(str(row["reference"])[:120] if row.get("reference") else None),
                     note=(str(row["note"])[:500] if row.get("note") else None),

@@ -140,7 +140,7 @@ async def test_delete_restores_but_cancelled_delete_does_not_double_restore(api)
 async def test_change_stock_stale_version_conflicts(engine, session_factory):
     """Deterministic proof of the optimistic-lock guard (runs everywhere)."""
     async with session_factory() as db:
-        business = Business(name="B", owner_id="user-a", currency="USD")
+        business = Business(name="B", owner_id="user-a")
         db.add(business)
         await db.flush()
         from backend import branches as branches_mod

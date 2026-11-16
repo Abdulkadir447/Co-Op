@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy import select, update
 
 from backend import investor_metrics as im
+from backend import money
 from backend.models import (
     AiUsage,
     Business,
@@ -246,15 +247,20 @@ async def test_demo_seed_is_coherent_and_refuses_to_double_up(api, session_facto
             select(Product).where(Product.business_id == business_id)
         )).scalars().all()
 
-    # 1. Every order total is the sum of its own lines.
-    by_order: dict[int, float] = {}
+    # 1. Every order total is EXACTLY the sum of its own lines, and the tax on
+    #    it is exactly the configured rate applied once. Exact equality, not a
+    #    tolerance: money is an integer number of kobo (backend/money.py), so
+    #    there is no such thing as "close enough" here.
+    by_order: dict[int, object] = {}
     for item in items:
-        by_order[item.order_id] = round(by_order.get(item.order_id, 0.0) + item.total_price, 2)
+        by_order[item.order_id] = money.as_money(
+            by_order.get(item.order_id, money.ZERO) + item.total_price
+        )
     for order in orders:
         assert order.total_amount == by_order[order.id], order.id
         # Tax is only ever applied at the configured rate, or not at all.
-        assert order.tax_rate is None or order.tax_amount == round(
-            order.total_amount * order.tax_rate / 100.0, 2
+        assert order.tax_rate is None or order.tax_amount == money.percent_of(
+            order.total_amount, order.tax_rate
         )
 
     # 2. Invoice numbers are sequential and unique within the tenant.

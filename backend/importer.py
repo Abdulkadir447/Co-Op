@@ -16,6 +16,8 @@ Supported: CSV (any of , ; tab delimiters, UTF-8/UTF-8-BOM) and XLSX
 """
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
+
 import csv
 import io
 import re
@@ -37,11 +39,19 @@ def _parse_int(v: str) -> int:
     return int(s)
 
 
-def _parse_money(v: str) -> float:
+def _parse_money(v: str) -> Decimal:
+    """A number typed in a spreadsheet, parsed exactly.
+
+    Going through float here is how ₦4,500.00 becomes 4499.999999999999 in a
+    total three lines later, so the digits are read as a decimal directly.
+    """
     s = re.sub(r"[^\d\.\-]", "", v.strip())
     if s in ("", "-", "-."):
         raise ValueError("expected a number")
-    return float(s)
+    try:
+        return Decimal(s)
+    except InvalidOperation:
+        raise ValueError("expected a number")
 
 
 def _parse_date(v: str) -> str:

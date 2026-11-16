@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
+from .. import money
 from .prompts import ALLOWED_KINDS, ALLOWED_PERIODS, ALLOWED_SOURCES
 
 
@@ -38,6 +39,14 @@ class AiLink(BaseModel):
 class AiAction(BaseModel):
     type: str  # validated against the registry in actions.py
     parameters: dict[str, Any] = Field(default_factory=dict)
+
+    @field_serializer("parameters")
+    def _money_as_number(self, value: dict[str, Any]) -> dict[str, Any]:
+        # Pydantic serialises a Decimal as a STRING. The wire carries naira as
+        # a JSON number everywhere else (backend/money.py), and the draft card
+        # posts this price straight back to /orders — a string there would be a
+        # silent type change, not a formatting preference.
+        return money.jsonable(value)
 
 
 class AiChatResponse(BaseModel):

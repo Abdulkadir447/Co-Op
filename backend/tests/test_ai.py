@@ -262,7 +262,7 @@ async def test_context_builder_verified_numbers(session_factory):
 
     bid = None
     async with session_factory() as db:
-        b = Business(name="Test Co", owner_id="owner-1", currency="USD")
+        b = Business(name="Test Co", owner_id="owner-1")
         db.add(b)
         await db.flush()
         br = (await branches_mod.default_branch(db, b.id)).id
@@ -286,7 +286,7 @@ async def test_context_builder_verified_numbers(session_factory):
     async with session_factory() as db:
         ctx = await build_context(db, bid)
 
-    assert ctx["business"]["currency"] == "USD"
+    assert ctx["business"]["currency"] == "NGN"
     assert ctx["periods"]["this_month"]["revenue"] == 30.0
     assert ctx["periods"]["this_month"]["orders"] == 1
     assert ctx["top_products_30d"][0]["name"] == "Gadget"

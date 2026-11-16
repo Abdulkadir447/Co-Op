@@ -13,6 +13,8 @@ degradation signal — AI never blocks core operations (TRD Ch1.8).
 """
 from __future__ import annotations
 
+from .. import money as money_mod
+from ..money import CURRENCY
 import json
 from typing import Any, Optional
 
@@ -116,7 +118,7 @@ async def handle_chat(
     context = await build_context(
         db, business.id,
         business_name=business.name or "",
-        currency=business.currency or "USD",
+        currency=business.currency or CURRENCY,
     )
     has_data = (
         context["history"]["total_revenue"]
@@ -174,7 +176,10 @@ async def handle_chat(
         # cannot let Zeno change business data.
         lessons_block = render_lessons(await active_constraints(db, business.id))
         system = build_system_prompt(style, lessons_block)
-        context_json = json.dumps(context, ensure_ascii=False, separators=(",", ":"))
+        context_json = json.dumps(
+            context, ensure_ascii=False, separators=(",", ":"),
+            default=money_mod.json_default,
+        )
         messages = user_prompt(question, context_json, history or [])
         try:
             result = provider.complete(system, messages)

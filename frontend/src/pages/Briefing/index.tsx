@@ -30,6 +30,7 @@ import { getLocalBundle } from '../../analytics/localData';
 import { buildLocalBriefing } from '../../analytics/localBriefing';
 import { CoopButton, CoopCard, CoopErrorState, CoopLoading, CoopBadge } from '../../components/ui';
 import { SparkleIcon } from '../../components/ui/icons';
+import { getCurrency } from '../../services/currency';
 
 // ---------------------------------------------------------------------------
 // Types (mirror the backend /dashboard/briefing payload)
@@ -83,7 +84,7 @@ const SEVERITY_COLOR: Record<Insight['severity'], 'primary' | 'warning' | 'error
 };
 
 const money = (v: number) =>
-  v.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  v.toLocaleString(undefined, { style: 'currency', currency: getCurrency(), maximumFractionDigits: 0 });
 
 const greeting = () => {
   const h = dayjs().hour();

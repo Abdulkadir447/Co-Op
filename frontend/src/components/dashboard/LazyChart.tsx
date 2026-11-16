@@ -25,7 +25,10 @@ import type {
 const ApexChart = React.lazy(() => import('./chart'));
 
 export interface LazyChartProps {
-  type: 'line' | 'area' | 'bar' | 'column' | 'donut' | 'pie';
+  // ApexCharts calls a vertical bar 'bar' (with plotOptions.bar.horizontal
+  // false). 'column' was never a valid value and only type-checked because
+  // the prop was spread onto a lazy component.
+  type: 'line' | 'area' | 'bar' | 'donut' | 'pie';
   options: ApexOptions;
   series: ApexAxisChartSeries | ApexNonAxisChartSeries;
   height?: number;

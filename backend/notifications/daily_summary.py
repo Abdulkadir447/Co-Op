@@ -23,6 +23,7 @@ scheduler or background worker is needed for v1.
 """
 from __future__ import annotations
 
+from ..money import CURRENCY
 import datetime as dt
 from typing import Optional
 
@@ -80,7 +81,7 @@ def _month_to_date_points(
 async def build_daily_summary(db, business: Business) -> DailySummary:
     tz = tz_mod.business_tz(business.timezone)
     today = tz_mod.local_today(tz)
-    currency = business.currency or "USD"
+    currency = business.currency or CURRENCY
 
     # --- Today -------------------------------------------------------------
     today_rev, today_orders = await _window_revenue_orders(db, business.id, today, today, tz)

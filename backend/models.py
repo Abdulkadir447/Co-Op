@@ -20,7 +20,9 @@ from __future__ import annotations
 
 from enum import Enum
 
+from .money import Money, Rate, as_money, to_decimal
 from sqlalchemy import (
+    CheckConstraint,
     Boolean,
     Column,
     DateTime,
@@ -51,13 +53,21 @@ class Business(Base):
     """A tenant. Every record in the system belongs to exactly one business."""
 
     __tablename__ = "businesses"
+    # Money is stored as an integer number of kobo (backend/money.py). The
+    # exponent is therefore fixed at 2, and a currency with a different exponent
+    # (JPY has zero, KWD three) would be silently mis-scaled. This edition is
+    # Naira-only, so the database refuses any other code rather than trusting
+    # every write path to check.
+    __table_args__ = (
+        CheckConstraint("currency = 'NGN'", name="ck_businesses_currency_ngn"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     owner_id = Column(String(255), index=True)        # Clerk user id of the owner
     owner_email = Column(String(255), index=True)     # business contact email (editable)
     industry = Column(String(100))
-    currency = Column(String(8), default="USD")
+    currency = Column(String(8), default="NGN", server_default="NGN")
     # Company profile fields (UXDS 15.6, Task 9) — additive, nullable.
     address = Column(String(500))
     phone = Column(String(20))
@@ -83,7 +93,7 @@ class Business(Base):
     # the rate is local law (US state/county sales tax, UK/EU VAT, none at
     # all for many services) and a wrong pre-filled rate is worse than a
     # blank one. The owner sets it once in Settings.
-    tax_rate = Column(Float, default=0.0, server_default="0", nullable=False)
+    tax_rate = Column(Rate, default=0, server_default="0", nullable=False)
     tax_label = Column(String(20), default="Tax", server_default="Tax", nullable=False)
     # Ask Zeno answer style preference (0009): concise | standard | detailed.
     ai_response_style = Column(
@@ -218,8 +228,8 @@ class Product(Base):
     name = Column(String(255), nullable=False)
     description = Column(String(1000))
     category = Column(String(100))
-    unit_price = Column(Float, nullable=False)
-    cost_price = Column(Float)
+    unit_price = Column(Money, nullable=False)
+    cost_price = Column(Money)
     current_stock = Column(Integer, default=0)
     reorder_level = Column(Integer, default=5)
     created_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
@@ -370,11 +380,11 @@ class Order(Base):
         default=OrderStatus.pending,
         nullable=False,
     )
-    total_amount = Column(Float, nullable=False, default=0.0)  # NET subtotal (ex-tax)
+    total_amount = Column(Money, nullable=False, default=0)  # NET subtotal (ex-tax)
     # Tax snapshot (0021). NULL rate = tax was off when this order was raised;
-    # 0.0 amount keeps grand_total == total_amount for every legacy row.
-    tax_rate = Column(Float, nullable=True)
-    tax_amount = Column(Float, nullable=False, default=0.0, server_default="0")
+    # a zero amount keeps grand_total == total_amount for every legacy row.
+    tax_rate = Column(Rate, nullable=True)
+    tax_amount = Column(Money, nullable=False, default=0, server_default="0")
     created_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     updated_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     created_at = Column(DateTime, server_default=func.now())
@@ -408,9 +418,16 @@ class Order(Base):
     )
 
     @property
-    def grand_total(self) -> float:
-        """What the customer actually owes: net subtotal + tax."""
-        return round(float(self.total_amount or 0.0) + float(self.tax_amount or 0.0), 2)
+    def grand_total(self):
+        """What the customer actually owes: net subtotal + tax.
+
+        Both addends are already exact and already rounded (int->kobo at the
+        column boundary), so this addition introduces no rounding of its own.
+        The old version converted both to float and rounded again — a second
+        rounding of an already-rounded value, which is how a total ends up one
+        kobo away from the sum of its own lines.
+        """
+        return as_money(to_decimal(self.total_amount) + to_decimal(self.tax_amount))
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Order id={self.id} status={self.status.value!r}>"
@@ -443,7 +460,7 @@ class OrderPayment(Base):
         Integer, ForeignKey("branches.id"), nullable=False, index=True
     )
 
-    amount = Column(Float, nullable=False)
+    amount = Column(Money, nullable=False)
     method = Column(String(20), nullable=False, default="cash", server_default="cash")
     reference = Column(String(120), nullable=True)   # transfer ref / receipt no.
     note = Column(String(500), nullable=True)
@@ -474,8 +491,8 @@ class OrderItem(Base):
     )
 
     quantity = Column(Integer, nullable=False)
-    unit_price = Column(Float, nullable=False)  # price at the moment of ordering
-    total_price = Column(Float, nullable=False)
+    unit_price = Column(Money, nullable=False)  # price at the moment of ordering
+    total_price = Column(Money, nullable=False)
     created_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     updated_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     created_at = Column(DateTime, server_default=func.now())
@@ -646,7 +663,7 @@ class ZenoLesson(Base):
     scope = Column(String(40), nullable=False, default="general")
     statement = Column(Text, nullable=False)  # owner-readable "do not ..."
     severity = Column(Integer, nullable=False, default=3)  # 1 trivial .. 5 money/stock
-    cost_amount = Column(Float)  # measured/estimated money lost, business currency
+    cost_amount = Column(Money)  # measured/estimated money lost, business currency
     cost_basis = Column(String(12), default="estimated")  # measured | estimated
     blast_radius = Column(Integer, default=0)  # rows/customers affected
     repeat_count = Column(Integer, nullable=False, default=1)
@@ -875,7 +892,15 @@ class AnalyticsSnapshot(Base):
     business_id = Column(Integer, index=True)
     snapshot_date = Column(DateTime, server_default=func.now())
     metric_key = Column(String(50), nullable=False)
+    # Cached, derived, and never the source of a figure the owner is shown as
+    # fact — which is why this one column stays a float while every ledger
+    # column is exact.
     metric_value = Column(Float)
+    # …but a bare number with no unit is not a measurement. 'money' values are
+    # naira (display only, recomputed from the ledger on every read); 'count'
+    # and 'ratio' carry no currency at all. Money columns are integer kobo;
+    # this cache is the one place a float is allowed, and the unit says so.
+    metric_unit = Column(String(16), nullable=True)  # money | count | ratio
     dimensions_json = Column(Text)
 
 

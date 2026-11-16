@@ -91,7 +91,7 @@ Co-Op/
 │   ├── importer.py               · 5-step import with per-row errors
 │   ├── backups.py                · encrypted export / restore
 │   ├── audit.py                  · append-only mutation log
-│   ├── alembic/versions/         26 migrations (0001 … 0026_devices)
+│   ├── alembic/versions/         27 migrations (0001 … 0027_exact_money)
 │   └── tests/                   48 modules · 471 passed, 6 skipped
 ├── frontend/                    180 files — React + TS + Vite + Ant Design
 │   └── src/

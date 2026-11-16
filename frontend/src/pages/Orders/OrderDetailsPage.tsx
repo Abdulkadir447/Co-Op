@@ -94,7 +94,7 @@ const OrderDetailsPage: React.FC = () => {
     if (bizRow) {
       setBusiness({
         name: String(bizRow.name ?? ''),
-        currency: String(bizRow.currency ?? 'USD'),
+        currency: String(bizRow.currency ?? 'NGN'),
         address: null,
         phone: null,
         email: null,

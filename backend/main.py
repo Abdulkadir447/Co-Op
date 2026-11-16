@@ -85,6 +85,7 @@ from .models import (
     StockMovementReason,
 )
 from . import branches as branches_mod
+from . import money as money_mod
 from . import timezones as tz_mod
 from .schemas import (
     ALLOWED_CURRENCIES,
@@ -379,7 +380,7 @@ async def get_current_business(
             business = Business(
                 name="My Business",
                 owner_id=user.user_id,
-                currency="USD",
+                currency=money_mod.CURRENCY,
                 created_by=user.user_id,
             )
             db.add(business)
@@ -688,7 +689,7 @@ async def auth_me(
             user_id=user.user_id,
             business_id=business.id,
             business_name=business.name,
-            currency=business.currency or "USD",
+            currency=business.currency or money_mod.CURRENCY,
             role="owner",
             email=user.email,
         )
@@ -714,7 +715,7 @@ async def auth_me(
                 user_id=user.user_id,
                 business_id=team_business.id,
                 business_name=team_business.name,
-                currency=team_business.currency or "USD",
+                currency=team_business.currency or money_mod.CURRENCY,
                 role=member.role,
                 email=member.email or user.email,
             )
@@ -743,7 +744,7 @@ async def auth_me(
                 user_id=user.user_id,
                 business_id=None,
                 business_name=invite_business.name if invite_business else "",
-                currency="USD",
+                currency=money_mod.CURRENCY,
                 role="viewer",
                 email=user.email,
                 pending_invitation=TeamInviteOut(
@@ -760,7 +761,7 @@ async def auth_me(
     business = Business(
         name="My Business",
         owner_id=user.user_id,
-        currency="USD",
+        currency=money_mod.CURRENCY,
         created_by=user.user_id,
     )
     db.add(business)
@@ -769,7 +770,7 @@ async def auth_me(
         user_id=user.user_id,
         business_id=business.id,
         business_name=business.name,
-        currency="USD",
+        currency=money_mod.CURRENCY,
         role="owner",
         email=user.email,
     )
@@ -1099,8 +1100,11 @@ async def update_business_settings(
         if code not in ALLOWED_CURRENCIES:
             raise HTTPException(
                 status_code=422,
-                detail=f"Unsupported currency '{data['currency']}'. "
-                       f"Allowed: {', '.join(sorted(ALLOWED_CURRENCIES))}",
+                detail=(
+                    f"Unsupported currency '{data['currency']}'. "
+                    f"This edition keeps money in {money_mod.CURRENCY} kobo; "
+                    f"allowed: {', '.join(sorted(ALLOWED_CURRENCIES))}"
+                ),
             )
         data["currency"] = code
     if "timezone" in data and data["timezone"] is not None:
@@ -1782,7 +1786,7 @@ def _serialize_order(order: Order) -> OrderOut:
         allowed_transitions=allowed,
         total_amount=order.total_amount,
         tax_rate=order.tax_rate,
-        tax_amount=round(float(order.tax_amount or 0.0), 2),
+        tax_amount=money_mod.as_money(order.tax_amount),
         grand_total=order.grand_total,
         amount_paid=balance.paid,
         balance_due=balance.balance,
@@ -1850,18 +1854,23 @@ async def create_order(
         lines.append((product, item))
 
     # ---- Application phase (single request transaction; rollback-safe) ----
-    total = 0.0
+    # Exact money (backend/money.py): each line is rounded exactly once, to the
+    # kobo, and the subtotal is the sum of those rounded lines. That order
+    # matters — rounding a sum is not the sum of roundings, and only this way
+    # can the invoice prove Σ lines == subtotal with exact equality.
+    subtotal = money_mod.ZERO
     item_models: List[OrderItem] = []
     for product, item in lines:
-        line_total = round(item.unit_price * item.quantity, 2)
-        total += line_total
+        unit_price = money_mod.as_money(item.unit_price)
+        line_total = money_mod.as_money(unit_price * item.quantity)
+        subtotal = money_mod.as_money(subtotal + line_total)
         item_models.append(
             OrderItem(
                 business_id=business.id,
                 branch_id=branch_id,
                 product_id=product.id,
                 quantity=item.quantity,
-                unit_price=item.unit_price,  # snapshot price (Task 7 policy)
+                unit_price=unit_price,  # snapshot price (Task 7 policy)
                 total_price=line_total,
                 created_by=business.owner_id,
             )
@@ -1870,10 +1879,11 @@ async def create_order(
     # Tax is exclusive (0021): total_amount stays the NET subtotal, so every
     # existing revenue number keeps its meaning; the tax and the rate that
     # produced it are snapshotted here so a later rate change cannot reprice
-    # an order that already exists.
-    net_total = round(total, 2)
-    tax_rate = float(business.tax_rate) if business.tax_enabled else None
-    tax_amount = round(net_total * tax_rate / 100.0, 2) if tax_rate is not None else 0.0
+    # an order that already exists. Tax is computed ONCE, on the subtotal — not
+    # per line — so rounding cannot accumulate across a long order.
+    net_total = subtotal
+    tax_rate = money_mod.as_rate(business.tax_rate) if business.tax_enabled else None
+    tax_amount = money_mod.percent_of(net_total, tax_rate)
 
     new_order = Order(
         business_id=business.id,
@@ -2159,15 +2169,17 @@ async def list_receivables(
     orders = (await db.execute(stmt)).scalars().all()
 
     rows: list[dict] = []
-    total_outstanding = 0.0
-    total_collected = 0.0
+    # Exact money: the totals below are summed in Decimal and rounded once, so
+    # "who owes me money" cannot be a kobo short of the payment ledger.
+    total_outstanding = money_mod.ZERO
+    total_collected = money_mod.ZERO
     now = datetime.utcnow()
     for order in orders:
         balance = recv.balance_for(order)
-        total_collected += balance.paid
-        if balance.balance <= 0.005:
+        total_collected = money_mod.as_money(total_collected + balance.paid)
+        if balance.balance <= money_mod.EPSILON:
             continue
-        total_outstanding += balance.balance
+        total_outstanding = money_mod.as_money(total_outstanding + balance.balance)
         ordered_at = order.order_date or order.created_at
         age_days = 0
         if ordered_at is not None:
@@ -2178,8 +2190,8 @@ async def list_receivables(
             "customer_name": order.customer.full_name if order.customer else None,
             "order_date": order.order_date,
             "status": (order.status.value if hasattr(order.status, "value") else str(order.status)),
-            "subtotal": round(float(order.total_amount or 0.0), 2),
-            "tax_amount": round(float(order.tax_amount or 0.0), 2),
+            "subtotal": money_mod.as_money(order.total_amount),
+            "tax_amount": money_mod.as_money(order.tax_amount),
             "total": balance.total,
             "amount_paid": balance.paid,
             "balance_due": balance.balance,
@@ -2193,8 +2205,8 @@ async def list_receivables(
     start = (page - 1) * limit
     return ReceivablesResponse(
         items=rows[start:start + limit],
-        total_outstanding=round(total_outstanding, 2),
-        total_collected=round(total_collected, 2),
+        total_outstanding=total_outstanding,
+        total_collected=total_collected,
         count=count,
         page=page,
         limit=limit,
@@ -2360,8 +2372,10 @@ async def revenue_timeseries(
     for order_date, amount in rows:
         if order_date is None:
             continue
-        bucket = buckets.setdefault(tz_mod.utc_to_local_date(order_date, tz), [0.0, 0])
-        bucket[0] += float(amount or 0.0)
+        bucket = buckets.setdefault(
+            tz_mod.utc_to_local_date(order_date, tz), [money_mod.ZERO, 0]
+        )
+        bucket[0] = money_mod.as_money(bucket[0] + money_mod.to_decimal(amount))
         bucket[1] += 1
     return [
         TimeseriesPoint(date=str(day), revenue=bucket[0], orders=bucket[1])
@@ -2914,7 +2928,7 @@ async def ai_forecast(
     verified data, so it is free and instant.
     """
     return await ai_forecast_mod.build_forecast(
-        db, business.id, currency=business.currency or "USD"
+        db, business.id, currency=business.currency or money_mod.CURRENCY
     )
 
 

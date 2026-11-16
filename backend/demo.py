@@ -25,10 +25,13 @@ from __future__ import annotations
 
 import datetime as dt
 import random
-from typing import Any
+from decimal import Decimal
+from typing import Any, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from . import money
 
 from .models import (
     AuditLog,
@@ -75,12 +78,12 @@ CUSTOMERS: list[tuple[str, str, str]] = [
 ]
 
 
-def _tax_for(business: Business, subtotal: float) -> tuple[float | None, float]:
+def _tax_for(business: Business, subtotal: Decimal) -> tuple[Optional[Decimal], Decimal]:
     """Mirror the order route: tax is exclusive and snapshotted, or absent."""
     if not getattr(business, "tax_enabled", False):
-        return None, 0.0
-    rate = float(getattr(business, "tax_rate", 0.0) or 0.0)
-    return rate, round(subtotal * rate / 100.0, 2)
+        return None, money.ZERO
+    rate = money.as_rate(getattr(business, "tax_rate", 0) or 0)
+    return rate, money.percent_of(subtotal, rate)
 
 
 async def business_has_data(db: AsyncSession, business_id: int) -> bool:
@@ -181,17 +184,22 @@ async def seed_business(
                     OrderStatus.delivered, OrderStatus.delivered, OrderStatus.delivered,
                     OrderStatus.shipped, OrderStatus.pending,
                 ]),
-                total_amount=0.0,
+                total_amount=money.ZERO,
             )
             db.add(order)
             await db.flush()
 
-            subtotal = 0.0
+            subtotal = money.ZERO
             for product in lines:
                 quantity = rng.randint(1, 4)
-                unit_price = round(product.unit_price * rng.choice([1.0, 1.0, 0.95]), 2)
-                line_total = round(quantity * unit_price, 2)
-                subtotal += line_total
+                # A demo discount: 5% on every third line. Decimal throughout, so
+                # the seeded books satisfy the same invariants as real ones.
+                unit_price = money.as_money(
+                    money.as_money(product.unit_price)
+                    * Decimal(str(rng.choice([1.0, 1.0, 0.95])))
+                )
+                line_total = money.as_money(quantity * unit_price)
+                subtotal = money.as_money(subtotal + line_total)
                 db.add(OrderItem(
                     business_id=business.id, branch_id=branch_id,
                     order_id=order.id, product_id=product.id,
@@ -207,8 +215,8 @@ async def seed_business(
                 ))
                 product.current_stock = max(0, (product.current_stock or 0) - quantity)
 
-            tax_rate, tax_amount = _tax_for(business, round(subtotal, 2))
-            order.total_amount = round(subtotal, 2)
+            tax_rate, tax_amount = _tax_for(business, subtotal)
+            order.total_amount = subtotal
             order.tax_rate = tax_rate
             order.tax_amount = tax_amount
             written["orders"] += 1
@@ -240,12 +248,12 @@ async def seed_business(
                     created_at=invoice_at,
                 ))
 
-                gross = order.total_amount + order.tax_amount
+                gross = money.as_money(order.total_amount + order.tax_amount)
                 roll = rng.random()
                 if roll < 0.68:
                     db.add(OrderPayment(
                         business_id=business.id, branch_id=branch_id, order_id=order.id,
-                        amount=round(gross, 2), method=rng.choice(["transfer", "card"]),
+                        amount=gross, method=rng.choice(["transfer", "card"]),
                         reference=f"demo-{order.id}-full", created_by=owner,
                         received_at=invoice_at + dt.timedelta(days=rng.randint(1, 12)),
                         created_at=invoice_at + dt.timedelta(days=rng.randint(1, 12)),
@@ -256,7 +264,7 @@ async def seed_business(
                     # the receivables report both need some of these to be real.
                     db.add(OrderPayment(
                         business_id=business.id, branch_id=branch_id, order_id=order.id,
-                        amount=round(gross * 0.4, 2), method="transfer",
+                        amount=money.as_money(gross * Decimal("0.4")), method="transfer",
                         reference=f"demo-{order.id}-part", created_by=owner,
                         received_at=invoice_at + dt.timedelta(days=rng.randint(1, 9)),
                         created_at=invoice_at + dt.timedelta(days=rng.randint(1, 9)),

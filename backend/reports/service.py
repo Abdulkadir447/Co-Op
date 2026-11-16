@@ -17,6 +17,9 @@ from typing import Any, Optional
 
 from sqlalchemy import select
 
+from decimal import Decimal, ROUND_HALF_UP
+
+from .. import money as money_mod
 from .. import timezones as tz_mod
 from ..models import Business, Customer, Order, OrderItem, Product
 from .filters import ReportFilters, fmt_full_date, fmt_short_date
@@ -69,7 +72,8 @@ class ReportData:
     )
 
     def to_dict(self) -> dict:
-        return {
+        """The JSON body: exact internally, naira numbers on the wire."""
+        return money_mod.jsonable({
             "key": self.key,
             "title": self.title,
             "period_label": self.period_label,
@@ -96,18 +100,34 @@ class ReportData:
                 for t in self.tables
             ],
             "notes": self.notes,
-        }
+        })
 
 
-def _round(v: Optional[float], nd: int = 2) -> Optional[float]:
-    return None if v is None else round(v, nd)
+def _round(v, nd: int = 2):
+    """Round for display, in the value's own arithmetic.
+
+    Money arrives as Decimal (backend/money.py) and must stay there: calling
+    ``round`` on a Decimal is exact, while converting it to a float first — the
+    habit this replaces — is how a report ends up a kobo away from the ledger it
+    claims to summarize.
+    """
+    if v is None:
+        return None
+    if isinstance(v, Decimal):
+        return v.quantize(Decimal(1).scaleb(-nd), rounding=ROUND_HALF_UP)
+    return round(v, nd)
 
 
-def _pct(cur: Optional[float], prev: Optional[float]) -> Optional[float]:
-    """Relative % change; None when previous is missing/zero."""
+def _pct(cur, prev) -> Optional[float]:
+    """Relative % change; None when previous is missing/zero.
+
+    A percentage is a *ratio*, not money: it is deliberately a float, because
+    nothing reconciles against it and 233.3 is what a person expects to read.
+    Only money and rates stay exact.
+    """
     if cur is None or prev in (None, 0):
         return None
-    return round((cur - prev) / abs(prev) * 100, 1)
+    return round(float((cur - prev) / abs(prev) * 100), 1)
 
 
 def _as_date(x, tz) -> Optional[dt.date]:
@@ -293,13 +313,13 @@ async def sales_report(db, business_id: int, f: ReportFilters, tz) -> ReportData
             r[8],
         )
         pk = (pid, pname)
-        d = by_product.setdefault(pk, {"units": 0, "revenue": 0.0})
+        d = by_product.setdefault(pk, {"units": 0, "revenue": 0})
         d["units"] += qty or 0
         d["revenue"] += total or 0
-        c = by_category.setdefault(cat, {"units": 0, "revenue": 0.0})
+        c = by_category.setdefault(cat, {"units": 0, "revenue": 0})
         c["units"] += qty or 0
         c["revenue"] += total or 0
-        cu = by_customer.setdefault(r[1], {"orders": set(), "revenue": 0.0})
+        cu = by_customer.setdefault(r[1], {"orders": set(), "revenue": 0})
         cu["orders"].add(r[0])
         cu["revenue"] += total or 0
 
@@ -383,7 +403,7 @@ async def profit_loss_report(db, business_id: int, f: ReportFilters, tz) -> Repo
     cost_covered_value = sum((r[6] or 0) * (r[5] or 0) for r in rows if r[8] is not None)
     gross = revenue - cogs
     margin = (gross / revenue * 100) if revenue else None
-    coverage = (cost_covered_value / revenue * 100) if revenue else 0.0
+    coverage = (cost_covered_value / revenue * 100) if revenue else 0
 
     notes: list[str] = [
         "Gross P&L — Co-op does not track operating expenses yet, so this is "
@@ -423,7 +443,7 @@ async def profit_loss_report(db, business_id: int, f: ReportFilters, tz) -> Repo
             kpis[3].previous = _round(p_margin, 1) if p_margin is not None else None
             # Margin delta is expressed in percentage POINTS.
             if margin is not None and p_margin is not None:
-                kpis[3].change_percent = round(margin - p_margin, 1)
+                kpis[3].change_percent = round(float(margin - p_margin), 1)
 
     # Chart: revenue vs gross profit over time.
     order_dates = [_as_date(o.order_date, tz) for o in orders if o.order_date]
@@ -446,7 +466,7 @@ async def profit_loss_report(db, business_id: int, f: ReportFilters, tz) -> Repo
     by_product: dict[tuple, dict] = {}
     for r in rows:
         d = by_product.setdefault((r[2], r[3]), {
-            "units": 0, "revenue": 0.0, "cogs": 0.0, "has_cost": False})
+            "units": 0, "revenue": 0, "cogs": 0, "has_cost": False})
         d["units"] += r[5] or 0
         d["revenue"] += r[7] or 0
         if r[8] is not None:
@@ -701,7 +721,7 @@ async def customers_report(db, business_id: int, f: ReportFilters, tz) -> Report
 
     today = tz_mod.local_today(tz)
     inactive = [
-        (cid, (today - last_order[cid]).days, lifetime.get(cid, 0.0))
+        (cid, (today - last_order[cid]).days, lifetime.get(cid, 0))
         for cid in last_order
         if (today - last_order[cid]).days >= 30
     ]

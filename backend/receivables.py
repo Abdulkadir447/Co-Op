@@ -20,19 +20,22 @@ Rules enforced here, not in the route:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any, Iterable, Optional
 
 from . import audit as audit_mod
+from . import money
 from .models import Business, Order, OrderPayment
 
 # Payment methods the UI offers. Deliberately short and opinionated: the
 # Nigerian SME reality is cash, bank transfer, POS card, and "other".
 PAYMENT_METHODS = ("cash", "transfer", "card", "pos", "other")
 
-# Rounding tolerance: money is stored as double precision (the existing
-# convention in orders/order_items), so a one-cent residue must not turn a
-# fully-paid order into an eternally "partial" one.
-_EPSILON = 0.005
+# Tolerance for "settled". Money is exact now (integer kobo), so this is not
+# hiding drift: it exists because ``grand_total`` is itself rounded once (net +
+# tax), and an order whose tax rounds up could otherwise look one kobo short
+# forever. Half a kobo is the smallest meaningful amount.
+_EPSILON = Decimal("0.005")
 
 
 class PaymentError(Exception):
@@ -53,15 +56,15 @@ class Balance:
     ``orders.total_amount``, so tax never inflates a revenue figure.
     """
 
-    total: float
-    paid: float
-    balance: float
+    total: Decimal
+    paid: Decimal
+    balance: Decimal
     status: str  # unpaid | partial | paid | overpaid
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "amount_paid": round(self.paid, 2),
-            "balance_due": round(self.balance, 2),
+            "amount_paid": money.as_money(self.paid),
+            "balance_due": money.as_money(self.balance),
             "payment_status": self.status,
         }
 
@@ -76,9 +79,11 @@ def balance_for(order: Order, payments: Optional[Iterable[OrderPayment]] = None)
     rows = list(order.payments if payments is None else payments)
     # Grand total (net + tax) is what must be settled; getattr keeps this
     # correct for any Order-shaped object that predates the tax columns.
-    total = float(getattr(order, "grand_total", None) or order.total_amount or 0.0)
-    paid = round(sum(float(p.amount or 0.0) for p in rows), 2)
-    balance = round(total - paid, 2)
+    total = money.as_money(getattr(order, "grand_total", None) or order.total_amount or 0)
+    # Summed in Decimal: a page of payments that should settle an order to zero
+    # settles to exactly zero, instead of 0.0000000000000009.
+    paid = money.sum_money(p.amount for p in rows)
+    balance = money.as_money(total - paid)
     if paid <= _EPSILON:
         status = "unpaid"
     elif balance > _EPSILON:
@@ -89,14 +94,14 @@ def balance_for(order: Order, payments: Optional[Iterable[OrderPayment]] = None)
         status = "overpaid"
     else:
         status = "paid"
-    return Balance(total=round(total, 2), paid=paid, balance=balance, status=status)
+    return Balance(total=total, paid=paid, balance=balance, status=status)
 
 
 def to_dict(payment: OrderPayment) -> dict[str, Any]:
     return {
         "id": payment.id,
         "order_id": payment.order_id,
-        "amount": round(float(payment.amount or 0.0), 2),
+        "amount": money.as_money(payment.amount),
         "method": payment.method,
         "reference": payment.reference,
         "note": payment.note,
@@ -118,7 +123,7 @@ async def record_payment(
     db,
     business: Business,
     order: Order,
-    amount: float,
+    amount: Any,
     method: Optional[str] = "cash",
     reference: Optional[str] = None,
     note: Optional[str] = None,
@@ -133,11 +138,16 @@ async def record_payment(
             status_code=409,
         )
 
-    if amount is None or float(amount) <= 0:
+    if amount is None:
+        raise PaymentError("amount must be greater than zero", status_code=422)
+    try:
+        value = money.as_money(amount)
+    except (TypeError, ValueError):
+        raise PaymentError("amount must be a number", status_code=422)
+    if value <= 0:
         raise PaymentError("amount must be greater than zero", status_code=422)
 
     current = balance_for(order)
-    value = round(float(amount), 2)
     if value > current.balance + _EPSILON:
         raise PaymentError(
             f"amount exceeds the outstanding balance "
@@ -202,7 +212,7 @@ async def delete_payment(
     if target is None:
         raise PaymentError("Payment not found", status_code=404)
 
-    removed = float(target.amount or 0.0)
+    removed = money.as_money(target.amount)
     order.payments.remove(target)
     await db.delete(target)
     await db.flush()

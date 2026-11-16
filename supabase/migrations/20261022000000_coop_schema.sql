@@ -1,7 +1,7 @@
 -- Co-op schema snapshot — GENERATED, DO NOT EDIT BY HAND.
 --
 -- Regenerate with:  python supabase/scripts/export_schema.py
--- Source of truth:  backend/alembic/versions/ (revision 0026_devices (head))
+-- Source of truth:  backend/alembic/versions/ (revision 0027_exact_money (head))
 --
 -- Apply in the Supabase SQL editor, or with:
 --     supabase db push
@@ -97,7 +97,7 @@ CREATE TABLE public.zeno_lessons (
     scope character varying(40) DEFAULT 'general'::character varying NOT NULL,
     statement text NOT NULL,
     severity integer DEFAULT 3 NOT NULL,
-    cost_amount double precision,
+    cost_amount integer,
     cost_basis character varying(12) DEFAULT 'estimated'::character varying,
     blast_radius integer DEFAULT 0,
     repeat_count integer DEFAULT 1 NOT NULL,
@@ -170,6 +170,7 @@ CREATE TABLE public.analytics_snapshots (
     snapshot_date timestamp with time zone DEFAULT now() NOT NULL,
     metric_key character varying(50) NOT NULL,
     metric_value double precision,
+    metric_unit character varying(16),
     dimensions_json text
 );
 
@@ -310,7 +311,7 @@ CREATE TABLE public.businesses (
     owner_id character varying(255),
     owner_email character varying(255),
     industry character varying(100),
-    currency character varying(8) DEFAULT 'USD'::character varying,
+    currency character varying(8) DEFAULT 'NGN'::character varying,
     address character varying(500),
     phone character varying(20),
     tax_id character varying(100),
@@ -327,7 +328,7 @@ CREATE TABLE public.businesses (
     ai_response_style character varying(20) DEFAULT 'standard'::character varying NOT NULL,
     logo_url character varying(1024),
     tax_enabled boolean DEFAULT false NOT NULL,
-    tax_rate double precision DEFAULT 0 NOT NULL,
+    tax_rate integer DEFAULT 0 NOT NULL,
     tax_label character varying(20) DEFAULT 'Tax'::character varying NOT NULL
 );
 
@@ -594,8 +595,8 @@ CREATE TABLE public.order_items (
     order_id integer NOT NULL,
     product_id integer NOT NULL,
     quantity integer NOT NULL,
-    unit_price double precision NOT NULL,
-    total_price double precision NOT NULL,
+    unit_price integer NOT NULL,
+    total_price integer NOT NULL,
     created_by character varying(255),
     updated_by character varying(255),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -635,7 +636,7 @@ CREATE TABLE public.order_payments (
     id integer NOT NULL,
     business_id integer NOT NULL,
     order_id integer NOT NULL,
-    amount double precision NOT NULL,
+    amount integer NOT NULL,
     method character varying(20) DEFAULT 'cash'::character varying NOT NULL,
     reference character varying(120),
     note character varying(500),
@@ -675,9 +676,9 @@ CREATE TABLE public.orders (
     customer_id integer NOT NULL,
     order_date timestamp with time zone DEFAULT now() NOT NULL,
     status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
-    total_amount double precision DEFAULT 0.0 NOT NULL,
-    tax_rate double precision,
-    tax_amount double precision DEFAULT 0 NOT NULL,
+    total_amount integer DEFAULT 0 NOT NULL,
+    tax_rate integer,
+    tax_amount integer DEFAULT 0 NOT NULL,
     created_by character varying(255),
     updated_by character varying(255),
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -766,8 +767,8 @@ CREATE TABLE public.products (
     name character varying(255) NOT NULL,
     description character varying(1000),
     category character varying(100),
-    unit_price double precision NOT NULL,
-    cost_price double precision,
+    unit_price integer NOT NULL,
+    cost_price integer,
     current_stock integer DEFAULT 0 NOT NULL,
     reorder_level integer DEFAULT 5 NOT NULL,
     created_by character varying(255),
@@ -2358,6 +2359,21 @@ ALTER TABLE public.devices ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY tenant_isolation_devices ON public.devices USING ((business_id = (current_setting('app.business_id'::text, true))::integer)) WITH CHECK ((business_id = (current_setting('app.business_id'::text, true))::integer));
+
+
+
+--
+-- D2: exact money — every money column is integer kobo (alembic 0027_exact_money)
+--
+-- The amounts above are already declared INTEGER because this file is the
+-- SHAPE of the schema after the whole migration chain, not a replay of it. The
+-- deployment that converts existing rows is 0027's
+--     ALTER ... COLUMN ... TYPE INTEGER USING ROUND(x::numeric * 100)::integer
+--
+
+ALTER TABLE ONLY public.businesses
+    ADD CONSTRAINT ck_businesses_currency_ngn CHECK ((currency)::text = 'NGN'::text);
+
 
 
 

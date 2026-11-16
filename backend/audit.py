@@ -17,6 +17,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import AuditLog
+from . import money as money_mod
 from .redact import deep_redact
 
 
@@ -45,7 +46,12 @@ async def record_audit(
         device_id=device_id,
         # Redact anything that looks like a secret before it is persisted —
         # the audit ledger must describe the change, not leak credentials.
-        change_json=json.dumps(deep_redact(change)) if change else None,
+        # Money is Decimal (backend/money.py); the ledger records the amount as
+        # the same JSON number every other surface uses.
+        change_json=(
+            json.dumps(deep_redact(change), default=money_mod.json_default)
+            if change else None
+        ),
     )
     db.add(row)
 

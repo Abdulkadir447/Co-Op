@@ -8,14 +8,28 @@ replaces the removed v1 `orm_mode`).
 
 from __future__ import annotations
 
+from .money import CURRENCY
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainSerializer
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Money on the wire
+# ---------------------------------------------------------------------------
+# In: a JSON number is parsed into Decimal via str(), so 19.99 is exactly
+# 19.99. Out: the same field serialises back to a JSON number (not a string),
+# so the UI's types and arithmetic are unchanged. The exactness lives in the
+# database and the arithmetic (backend/money.py), never in a float.
+MoneyValue = Annotated[
+    Decimal, PlainSerializer(lambda v: float(v), return_type=float, when_used="json")
+]
+
+
 # Product schemas
 # ---------------------------------------------------------------------------
 
@@ -24,8 +38,10 @@ class ProductBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Product name")
     description: Optional[str] = Field(None, max_length=1000)
     category: Optional[str] = Field(None, max_length=100)
-    unit_price: float = Field(..., gt=0, description="Price must be greater than 0")
-    cost_price: Optional[float] = Field(None, ge=0, description="Cost price, if applicable")
+    # Money is Decimal (backend/money.py). Pydantic parses the JSON number via
+    # str(), so 19.99 arrives as exactly 19.99 — never as the nearest double.
+    unit_price: MoneyValue = Field(..., gt=0, description="Price must be greater than 0")
+    cost_price: Optional[MoneyValue] = Field(None, ge=0, description="Cost price, if applicable")
     current_stock: int = Field(default=0, ge=0, description="Current inventory level")
     reorder_level: int = Field(default=5, ge=0, description="Stock level that triggers reorder")
 
@@ -40,8 +56,8 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = Field(None, max_length=1000)
     category: Optional[str] = Field(None, max_length=100)
-    unit_price: Optional[float] = Field(None, gt=0)
-    cost_price: Optional[float] = Field(None, ge=0)
+    unit_price: Optional[MoneyValue] = Field(None, gt=0)
+    cost_price: Optional[MoneyValue] = Field(None, ge=0)
     reorder_level: Optional[int] = Field(None, ge=0)
     # NOTE (Task 8): `current_stock` is deliberately NOT editable here.
     # After creation, stock changes only via POST /products/{id}/adjust,
@@ -239,7 +255,7 @@ class OrderStatus(str, Enum):
 class OrderItemBase(BaseModel):
     product_id: int
     quantity: int = Field(..., gt=0)
-    unit_price: float = Field(..., gt=0)
+    unit_price: MoneyValue = Field(..., gt=0)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -311,7 +327,7 @@ class OrderOut(BaseModel):
 class OrderPaymentCreate(BaseModel):
     """One payment received against an order."""
 
-    amount: float = Field(..., gt=0)
+    amount: MoneyValue = Field(..., gt=0)
     method: Optional[str] = "cash"  # cash | transfer | card | pos | other
     reference: Optional[str] = Field(None, max_length=120)
     note: Optional[str] = Field(None, max_length=500)
@@ -433,12 +449,13 @@ class CategoryValue(BaseModel):
 # Settings schemas (Task 9 — Company Settings, UXDS 15.6)
 # ---------------------------------------------------------------------------
 
-# Explicit currency whitelist — garbage codes would corrupt money formatting
-# app-wide. Includes NGN (primary market) plus common trading currencies.
-ALLOWED_CURRENCIES = {
-    "USD", "EUR", "GBP", "NGN", "CAD", "AUD", "JPY", "CNY",
-    "ZAR", "GHS", "KES", "EGY", "INR", "AED", "CHF",
-}
+# The only currency this edition writes. Money is stored as integer kobo
+# (backend/money.py), so the exponent is fixed at 2 by the storage format, not
+# by a preference: JPY has no minor unit and KWD has three, and either would be
+# silently mis-scaled by a hundred or a thousand. The database enforces the same
+# rule (ck_businesses_currency_ngn), so this is a clear error message in front of
+# a constraint that cannot be bypassed.
+ALLOWED_CURRENCIES = {CURRENCY}
 
 # Curated timezone list (UXDS 15.6 Time Zone field).
 ALLOWED_TIMEZONES = {
@@ -514,7 +531,7 @@ class AuthMeResponse(BaseModel):
     user_id: str
     business_id: Optional[int] = None  # None while a pending invitation awaits
     business_name: str = ""
-    currency: str = "USD"
+    currency: str = CURRENCY
     role: str = "owner"  # owner | manager | sales | inventory | accountant | viewer
     email: Optional[str] = None
     pending_invitation: Optional["TeamInviteOut"] = None

@@ -104,6 +104,7 @@ backend/alembic/versions/0023_invoice_compliance.py
 backend/alembic/versions/0024_tax_defaults.py
 backend/alembic/versions/0025_branches.py
 backend/alembic/versions/0026_devices.py
+backend/alembic/versions/0027_exact_money.py
 backend/audit.py
 backend/backups.py
 backend/branches.py
@@ -124,6 +125,7 @@ backend/invoicing.py
 backend/licensing.py
 backend/main.py
 backend/models.py
+backend/money.py
 backend/notifications/__init__.py
 backend/notifications/daily_summary.py
 backend/notifications/delivery.py
@@ -170,6 +172,7 @@ backend/tests/test_invoicing.py
 backend/tests/test_licensing.py
 backend/tests/test_low_stock_consistency.py
 backend/tests/test_migrations.py
+backend/tests/test_money.py
 backend/tests/test_onboarding.py
 backend/tests/test_openrouter_provider.py
 backend/tests/test_order_lifecycle.py

@@ -4,12 +4,13 @@
  * The business currency is server-side state (GET /business/settings); this
  * tiny store mirrors it client-side so money formatting (formatCurrency)
  * follows the company setting without touching every call site. It is
- * seeded on load and refreshed after saving Settings. Defaults to USD until
- * settings load — never invented beyond that.
+ * seeded on load and refreshed after saving Settings. Defaults to NGN — the
+ * only currency this edition supports (money is stored as integer kobo, so a
+ * different exponent would mis-scale every amount).
  */
 import { useSyncExternalStore } from 'react';
 
-let current = 'USD';
+let current = 'NGN';
 const listeners = new Set<() => void>();
 
 export const getCurrency = (): string => current;
@@ -27,4 +28,4 @@ const subscribe = (listener: () => void): (() => void) => {
 
 /** Reactive hook: re-renders the consumer when the currency changes. */
 export const useCurrency = (): string =>
-  useSyncExternalStore(subscribe, getCurrency, () => 'USD');
+  useSyncExternalStore(subscribe, getCurrency, () => 'NGN');

@@ -25,6 +25,8 @@ Read-only; the same data on the same day always yields the same numbers.
 
 from __future__ import annotations
 
+from .. import money
+from ..money import CURRENCY
 import datetime as _dt
 import math
 from typing import Any, Optional
@@ -77,7 +79,7 @@ def _least_squares(ys: list[float]) -> tuple[float, float, float]:
     return slope, intercept, residual_std
 
 
-async def build_forecast(db, business_id: int, currency: str = "USD") -> dict[str, Any]:
+async def build_forecast(db, business_id: int, currency: str = CURRENCY) -> dict[str, Any]:
     """Build the verified revenue forecast for one business. Read-only."""
     business = (await db.execute(
         select(Business).where(Business.id == business_id)
@@ -101,7 +103,7 @@ async def build_forecast(db, business_id: int, currency: str = "USD") -> dict[st
                 {
                     "key": d.strftime("%Y-%m"),
                     "label": d.strftime("%b"),
-                    "revenue": 0.0,
+                    "revenue": money.ZERO,
                     "orders": 0,
                     "in_progress": d == cur,
                 }
@@ -149,10 +151,12 @@ async def build_forecast(db, business_id: int, currency: str = "USD") -> dict[st
         m = bucket.get(od.strftime("%Y-%m"))
         if m is None:
             continue
-        m["revenue"] += float(total or 0.0)
+        m["revenue"] = money.as_money(m["revenue"] + money.to_decimal(total))
         m["orders"] += 1
+    # A forecast is an estimate, not a ledger figure: the exact sums are
+    # converted to floats ONCE, here, before any statistics touch them.
     for m in months:
-        m["revenue"] = round(m["revenue"], 2)
+        m["revenue"] = float(money.as_money(m["revenue"]))
 
     completed = [m for m in months if not m["in_progress"]]
     if len(completed) < MIN_COMPLETED_MONTHS:

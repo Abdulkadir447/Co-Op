@@ -40,10 +40,13 @@ export const AI_RESPONSE_STYLE_OPTIONS: { value: string; label: string; blurb: s
 ];
 
 /** Currency whitelist — mirrors the backend (includes NGN). */
-export const CURRENCY_OPTIONS = [
-  'USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD', 'JPY', 'CNY',
-  'ZAR', 'GHS', 'KES', 'EGY', 'INR', 'AED', 'CHF',
-];
+/**
+ * One currency. Money is stored as integer kobo (backend/money.py), so the
+ * minor unit is fixed at 2 by the storage format; offering JPY (0 dp) or KWD
+ * (3 dp) would silently mis-scale every amount. The server rejects anything
+ * else with a 422, so this list is the honest one to show.
+ */
+export const CURRENCY_OPTIONS = ['NGN'];
 
 /** Curated timezone list — mirrors the backend. */
 export const TIMEZONE_OPTIONS = [

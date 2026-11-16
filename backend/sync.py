@@ -17,12 +17,14 @@ its server id before applying.
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 import re
 from typing import Any, Optional
 
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import select
 
+from . import money
 from .audit import record_audit
 from .models import (
     Customer,
@@ -173,11 +175,14 @@ def _valid_email(value: str, client_id: str, field: str = "email") -> str:
         )
 
 
-def _as_float(value: Any, client_id: str, entity: str, field: str) -> float:
-    """Coerce a client-supplied number, or conflict — never raise ValueError.
+def _as_money(value: Any, client_id: str, entity: str, field: str) -> Decimal:
+    """Coerce a client-supplied amount to exact money, or conflict.
 
-    `int(payload.get("change") or 0)` on "abc" used to escape as a 500 and
-    abort the whole batch, so one malformed op cost every op behind it.
+    A device that could not reach the server computed this number, so it is
+    parsed from its decimal representation — never through a binary float,
+    which is how an offline sale arrives a kobo off. A malformed value is a
+    conflict for that op, not a 500 for the batch: `int(payload.get("change")
+    or 0)` on "abc" used to abort every operation queued behind it.
     """
     if isinstance(value, bool) or value is None:
         raise SyncConflict(
@@ -186,8 +191,8 @@ def _as_float(value: Any, client_id: str, entity: str, field: str) -> float:
             local={field: value},
         )
     try:
-        return float(value)
-    except (TypeError, ValueError):
+        return money.as_money(value)
+    except (TypeError, ValueError, InvalidOperation):
         raise SyncConflict(
             f"{field} must be a number (got {value!r})",
             reason="invalid_payload", entity=entity, client_id=client_id,
@@ -522,9 +527,13 @@ async def _apply_product(db, business_id, branch_id, client_id, operation, paylo
             for f in ("name", "sku", "category", "description"):
                 if payload.get(f) is not None:
                     setattr(p, f, payload[f])
-            for f in ("unit_price", "cost_price", "reorder_level"):
+            for f in ("unit_price", "cost_price"):
                 if payload.get(f) is not None:
-                    setattr(p, f, _as_float(payload[f], client_id, "product", f))
+                    setattr(p, f, _as_money(payload[f], client_id, "product", f))
+            if payload.get("reorder_level") is not None:
+                p.reorder_level = _as_int(
+                    payload["reorder_level"], client_id, "product", "reorder_level"
+                )
             await db.flush()
             return existing_id, True
         if operation == "delete":
@@ -555,11 +564,11 @@ async def _apply_product(db, business_id, branch_id, client_id, operation, paylo
         sku=new_sku,
         category=payload.get("category"),
         description=payload.get("description"),
-        unit_price=_as_float(
-            payload.get("unit_price") or 0.0, client_id, "product", "unit_price"
+        unit_price=_as_money(
+            payload.get("unit_price") or 0, client_id, "product", "unit_price"
         ),
         cost_price=(
-            _as_float(payload["cost_price"], client_id, "product", "cost_price")
+            _as_money(payload["cost_price"], client_id, "product", "cost_price")
             if payload.get("cost_price") is not None
             else None
         ),
@@ -570,7 +579,7 @@ async def _apply_product(db, business_id, branch_id, client_id, operation, paylo
         # client's value AND applying the initial movement would double-count
         # (proven by the OFFLINE 6 E2E: lamp 10 -> 18 instead of 8).
         current_stock=0,
-        reorder_level=_as_float(
+        reorder_level=_as_int(
             payload.get("reorder_level") or 0, client_id, "product", "reorder_level"
         ),
         created_by="offline-sync",
@@ -647,8 +656,8 @@ async def _apply_order(db, business_id, branch_id, client_id, operation, payload
         client_id=client_id,
         customer_id=customer_id,
         status=OrderStatus(status),
-        total_amount=_as_float(
-            payload.get("total_amount") or 0.0, client_id, "order", "total_amount"
+        total_amount=_as_money(
+            payload.get("total_amount") or 0, client_id, "order", "total_amount"
         ),
         order_date=_parse_dt(payload.get("order_date")),
         created_by="offline-sync",
@@ -701,13 +710,13 @@ async def _apply_order_item(db, business_id, branch_id, client_id, operation, pa
             },
         )
     qty = _as_int(payload.get("quantity") or 0, client_id, "order_item", "quantity")
-    price = _as_float(
-        payload.get("unit_price") or 0.0, client_id, "order_item", "unit_price"
+    price = _as_money(
+        payload.get("unit_price") or 0, client_id, "order_item", "unit_price"
     )
     total = (
-        _as_float(payload["total_price"], client_id, "order_item", "total_price")
+        _as_money(payload["total_price"], client_id, "order_item", "total_price")
         if payload.get("total_price") is not None
-        else qty * price
+        else money.as_money(qty * price)
     )
     it = OrderItem(
         business_id=business_id,

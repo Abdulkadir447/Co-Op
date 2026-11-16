@@ -30,7 +30,7 @@ async def _seed(
 ):
     """orders: list of (customer_idx, product_idx, qty, unit_price, days_ago)."""
     async with session_factory() as db:
-        b = Business(name=business_name, owner_id="u-ds", currency="USD")
+        b = Business(name=business_name, owner_id="u-ds")
         db.add(b)
         await db.flush()
         br = (await branches_mod.default_branch(db, b.id)).id
@@ -284,4 +284,4 @@ async def test_daily_summary_endpoint(api):
     assert body["empty_message"]
     assert body["today"] == {"revenue": 0, "orders": 0}
     assert body["insights"] == []
-    assert "business" in body and body["business"]["currency"] == "USD"
+    assert "business" in body and body["business"]["currency"] == "NGN"
