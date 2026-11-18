@@ -119,12 +119,14 @@ async def main() -> int:
             for table, cols in missing_columns.items():
                 _print_ascii(f"Missing columns   : {table}({', '.join(cols)})")
         _print_ascii("")
-        _print_ascii("Fix: alembic upgrade head")
-        _print_ascii(
-            "(safe to re-run; it only applies migrations this database has "
-            "not seen)"
-        )
-        if report["migration_revision"] is None:
+        _print_ascii(f"FIX: {report['fix']}")
+        if report["dialect"] == "sqlite":
+            # The Alembic revisions are Postgres-only, so a stamp/upgrade pair
+            # would fail here. The file is a disposable local database.
+            _print_ascii("")
+            _print_ascii("Or, in one command:")
+            _print_ascii("  python scripts/check_db.py --reset")
+        elif report["migration_revision"] is None:
             _print_ascii("")
             _print_ascii(
                 "No alembic_version row was found. If this database was created "
@@ -142,5 +144,51 @@ async def main() -> int:
     return 0
 
 
+async def reset_testing_db() -> int:
+    """Delete the local testing SQLite file so the app recreates it.
+
+    Guarded three ways, because "delete a database" is not a thing to make
+    convenient by accident:
+
+      * refuses unless COOP_ENV is exactly ``testing``;
+      * refuses unless the resolved URL is SQLite (never a Postgres host);
+      * prints the absolute path and asks for the word `delete` first.
+
+    This exists because the natural mistake after pulling schema changes is to
+    run the *testing* server against a months-old ``coop_test.db``, which fails
+    with a wall of "missing column" errors whose real fix is one file deletion.
+    """
+    from backend.config import database_url
+
+    env = os.getenv("COOP_ENV", "development")
+    url = database_url()
+    if env != "testing":
+        _print_ascii(f"COOP_ENV is {env!r}, not 'testing' — refusing to delete anything.")
+        return 2
+    if not url.startswith("sqlite"):
+        _print_ascii(f"That is a {url.split(':')[0]} database — refusing to delete it.")
+        return 2
+
+    from backend.diagnostics import fix_for  # noqa: F401  (keeps advice in one place)
+
+    path = url.split("///", 1)[-1]
+    absolute = Path(path).resolve()
+    _print_ascii(f"This will delete the local testing database:\n  {absolute}")
+    _print_ascii("Only throwaway local data is lost. Nothing on Supabase is touched.")
+    _print_ascii("Type 'delete' to continue: ", )
+    answer = input().strip().lower() if sys.stdin.isatty() else ""
+    if answer != "delete":
+        _print_ascii("Cancelled — nothing was deleted.")
+        return 2
+    if absolute.exists():
+        absolute.unlink()
+        _print_ascii("Deleted. Start the backend again; it recreates the schema.")
+    else:
+        _print_ascii("That file does not exist — nothing to do.")
+    return 0
+
+
 if __name__ == "__main__":
+    if "--reset" in sys.argv:
+        sys.exit(asyncio.run(reset_testing_db()))
     sys.exit(asyncio.run(main()))

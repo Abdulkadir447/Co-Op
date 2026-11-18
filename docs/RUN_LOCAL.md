@@ -185,6 +185,24 @@ startup (the diagnosis goes to the backend log) and at
 `alembic upgrade head` — applied and verified on the project above, which now
 matches the ORM exactly (26 tables, 333 columns) and is at `0027_exact_money`.
 
+**The same wall of "missing column" errors on your own machine has a different
+cause.** If you started the backend with `COOP_ENV=testing`, you are on a local
+SQLite file (`./coop_test.db`), not on Supabase — and that file was probably
+created months ago, before `logo_url`, `tax_*` and `branch_id` existed. Do
+**not** run `alembic upgrade head` there: those revisions use Postgres-only DDL
+(`SERIAL`, `ALTER COLUMN … USING`) and will fail. Instead:
+
+```powershell
+.venv\Scripts\python scripts\check_db.py --reset   # delete the throwaway file
+.venv\Scripts\python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+The startup log now names the database it inspected, e.g.
+`DATABASE SCHEMA IS BEHIND THIS CODE (sqlite ./coop_test.db)`, so the two cases
+cannot be confused again. To run against Supabase instead, set `COOP_ENV` to
+`development` (or unset it) and put the Supabase `DATABASE_URL` in `.env` —
+that is the database a real user's data lives in.
+
 A second, unrelated failure on the same project at the same time: Supabase
 reported **every** service except the pooler `UNHEALTHY` and SQL queries timed
 out with "Connection terminated due to connection timeout". That is their

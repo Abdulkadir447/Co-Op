@@ -76,6 +76,51 @@ def _inspect_sync(connection) -> Dict[str, Any]:
     }
 
 
+#: Where the local SQLite file lives when COOP_ENV=testing. Kept in sync with
+#: backend/config.py; the value is only ever used to *name* the file.
+TESTING_SQLITE = "./coop_test.db"
+
+
+def _identify(engine) -> tuple[str, str]:
+    """(dialect, human-readable location) for the engine, never the password.
+
+    "Which database?" is the first question an operator asks and the last one
+    the symptom answers — a local `coop_test.db` and Supabase both say
+    "database error". The file path or host settles it in one line.
+    """
+    try:
+        url = engine.url
+        dialect = url.get_backend_name()
+        if dialect == "sqlite":
+            return dialect, str(url.database or TESTING_SQLITE)
+        host = url.host or "?"
+        port = f":{url.port}" if url.port else ""
+        return dialect, f"{host}{port}/{url.database or '?'}"
+    except Exception:  # noqa: BLE001 — a label must never fail the diagnostic
+        return "unknown", "unknown"
+
+
+def fix_for(dialect: str, database: str) -> str:
+    """The migration advice that is actually correct for this database.
+
+    The two cases are not interchangeable: the Alembic revisions use
+    Postgres-only DDL (`SERIAL`, `ALTER COLUMN ... USING`), so telling somebody
+    whose local testing SQLite is out of date to run `alembic upgrade head`
+    sends them to an error message and wastes their afternoon.
+    """
+    if dialect == "sqlite":
+        return (
+            f"This is the local testing SQLite file `{database}`. The Alembic "
+            "revisions are Postgres-only, so do not run them here — stop the "
+            "server, delete that file, and start it again. The app recreates "
+            "the schema on startup; only throwaway local data is lost."
+        )
+    return (
+        "Run `alembic upgrade head` (safe to re-run; it applies only the "
+        "migrations this database has not seen)."
+    )
+
+
 def classify_error(exc: BaseException) -> str:
     """Map a database exception to one of a few plain-English causes.
 
@@ -181,6 +226,9 @@ async def database_report(engine=None, session=None) -> Dict[str, Any]:
         "reachable": False,
         "cause": None,
         "summary": None,
+        "fix": None,
+        "database": None,
+        "dialect": None,
         "missing_tables": [],
         "missing_columns": {},
         "migration_revision": None,
@@ -198,10 +246,12 @@ async def database_report(engine=None, session=None) -> Dict[str, Any]:
         # it can contain the host name and user, never the password.
         report["summary"] = explain(cause, type(exc).__name__)
         report["detail_for_log"] = str(exc).split("\n")[0][:300]
+        report["dialect"], report["database"] = _identify(engine or get_engine())
         return report
 
     report["reachable"] = True
     report.update(info)
+    report["dialect"], report["database"] = _identify(engine or get_engine())
     if info["missing_tables"] or info["missing_columns"]:
         report["cause"] = "schema_behind"
         bits = []
@@ -213,8 +263,9 @@ async def database_report(engine=None, session=None) -> Dict[str, Any]:
             )
         report["summary"] = (
             f"The database is reachable but is missing {' and '.join(bits)} "
-            "that this version of the code expects. Run `alembic upgrade head`."
+            "that this version of the code expects."
         )
+        report["fix"] = fix_for(report["dialect"], report["database"])
     else:
         report["summary"] = "Database reachable; schema matches the code."
     return report

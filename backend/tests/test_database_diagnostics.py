@@ -130,3 +130,51 @@ async def test_healthcheck_does_not_leak_the_database_host(api, monkeypatch) -> 
     body = r.text.lower()
     for forbidden in ("internal-host", "secret", "password", "pooler"):
         assert forbidden not in body, body
+
+
+def test_the_fix_matches_the_dialect() -> None:
+    """The two databases need different answers, and the wrong one wastes time.
+
+    Real case: a stale local `coop_test.db` produced "missing 15 columns" and
+    the log said "Run `alembic upgrade head`". The Alembic revisions use
+    Postgres-only DDL (SERIAL, ALTER COLUMN ... USING), so that command fails
+    on SQLite and the actual fix — delete the file — was never mentioned.
+    """
+    sqlite_fix = diagnostics.fix_for("sqlite", "./coop_test.db")
+    assert "coop_test.db" in sqlite_fix, "the fix must name the file to delete"
+    assert "delete" in sqlite_fix.lower()
+    assert "alembic upgrade head" not in sqlite_fix.lower()
+
+    postgres_fix = diagnostics.fix_for("postgresql", "db.x.supabase.co:5432/postgres")
+    assert "alembic upgrade head" in postgres_fix
+    assert "delete" not in postgres_fix.lower()
+
+
+async def test_the_report_names_the_database_it_inspected() -> None:
+    """"Which database?" is the question the symptom never answers."""
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    try:
+        report = await diagnostics.database_report(engine)
+    finally:
+        await engine.dispose()
+
+    assert report["dialect"] == "sqlite"
+    assert report["database"]  # a path, not None
+    assert report["fix"] and "sqlite" in report["fix"].lower()
+
+
+async def test_the_report_never_contains_a_password() -> None:
+    """`_identify` builds the label from host/port/database only."""
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    engine = create_async_engine("postgresql+asyncpg://user:s3cr3t@db.example:5432/coop")
+    try:
+        dialect, where = diagnostics._identify(engine)
+    finally:
+        await engine.dispose()
+
+    assert dialect == "postgresql"
+    assert "s3cr3t" not in where
+    assert where == "db.example:5432/coop"

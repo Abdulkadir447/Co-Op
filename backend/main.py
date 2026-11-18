@@ -166,22 +166,30 @@ async def lifespan(_app: FastAPI):
 
     _report = await database_report()
     _log = logging.getLogger("coop")
+    _where = f"{_report['dialect']} {_report['database']}"
     if not _report["reachable"]:
         _log.error(
-            "DATABASE PROBLEM: %s (%s)",
-            _report["summary"], _report.get("detail_for_log", "no detail"),
+            "DATABASE PROBLEM (%s): %s (%s)",
+            _where, _report["summary"], _report.get("detail_for_log", "no detail"),
         )
     elif _report["cause"] == "schema_behind":
+        # Name the database and print the fix that is correct for ITS dialect:
+        # a testing SQLite file and Supabase need different answers, and the
+        # wrong one costs an hour. See diagnostics.fix_for.
         _log.error(
-            "DATABASE SCHEMA IS BEHIND THIS CODE: %s Missing tables: %s. "
-            "Missing columns: %s. Fix: alembic upgrade head",
+            "DATABASE SCHEMA IS BEHIND THIS CODE (%s): %s\n"
+            "  missing tables : %s\n"
+            "  missing columns: %s\n"
+            "  FIX: %s",
+            _where,
             _report["summary"],
             ", ".join(_report["missing_tables"]) or "none",
             "; ".join(f"{t}: {', '.join(cols)}" for t, cols in _report["missing_columns"].items())
             or "none",
+            _report["fix"],
         )
     else:
-        _log.info("Database ready: %s", _report["summary"])
+        _log.info("Database ready (%s): %s", _where, _report["summary"])
     yield
     await dispose_db()
 

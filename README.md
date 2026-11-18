@@ -208,8 +208,16 @@ configuration once the project is connected:
    (`dist`), clean URLs and a small header set; no environment variables are
    needed.
 
-Every push to the connected branch then redeploys it. Custom domains live
-under the project's **Settings → Domains**.
+**Check the production branch.** A Vercel project defaults to the repository's
+default branch (`master`). While the work lives on a PR branch, a project
+pointing at `master` will build old code — that is exactly what the first
+deploy did (it built `master@088b3c8`, whose `website/` had no workspace
+membership, and failed with `tsc: command not found`). Set **Settings → Git →
+Production Branch** to the branch you want live, or merge the PR.
+
+`website` is a member of the pnpm workspace, so one `pnpm install` at the
+repository root installs the site's dependencies as well — which is what the
+Vercel build relies on. Custom domains live under **Settings → Domains**.
 
 > This has not been run end to end yet: the Vercel token available to the agent
 > is read-only, so `Add project` and `Add domain` are refused. The steps above
