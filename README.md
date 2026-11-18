@@ -197,6 +197,26 @@ screenshots (drop 1600×1000 PNGs into `website/src/assets/screenshots/`, named
 `ai`), and the founders section needs either `website/src/assets/videos/founders.mp4`
 or a `FOUNDERS_EMBED` URL. Sections whose assets are absent are not rendered.
 
+### Deploying the site to Vercel
+
+The website is a standalone Vite app in `website/`, so it deploys without any
+configuration once the project is connected:
+
+1. **Add New → Project → import `Abdulkadir447/Co-Op`.**
+2. Set **Root Directory** to `website`. (Leave the framework as Vite.)
+3. Deploy. `website/vercel.json` sets the build (`npm run build`), the output
+   (`dist`), clean URLs and a small header set; no environment variables are
+   needed.
+
+Every push to the connected branch then redeploys it. Custom domains live
+under the project's **Settings → Domains**.
+
+> This has not been run end to end yet: the Vercel token available to the agent
+> is read-only, so `Add project` and `Add domain` are refused. The steps above
+> are what the repository is configured for, not a claim that a deployment
+> already exists. Once a deployment does, copy its address into the placeholder
+> table below.
+
 ## Prerequisites
 
 - Node.js **>= 22**, Python **3.11+**
