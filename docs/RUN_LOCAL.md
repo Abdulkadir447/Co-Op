@@ -349,6 +349,11 @@ pnpm --filter ./frontend dev   # http://localhost:3000
 Shortcut for the API half alone: `pnpm dev:api` (picks the repo `.venv`
 interpreter on Windows or macOS/Linux, then runs uvicorn on 127.0.0.1:8000).
 
+> **After `git pull`, restart the API.** `pnpm dev:api` watches files and
+> reloads itself; a `uvicorn` you started by hand without `--reload` keeps
+> serving the old code and every fix looks like it did not work. `pnpm doctor`
+> tells you which commit the running process is on.
+
 Sanity checks: `http://127.0.0.1:8000/healthcheck` returns
 `{"status":"healthy","database":"up"}`, and `http://127.0.0.1:8000/docs` is the
 full API reference. In `testing` mode payments and real AI are disabled on
@@ -470,6 +475,37 @@ blank white screen.
 **What pods cannot fix:** the desktop/Electron app is not containerised (it
 needs a real desktop session), and `better-sqlite3` is a native module — see
 section 4.
+
+### "500 Internal Server Error" and nothing else — start with `pnpm doctor`
+
+Three rounds of the same two endpoints failing produced three different causes
+and one identical message, so there is now one command that names the cause:
+
+```
+pnpm doctor
+```
+
+It prints the checkout's commit, the interpreter in use, whether the time zone
+database exists, whether `DATABASE_URL` is valid, and — this is the one that
+matters — **which commit the running API is actually serving** (read from
+`GET /version`, which is public and carries no tenant data):
+
+```
+API
+  ok    answering  http://127.0.0.1:8000
+  ok    healthcheck  healthy
+  ok    running commit  a31528c   started 2026-11-18T21:47:31Z
+```
+
+If those two commits differ, the API is a process from before your `git pull`:
+a stale `uvicorn` and an unfixed bug look exactly alike from a browser. Restart
+it. Exit code is 1 when something is definitely wrong, so it also works in a
+script.
+
+Since this release a 500 in **development** also names the exception in the
+response body (`"detail": "ZoneInfoNotFoundError: ..."`), so the browser console
+carries the cause instead of the word "Internal server error". Production keeps
+the generic sentence and the stack stays in the log.
 
 ### "Everything is 502 Bad Gateway" (the console fills with them)
 

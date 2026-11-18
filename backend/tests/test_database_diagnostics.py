@@ -14,6 +14,9 @@ These tests pin the three answers so they cannot regress into one:
 """
 from __future__ import annotations
 
+import json
+
+import pytest
 
 from backend import diagnostics
 
@@ -178,3 +181,55 @@ async def test_the_report_never_contains_a_password() -> None:
     assert dialect == "postgresql"
     assert "s3cr3t" not in where
     assert where == "db.example:5432/coop"
+
+
+# --- a 500 that says what it is ---------------------------------------------
+# Three rounds of "500 (Internal Server Error)" in the browser console, and
+# nothing else, is how a missing time zone database stayed invisible. In
+# development the client now gets the exception's own name; production keeps
+# the generic sentence (pinned in test_error_surface.py).
+
+
+@pytest.mark.asyncio
+async def test_unhandled_error_names_the_exception_in_development(monkeypatch):
+    """Development answers with the exception's own name; the stack stays in
+    the log. Called directly on the handler: adding a throwaway route to the
+    shared app would leak into test_public_surface's route enumeration."""
+    from starlette.requests import Request
+
+    from backend import main as main_mod
+
+    monkeypatch.setattr(main_mod, "_DOCS_ENABLED", True)
+    request = Request({"type": "http", "method": "GET", "path": "/__boom", "headers": []})
+
+    response = await main_mod._unhandled_error_handler(
+        request, ZeroDivisionError("division by zero")
+    )
+
+    assert response.status_code == 500
+    body = json.loads(response.body)
+    assert "ZeroDivisionError" in body["detail"], body
+    # The message is NOT echoed: it can carry a DSN with a password in it.
+    assert "division by zero" not in body["detail"]
+    assert "traceback" in body["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_unhandled_error_stays_generic_in_production(monkeypatch):
+    """The client never learns which exception it was when real users are on
+    the other end — the same rule as the database messages."""
+    import json as _json
+
+    from starlette.requests import Request
+
+    from backend import main as main_mod
+
+    monkeypatch.setattr(main_mod, "_DOCS_ENABLED", False)
+    request = Request({"type": "http", "method": "GET", "path": "/__boom", "headers": []})
+
+    response = await main_mod._unhandled_error_handler(
+        request, ZeroDivisionError("connection string secret-value")
+    )
+
+    assert response.status_code == 500
+    assert _json.loads(response.body) == {"detail": "Internal server error."}

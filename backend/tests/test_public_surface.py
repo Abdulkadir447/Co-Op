@@ -24,6 +24,10 @@ from backend.clerk_auth import verify_clerk_token
 PUBLIC = {
     "/": "service banner, no data",
     "/healthcheck": "liveness for the platform and the CI smoke test",
+    "/version": (
+        "commit, start time and machine capabilities of this process; the "
+        "answer to 'is my API running the code I just pulled?'"
+    ),
     "/billing/payment-config": (
         "provider/plan/price catalogue so the pre-login pricing page can show a "
         "buy button; contains no tenant data and no secret"

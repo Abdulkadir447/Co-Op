@@ -13,6 +13,7 @@ Authentication model (this phase):
 
 import logging
 import os
+import sys
 import secrets
 from contextlib import asynccontextmanager
 from datetime import date, datetime, time, timedelta, timezone
@@ -328,10 +329,62 @@ async def _unhandled_error_handler(request, exc):
             content={"detail": diagnostics.user_message(cause)},
         )
 
+    # In development the client gets the exception's CLASS NAME — and only the
+    # class name. Three rounds of "500 Internal Server Error" with nothing else
+    # is how a missing time zone database stayed invisible; "ZoneInfoNotFound"
+    # would have said it in one word. The message is deliberately excluded: a
+    # SQLAlchemy error routinely embeds the DSN, which on this machine is the
+    # real Supabase password, and that text lands in screenshots and bug
+    # reports. A type name cannot carry a secret. The traceback stays in the
+    # log, and production keeps the plain sentence.
+    if _DOCS_ENABLED:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": (
+                    f"Internal server error ({type(exc).__name__}). "
+                    "The traceback is in the API terminal; `pnpm doctor` checks "
+                    "the common causes."
+                )
+            },
+        )
+
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error."},
     )
+
+
+# When this process started and from which commit. `/version` is public and
+# carries nothing a stranger can use, but it answers the question that costs an
+# hour every time: *is the server I am talking to running the code I just
+# pulled?* A stale API process and a fixed bug look identical from the browser.
+APP_STARTED_AT = datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _running_commit() -> str:
+    """The checked-out commit, or "unknown" outside a git checkout.
+
+    Read once at import: spawning git per request would be a small fork bomb.
+    COOP_COMMIT overrides it for containers that ship without `.git`.
+    """
+    override = os.getenv("COOP_COMMIT")
+    if override:
+        return override.strip()[:40]
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            capture_output=True, text=True, timeout=2, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):  # pragma: no cover - defensive
+        return "unknown"
+    return out.stdout.strip() if out.returncode == 0 else "unknown"
+
+
+RUNNING_COMMIT = _running_commit()
 
 # Order statuses that count toward revenue/profit (not pending/cancelled).
 _ACTIVE_STATUSES = ["shipped", "delivered"]
@@ -535,6 +588,26 @@ async def healthcheck(db: AsyncSession = Depends(get_db)) -> dict:
 @app.get("/", tags=["Root"])
 async def read_root() -> dict:
     return {"message": "Welcome to Co-op API"}
+
+
+@app.get("/version", tags=["Health"])
+async def version() -> dict:
+    """What this process is: commit, start time, and machine capabilities.
+
+    Deliberately boring and deliberately public (see tests/test_public_surface).
+    `commit` is how you tell a stale `uvicorn` apart from an unfixed bug;
+    `tz_database` is how you tell a Windows box from a Linux one without
+    reading a stack trace.
+    """
+    from .timezones import has_tz_database
+
+    return {
+        "commit": RUNNING_COMMIT,
+        "started_at": APP_STARTED_AT.isoformat() + "Z",
+        "env": get_env(),
+        "tz_database": has_tz_database(),
+        "python": sys.version.split()[0],
+    }
 
 
 # ---------------------------------------------------------------------------

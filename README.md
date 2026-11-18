@@ -281,6 +281,7 @@ lockfile and a different tree):
 pnpm install        # once, from the repo root (installs the workspace)
 pnpm dev:all        # API on :8000 + UI on :3000, one command, labelled logs
 pnpm dev            # UI only - every /api call then 502s until you run `pnpm dev:api`
+pnpm doctor         # something is broken: names the cause, incl. a stale API
 ```
 
 Desktop wrapper (optional): `pnpm dev:desktop` from the repo root.
