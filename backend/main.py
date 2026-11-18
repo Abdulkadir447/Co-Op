@@ -190,6 +190,19 @@ async def lifespan(_app: FastAPI):
         )
     else:
         _log.info("Database ready (%s): %s", _where, _report["summary"])
+
+    # Time zones are the other thing that differs by machine, not by code:
+    # Windows ships no IANA database, so one missing wheel turns every
+    # business-local report into a 500. Say it at boot, in one line, instead of
+    # letting the dashboard fail and the cause stay invisible.
+    from .timezones import has_tz_database
+
+    if not has_tz_database():
+        _log.warning(
+            "TIME ZONES: no IANA database on this machine — business-local "
+            "days fall back to UTC. FIX: pip install tzdata (it is in "
+            "backend/requirements.txt), then restart."
+        )
     yield
     await dispose_db()
 

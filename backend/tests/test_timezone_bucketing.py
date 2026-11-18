@@ -158,3 +158,74 @@ async def test_sales_report_defaults_to_utc_when_no_timezone_is_set(session_fact
 
     assert await _orders_kpi(session_factory, bid, "2026-01-09") == 1
     assert await _orders_kpi(session_factory, bid, "2026-01-10") == 0
+
+
+# --- a machine with no IANA database (Windows) -------------------------------
+# PEP 615 reads the time zone database from the OS. Windows does not ship one,
+# so unless the `tzdata` package is installed every ZoneInfo() call raises —
+# "UTC" included. That turned every business-local report into a 500 whose only
+# cause was the operating system, which is the worst kind of bug: correct code,
+# correct data, wrong machine.
+
+
+def _no_database(*_a, **_kw):
+    from zoneinfo import ZoneInfoNotFoundError
+
+    raise ZoneInfoNotFoundError("No time zone found with key UTC")
+
+
+def test_business_tz_falls_back_to_utc_when_the_database_is_missing(monkeypatch):
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    monkeypatch.setattr(tz_mod, "_warned", False)
+
+    assert tz_mod.business_tz("Africa/Lagos") is dtz.utc
+    assert tz_mod.business_tz(None) is dtz.utc
+
+
+def test_the_missing_database_warning_is_logged_once(monkeypatch, caplog):
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    monkeypatch.setattr(tz_mod, "_warned", False)
+
+    with caplog.at_level("WARNING", logger="coop"):
+        for _ in range(5):
+            tz_mod.business_tz("Africa/Lagos")
+
+    warnings = [r for r in caplog.records if "tzdata" in r.getMessage()]
+    assert len(warnings) == 1, [r.getMessage() for r in caplog.records]
+
+
+def test_has_tz_database_reports_the_truth(monkeypatch):
+    # Not "is True": a Windows box without tzdata must be allowed to run the
+    # suite. The contract is only that the probe answers what ZoneInfo does.
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    assert tz_mod.has_tz_database() is False
+
+
+@pytest.mark.asyncio
+async def test_dashboard_timeseries_answers_instead_of_500_with_no_database(
+    api, session_factory, monkeypatch
+):
+    """The reported symptom: revenue chart 500 on Windows, 200 on Linux."""
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    monkeypatch.setattr(tz_mod, "_warned", False)
+
+    api.set_user("user-notz")
+    r = await api.client.get("/dashboard/revenue/timeseries", params={"days": 30})
+    assert r.status_code == 200, r.text
+    assert isinstance(r.json(), list)
+
+    # And the local-day helpers still do arithmetic on the UTC fallback.
+    assert tz_mod.utc_to_local_date(
+        datetime(2026, 10, 23, 23, 30), tz_mod.business_tz(None)
+    ) == date(2026, 10, 23)
+
+
+@pytest.mark.asyncio
+async def test_dashboard_summary_also_survives_with_no_database(api, monkeypatch):
+    """The same helper backs /dashboard/summary — it must not 500 either."""
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    monkeypatch.setattr(tz_mod, "_warned", False)
+
+    api.set_user("user-notz-2")
+    r = await api.client.get("/dashboard/summary")
+    assert r.status_code == 200, r.text
