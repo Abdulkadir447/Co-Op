@@ -120,7 +120,7 @@ Co-op has **three** independent services, and none of them can do another's job:
 | Layer | Service | Owns | Never does |
 |---|---|---|---|
 | **Identity** | **Clerk** | sign-in, sessions, MFA, password reset. Issues the session token | touch business data — the backend only calls Clerk to *verify* a token (`backend/clerk_auth.py`); there is no Clerk API call for orders/products anywhere |
-| **Data** | **Supabase** | the Postgres database (+ Storage for logos). Holds the 23 tables, 19 RLS policies, migrations | run application logic — it has no Python runtime, and its REST layer (PostgREST) cannot execute the stock ledger, order-state machine, tax snapshotting or report builders |
+| **Data** | **Supabase** | the Postgres database (+ Storage for logos). Holds the 25 tables, 22 RLS policies, migrations | run application logic — it has no Python runtime, and its REST layer (PostgREST) cannot execute the stock ledger, order-state machine, tax snapshotting or report builders |
 | **Application** | **FastAPI** (`backend/`) | the business rules: stock movements, order transitions, invoices, tax, receivables, reports, CSV/XLSX/PDF export, rate limits, audit | store data of its own — every row lives in Supabase Postgres |
 
 So the split is exactly: **Clerk = who you are, Supabase = where the data lives,
@@ -176,7 +176,7 @@ Documents/  Product documentation (PRD, TRD, BSD, AFD, IPD, UXDS chapters)
 - A Clerk application (publishable key for the frontend, Frontend API host
   for the backend)
 - A Supabase/Postgres database
-- (Optional) an OpenAI API key for the real AI assistant — without it,
+- (Optional) an `OPENROUTER_API_KEY` for the real AI assistant — without it,
   Ask Zeno gracefully falls back to the deterministic data engine
 
 ## Environment variables
@@ -322,6 +322,16 @@ pnpm --filter ./frontend build
 # Desktop (Electron) data-layer, sync, backup and Windows suites
 cd electron && npm test
 ```
+
+On this commit the gates print: backend **501 passed, 6 skipped**; frontend
+**26 pass** plus a clean type check, lint and build; Electron **93 tests, 91
+pass, 0 skipped on Windows** (2 skipped on Linux/macOS, where the
+Windows-filesystem group cannot run).
+
+Windows PowerShell does not accept `&&` — run one command per line and use
+`.venv\Scripts\python` instead of `.venv/bin/python`. `docs/RUN_LOCAL.md` §6
+has the exact PowerShell block, and §4 has a two-terminal quickstart for
+running the app itself.
 
 The suite includes a **contract test** that scans every frontend API call
 and asserts a matching backend route exists — the guard that makes a

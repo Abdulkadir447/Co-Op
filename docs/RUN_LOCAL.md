@@ -40,13 +40,53 @@ in confusing ways rather than at startup.
 | Code branch | Database state | Result |
 |---|---|---|
 | any branch, `COOP_ENV=testing` (SQLite) | created from the models at startup | ✅ always matches — the easy way to just poke at the app |
-| a branch with newer migrations (e.g. `0020_order_payments`, `0021_tax`) | old schema | ❌ 500s on orders/payments — missing columns |
-| an **older** branch (e.g. head `0019`) | already-migrated Supabase (`0021_tax`) | ⚠️ app runs, but the new columns are invisible and `alembic upgrade head` fails with *Can't locate revision '0021_tax'* (the DB is ahead of that branch's migration scripts) |
+| a branch with newer migrations (current head `0027_exact_money`) | old schema (e.g. through `0024_tax_defaults`) | ❌ 500s on orders/stock — missing `branch_id`, and money columns are still floats |
+| an **older** branch | already-migrated Supabase | ⚠️ app runs, but the new columns are invisible and `alembic upgrade head` fails with *Can't locate revision …* (the DB is ahead of that branch's migration scripts) |
 
 So: **SQLite (`COOP_ENV=testing`) is branch-proof; Postgres is not.** Before
 running an older branch against the Supabase project, either switch back to a
 branch that contains those migrations or point `DATABASE_URL` at a scratch
 database.
+
+### Bringing an already-migrated database up to the current head
+
+The current head is **`0027_exact_money`**. Three migrations land on top of
+`0024_tax_defaults`:
+
+| Revision | What it does |
+|---|---|
+| `0025_branches` | `branches` table, a `MAIN` branch per business, `branch_id` on every transactional row (backfilled, then NOT NULL) |
+| `0026_devices` | `devices` table + `audit_log.device_id` |
+| `0027_exact_money` | money columns `REAL naira` → `INTEGER kobo`, `CHECK (currency = 'NGN')`, `analytics_snapshots.metric_unit` |
+
+Two things to know before you run it on the real project:
+
+1. **Check the currency first.** `0027` refuses to convert a business that is
+   not on NGN — it raises rather than multiplying someone's books by 100. If the
+   project has test/demo tenants created before the Naira pivot, clear them or
+   convert them first:
+
+   ```sql
+   SELECT id, name, currency FROM businesses WHERE currency IS DISTINCT FROM 'NGN';
+   ```
+
+2. **Back up first.** `0027` rewrites every money column. `GET /backups/export`
+   per tenant, or take a Supabase snapshot, before applying.
+
+```powershell
+$env:DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
+.venv\Scripts\python tools\inspect_db_schema.py     # look before you leap
+.venv\Scripts\python -m alembic upgrade head
+```
+
+The Supabase SQL snapshot in `supabase/migrations/` is generated output; it was
+updated by hand for `0025`–`0027` because the build has no `pg_dump`. On a
+machine that has `pg_dump` and a reachable database, regenerate it and diff:
+
+```powershell
+.venv\Scripts\python supabase\scripts\export_schema.py
+git diff supabase/migrations/
+```
 
 Getting a branch locally, without losing work on another one:
 
@@ -123,6 +163,32 @@ cd website && npm install && cd ..
 ```sh
 pnpm --filter ./frontend dev      # http://localhost:3000 (proxies /api -> :8000)
 ```
+
+**Windows PowerShell, two terminals — the shortest path to a running app**
+
+Terminal 1 (API). `COOP_ENV=testing` means "use a local SQLite file instead of
+Supabase", which is the fastest way to just look at the app; drop that line and
+set `DATABASE_URL` to run against the real database:
+
+```powershell
+$env:COOP_ENV="testing"        # local SQLite; omit for Supabase
+.venv\Scripts\python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+```
+
+Terminal 2 (UI):
+
+```powershell
+pnpm --filter ./frontend dev   # http://localhost:3000
+```
+
+Sanity checks: `http://127.0.0.1:8000/healthcheck` returns
+`{"status":"healthy","database":"up"}`, and `http://127.0.0.1:8000/docs` is the
+full API reference. In `testing` mode payments and real AI are disabled on
+purpose; sign-in still needs `VITE_CLERK_PUBLISHABLE_KEY` in `.env`.
+
+> On this branch the database must be at migration head `0027_exact_money`
+> (see §1b). Running it against a database stuck on `0024` produces 500s on
+> every order — the columns it expects do not exist yet.
 
 **Desktop (Electron)** — new terminal. **You must build the renderer first.**
 `electron/main.js` loads `electron/renderer-dist/index.html`, falling back to
@@ -252,7 +318,7 @@ All from the repo root unless noted.
 ```sh
 # Backend: lint + full suite (MUST run from repo root — pytest.ini sets paths)
 .venv/bin/python -m ruff check backend/
-.venv/bin/python -m pytest                      # 351 passed, 6 skipped
+.venv/bin/python -m pytest                      # 501 passed, 6 skipped
 
 # Frontend: lint, types, unit tests, build
 pnpm --filter ./frontend lint
@@ -260,13 +326,39 @@ pnpm --filter ./frontend typecheck
 pnpm --filter ./frontend test
 pnpm --filter ./frontend build
 
-# Desktop / Electron data-layer + sync + backup suite
+# Desktop / Electron data-layer + sync + backup suite (npm, not pnpm —
+# electron/ is deliberately not a pnpm workspace member)
 cd electron && npm test && cd ..
-#   (windows.test.js has a group that only runs on a real Windows filesystem)
+#   93 tests, 91 pass, 2 skipped on Linux/macOS. On Windows all 93 run and
+#   nothing is skipped — CI fails the Windows job if `# skipped` is not 0.
 
 # Website: type-check + build
-cd website && npm run build && cd ..
+(cd website && npm run build)
 ```
+
+### The same gates in PowerShell (Windows)
+
+One command per line — PowerShell 5.x does not accept `&&`. Run from the repo
+root. These are exactly the commands CI runs, with the venv's Windows paths:
+
+```powershell
+.venv\Scripts\python -m ruff check backend/
+.venv\Scripts\python -m pytest
+
+pnpm --filter ./frontend lint
+pnpm --filter ./frontend typecheck
+pnpm --filter ./frontend test
+pnpm --filter ./frontend build
+
+Push-Location electron; npm test; Pop-Location
+
+Push-Location website; npm run build; Pop-Location
+```
+
+Expected on this commit: backend `501 passed, 6 skipped`; frontend `26 pass,
+0 fail` plus a clean type check, lint and build; Electron `93 tests, 91 pass,
+**0 skipped**` (the Windows-only group runs here — 2 are skipped on Linux/macOS);
+website builds clean.
 
 ### Optional / environment-gated tests (skipped by default)
 
@@ -278,6 +370,15 @@ PAYSTACK_SECRET_KEY=sk_test_... COOP_PAYSTACK_LIVE=1 \
 # Postgres RLS isolation (needs a real Postgres)
 TEST_DATABASE_URL=postgresql://user:pass@host:5432/coop \
     .venv/bin/python -m pytest backend/tests/test_rls.py
+
+# The real Alembic chain against Postgres (also needs TEST_DATABASE_URL):
+# creates a throwaway database, runs `alembic upgrade head`, checks RLS, drops it.
+TEST_DATABASE_URL=postgresql://user:pass@host:5432/coop \
+    .venv/bin/python -m pytest backend/tests/test_migrations.py
+
+# PowerShell equivalent for either:
+$env:TEST_DATABASE_URL="postgresql://user:pass@host:5432/coop"
+.venv\Scripts\python -m pytest backend/tests/test_migrations.py
 ```
 
 ## 7. One-line reference
@@ -287,7 +388,7 @@ TEST_DATABASE_URL=postgresql://user:pass@host:5432/coop \
 | Backend tests | `.venv/bin/python -m pytest` |
 | Backend lint | `.venv/bin/python -m ruff check backend/` |
 | Frontend all | `pnpm --filter ./frontend lint && ... typecheck && ... test && ... build` |
-| Desktop tests | `cd electron && pnpm test` |
+| Desktop tests | `cd electron; npm test` |
 | Website build | `cd website && npm run build` |
 | Web app | backend `uvicorn` :8000 + `pnpm --filter ./frontend dev` :3000 |
 | Website dev | `cd website && npm run dev` :5178 |
