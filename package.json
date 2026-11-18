@@ -9,7 +9,9 @@
     "build": "pnpm --filter ./frontend build",
     "dev": "pnpm --filter ./frontend dev",
     "dist:desktop": "npm --prefix electron run dist",
-    "dev:desktop": "npm --prefix electron run build:renderer && npm --prefix electron run start"
+    "dev:desktop": "npm --prefix electron run build:renderer && npm --prefix electron run start",
+    "dev:api": "node scripts/dev-api.mjs",
+    "dev:all": "node scripts/dev-all.mjs"
   },
   "dependencies": {},
   "devDependencies": {

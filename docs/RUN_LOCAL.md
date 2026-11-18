@@ -313,6 +313,12 @@ cd website && npm install && cd ..
 
 ## 4. Run the app
 
+> **The one command that starts both halves:** `pnpm dev:all`. It runs the API
+> and the web app together and labels each log line `[api]` or `[web]`. If you
+> run `pnpm dev` alone you get the UI and a wall of `502 Bad Gateway` for every
+> `/api` call, because the API is a *separate process* — see "Everything is
+> 502" below.
+
 **Backend** (FastAPI) — from the repo root:
 ```sh
 .venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
@@ -339,6 +345,9 @@ Terminal 2 (UI):
 ```powershell
 pnpm --filter ./frontend dev   # http://localhost:3000
 ```
+
+Shortcut for the API half alone: `pnpm dev:api` (picks the repo `.venv`
+interpreter on Windows or macOS/Linux, then runs uvicorn on 127.0.0.1:8000).
 
 Sanity checks: `http://127.0.0.1:8000/healthcheck` returns
 `{"status":"healthy","database":"up"}`, and `http://127.0.0.1:8000/docs` is the
@@ -461,6 +470,50 @@ blank white screen.
 **What pods cannot fix:** the desktop/Electron app is not containerised (it
 needs a real desktop session), and `better-sqlite3` is a native module — see
 section 4.
+
+### "Everything is 502 Bad Gateway" (the console fills with them)
+
+The API process is not running, or it crashed, or it is on a different port.
+The browser only ever sees the dev server, so the dev server is what reports
+it. Since this release you get one line in the *dev-server* terminal, not just
+a silent 502 in the browser:
+
+```
+[vite] ✗ The Co-op API is not answering on http://127.0.0.1:8000.
+[vite]   Start it with `pnpm dev:api` (or `pnpm dev:all`), then reload.
+[vite]   cause: connect ECONNREFUSED 127.0.0.1:8000
+```
+
+and the app shows that same sentence instead of "Request failed with status
+code 502". Start the API (`pnpm dev:api`), then reload — the UI recovers on
+its own; nothing needs restarting.
+
+If the API *is* running and you still get 502, look at the API terminal: a
+startup failure exits the process, and the reason is the last line before the
+prompt returns (a wrong `DATABASE_URL` is the usual one — see §1b).
+
+### The dashboard's revenue chart returns 500 on Windows (but works on Linux)
+
+Windows ships no IANA time zone database. Python's `zoneinfo` then raises for
+**every** time zone, `"UTC"` included, and every business-local report —
+`/dashboard/revenue/timeseries`, `/dashboard/summary`, the reports module, the
+daily summary, the AI forecast — failed with a bare
+`500 {"detail":"Internal Server Error"}`.
+
+Two things changed:
+
+1. `tzdata` is now pinned in `backend/requirements.txt`. If your `.venv` predates
+   this, install it: `.venv\Scripts\pip install tzdata`.
+2. If it is ever missing again, the API now says so at startup —
+
+```
+TIME ZONES: no IANA database on this machine — business-local days fall back
+to UTC. FIX: pip install tzdata (it is in backend/requirements.txt), then restart.
+```
+
+— and the reports keep working on UTC instead of returning 500. Accuracy
+degrades; availability does not. (Lagos is UTC+1, so a sale between 23:00 and
+00:00 local would land on the previous UTC day while the fallback is active.)
 
 ## 5. Run the website
 

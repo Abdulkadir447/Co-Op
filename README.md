@@ -279,7 +279,8 @@ lockfile and a different tree):
 
 ```bash
 pnpm install        # once, from the repo root (installs the workspace)
-pnpm dev            # = pnpm --filter ./frontend dev  -> http://localhost:3000
+pnpm dev:all        # API on :8000 + UI on :3000, one command, labelled logs
+pnpm dev            # UI only - every /api call then 502s until you run `pnpm dev:api`
 ```
 
 Desktop wrapper (optional): `pnpm dev:desktop` from the repo root.
