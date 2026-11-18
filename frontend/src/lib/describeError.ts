@@ -56,6 +56,12 @@ export function describeError(
     return `Co-op could not ${verb}: something in the form is not valid. Check the highlighted fields.`;
   }
   if (status === 429) return 'Too many attempts in a row. Wait a minute, then try again.';
+  // 503 is the backend saying "my database is unavailable or being migrated".
+  // That is a wait-and-retry, not a bug report, and it is worth saying so:
+  // a shop owner who reloads four times starts to think their data is gone.
+  if (status === 503) {
+    return `Co-op is briefly unavailable and could not ${verb}. Your data is safe — try again in a minute.`;
+  }
   if (status !== undefined && status >= 500) {
     return `The server had a problem and could not ${verb}. Try again in a moment.`;
   }
