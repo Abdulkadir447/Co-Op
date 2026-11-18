@@ -20,9 +20,9 @@ regexes = [
   # angle-bracket placeholder — never a real credential.
   '''postgres(?:ql)?://[^:\s"'@]+:(?:password|<password>)@''',
   '''postgres(?:ql)?://[^:\s"'@]+:coop_password@''',
-  # The canonical fake key used in the vendored API-design skill and in the
-  # redaction test fixture (`key=sk_live_abc123`). It grants nothing: the
-  # provider prefix is the only thing that looks real.
+  # The redaction test fixture in backend/tests/test_security_hardening.py
+  # (`key=sk_live_abc123`), which asserts that this value is stripped from
+  # logs. It grants nothing; the provider prefix is the only real-looking part.
   '''sk_live_abc123''',
   # CI's throwaway build input (`.github/workflows/ci.yml`). Vite needs *a*
   # value at build time; this one never leaves the runner.
