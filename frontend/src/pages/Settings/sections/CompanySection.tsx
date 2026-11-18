@@ -10,6 +10,7 @@ import CoopSelect from '../../../components/ui/CoopSelect';
 import { CoopButton, CoopCard, CoopLoading } from '../../../components/ui';
 import { CURRENCY_OPTIONS, TIMEZONE_OPTIONS } from '../useSettings';
 import type { BusinessSettings, BusinessSettingsUpdate } from '../useSettings';
+import { describeError } from '../../../lib/describeError';
 
 interface CompanyFormValues {
   name: string;
@@ -75,7 +76,7 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
       await save(updates);
       messageApi.success('Company settings saved');
     } catch (e) {
-      messageApi.error(e instanceof Error ? e.message : 'Save failed');
+      messageApi.error(describeError(e, 'save', 'company details'));
     }
   };
 
@@ -213,7 +214,7 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
           </Row>
 
           <Divider>Tax</Divider>
-          <Typography.Paragraph type="secondary" style={{ marginTop: -4, fontSize: 12.5 }}>
+          <Typography.Paragraph type="secondary" style={{ marginTop: -4, fontSize: 12 }}>
             Tax is added <strong>on top</strong> of the line subtotal (exclusive), and the rate is
             recorded on each order as it is raised — changing it later never reprices an existing
             order or an invoice a customer already holds. Revenue reports stay net of tax.

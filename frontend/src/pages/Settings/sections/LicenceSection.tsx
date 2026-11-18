@@ -83,7 +83,7 @@ const LicenceSection: React.FC = () => {
                   cannot be redisplayed — by design, and worth saying on screen:
                   it tells the owner the reference is all anyone can recover. */}
               {license.fingerprint && (
-                <Typography.Text type="secondary" style={{ fontSize: 11.5 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Licence reference{' '}
                   <span style={{ fontFamily: 'monospace', letterSpacing: '0.04em' }}>
                     {license.fingerprint.slice(0, 8).toUpperCase()}
@@ -117,7 +117,7 @@ const LicenceSection: React.FC = () => {
               onChange={(e) => setKey(e.target.value)}
               placeholder="COOP-XXXXX-XXXXX-…"
               autoSize={{ minRows: 2, maxRows: 4 }}
-              style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12.5 }}
+              style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12 }}
               aria-label="Licence activation key"
             />
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>

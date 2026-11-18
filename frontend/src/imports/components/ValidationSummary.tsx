@@ -66,7 +66,7 @@ const ValidationSummary: React.FC<ValidationSummaryProps> = ({ validation }) => 
       {validation.warnings.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
           {validation.warnings.map((w) => (
-            <div key={w} style={{ display: 'flex', gap: 8, ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+            <div key={w} style={{ display: 'flex', gap: 8, ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
               <ExclamationCircleFilled style={{ color: colors.warning, marginTop: 2 }} />
               {w}
             </div>
@@ -76,7 +76,7 @@ const ValidationSummary: React.FC<ValidationSummaryProps> = ({ validation }) => 
 
       {validation.errors.length > 0 && (
         <div>
-          <div style={{ ...type.labelCaps, color: colors.outline, marginBottom: 8 }}>
+          <div style={{ ...type.labelCaps, color: colors.onSurfaceMuted, marginBottom: 8 }}>
             First {validation.errors.length} row{validation.errors.length > 1 ? 's' : ''} with problems
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -90,7 +90,7 @@ const ValidationSummary: React.FC<ValidationSummaryProps> = ({ validation }) => 
                   borderRadius: radius.md,
                   background: 'rgba(186,26,26,0.06)',
                   ...type.bodyCompact,
-                  fontSize: 12.5,
+                  fontSize: 12,
                 }}
               >
                 <CheckCircleFilled style={{ color: colors.error, marginTop: 2 }} />

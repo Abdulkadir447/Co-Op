@@ -163,7 +163,7 @@ const ImportPage: React.FC = () => {
                   background: active ? colors.primary : done ? colors.primaryFixed : colors.surfaceContainerLow,
                   color: active ? colors.onPrimary : done ? colors.onPrimaryFixedVariant : colors.onSurfaceVariant,
                   fontWeight: 600,
-                  fontSize: 12.5,
+                  fontSize: 12,
                 }}
               >
                 <span

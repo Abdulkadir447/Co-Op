@@ -96,7 +96,7 @@ const SyncPage: React.FC = () => {
         title="Sync"
         subtitle="Your device, the cloud, and anything that needs your decision."
         actions={
-          <span style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <CloudSyncOutlined style={{ color: status.syncing ? colors.primary : colors.outline }} />
             {status.connection === 'offline'
               ? 'Offline — saved on this device'
@@ -123,7 +123,7 @@ const SyncPage: React.FC = () => {
               padding: '12px 18px',
             }}
           >
-            <div style={{ ...type.labelCaps, fontSize: 11, color: colors.outline }}>{s.label}</div>
+            <div style={{ ...type.labelCaps, fontSize: 11, color: colors.onSurfaceMuted }}>{s.label}</div>
             <div style={{ fontSize: 26, fontWeight: 700, color: s.tone, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
               {s.value}
             </div>
@@ -163,7 +163,7 @@ const SyncPage: React.FC = () => {
       </div>
       <CoopCard>
         {pending.length === 0 ? (
-          <div style={{ ...type.bodyCompact, color: colors.outline, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ ...type.bodyCompact, color: colors.onSurfaceMuted, display: 'flex', alignItems: 'center', gap: 8 }}>
             <InboxOutlined />
             {status.connection === 'offline'
               ? 'Offline changes will be uploaded automatically when you reconnect.'
@@ -175,7 +175,7 @@ const SyncPage: React.FC = () => {
               <span
                 key={entity}
                 style={{
-                  ...type.bodyCompact, fontSize: 12.5, fontWeight: 600,
+                  ...type.bodyCompact, fontSize: 12, fontWeight: 600,
                   color: colors.primary, background: colors.primaryContainer,
                   padding: '4px 12px', borderRadius: 9999,
                 }}
@@ -183,7 +183,7 @@ const SyncPage: React.FC = () => {
                 {n} × {ENTITY_LABEL[entity] ?? entity}
               </span>
             ))}
-            <span style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline, alignSelf: 'center' }}>
+            <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, alignSelf: 'center' }}>
               {status.connection === 'offline' ? 'Uploads when you reconnect.' : 'Syncing…'}
             </span>
           </div>

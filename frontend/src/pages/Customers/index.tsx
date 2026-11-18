@@ -38,6 +38,7 @@ import {
   CoopTable,
 } from '../../components/ui';
 import PageHeader from '../../components/layout/PageHeader';
+import { describeError } from '../../lib/describeError';
 
 const ACTIVITY_META: Record<CustomerActivity, { label: string; variant: 'primary' | 'neutral'; solid?: boolean }> = {
   new: { label: 'New', variant: 'primary', solid: true },
@@ -79,7 +80,7 @@ const CustomersPage: React.FC = () => {
       setModalOpen(false);
       reload();
     } catch (e) {
-      messageApi.error(e instanceof Error ? e.message : 'Request failed');
+      messageApi.error(describeError(e, 'create', 'customer'));
     } finally {
       setSubmitting(false);
     }
@@ -95,7 +96,7 @@ const CustomersPage: React.FC = () => {
           <CustomerAvatar name={c.full_name} />
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 600, color: colors.onSurface }}>{c.full_name}</div>
-            <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, marginTop: 2 }}>
+            <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 2 }}>
               ID: #C-{String(c.id).padStart(4, '0')}
             </div>
           </div>
@@ -121,7 +122,7 @@ const CustomersPage: React.FC = () => {
       render: (_: unknown, c) => (
         <div>
           <div style={{ color: colors.onSurfaceVariant }}>{c.email}</div>
-          <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, marginTop: 2 }}>
+          <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 2 }}>
             {c.phone ?? ''}
           </div>
         </div>

@@ -18,7 +18,7 @@
  *   - Window title follows the active module ("<Module> · Co-op").
  *   - Global transitions: page fade/rise on route change, theme cross-fades.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { radius, spacing } from '../../theme';
 import { useCoopTheme } from '../../theme-provider';
@@ -124,8 +124,29 @@ const AppShell: React.FC<AppShellProps> = ({ children, user, onSignOut }) => {
     document.title = active ? `${active.label} · CO OP` : 'CO OP';
   }, [location.pathname]);
 
+  // Route changes are silent to assistive tech: the URL changes, the screen
+  // reader stays where it was (usually on the sidebar button that was just
+  // clicked), and the next Tab starts the nav again on every screen. Move
+  // focus to <main> — not into a control, or a phone would open the keyboard —
+  // and start the page at the top. Skipped on first paint so the initial load
+  // does not steal focus from the address bar.
+  const mainRef = useRef<HTMLElement | null>(null);
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    mainRef.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname]);
+
   return (
     <div style={{ minHeight: '100vh', background: colors.surface, transition: 'background-color 300ms' }}>
+      {/* First focusable element on every page: skips the 9-item rail. */}
+      <a href="#coop-main" className="coop-skip-link">
+        Skip to content
+      </a>
       <Sidebar open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       <div
@@ -144,8 +165,16 @@ const AppShell: React.FC<AppShellProps> = ({ children, user, onSignOut }) => {
           onOpenPalette={() => setPaletteOpen(true)}
         />
         <main
+          ref={mainRef}
+          id="coop-main"
+          // -1 keeps <main> out of the tab order but lets route changes move
+          // focus here programmatically.
+          tabIndex={-1}
           className="coop-main"
-          style={{ flex: 1, padding: `${spacing.lg}px ${spacing.lg}px ${spacing.xl}px` }}
+          style={{
+            flex: 1,
+            padding: `${spacing.lg}px ${spacing.lg}px ${spacing.xl}px`,
+          }}
         >
           {/* Keyed by path so each navigation replays the entrance transition. */}
           <div key={location.pathname} className="coop-page-enter">

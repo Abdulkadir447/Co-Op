@@ -108,7 +108,7 @@ const OrdersPage: React.FC = () => {
             background: 'transparent',
             color: colors.primary,
             fontWeight: 600,
-            fontSize: 13.5,
+            fontSize: 14,
             cursor: 'pointer',
             padding: 0,
           }}
@@ -260,7 +260,7 @@ const OrdersPage: React.FC = () => {
                     border: 'none',
                     borderRadius: radius.full,
                     padding: '8px 16px',
-                    fontSize: 13.5,
+                    fontSize: 14,
                     fontWeight: 600,
                     whiteSpace: 'nowrap',
                     cursor: 'pointer',
@@ -301,7 +301,7 @@ const OrdersPage: React.FC = () => {
                   onMouseLeave={(e) => (e.currentTarget.style.borderColor = colors.borderSubtle)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={{ ...type.labelCaps, color: colors.outline, fontSize: 11 }}>{orderNumber(o.id)}</span>
+                    <span style={{ ...type.labelCaps, color: colors.onSurfaceMuted, fontSize: 11 }}>{orderNumber(o.id)}</span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       {pendingSyncIds.includes(o.id) && (
                         <span

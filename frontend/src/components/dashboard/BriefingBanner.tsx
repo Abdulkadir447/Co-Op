@@ -125,7 +125,7 @@ const BriefingBanner: React.FC = () => {
           <div
             style={{
               ...type.bodyCompact,
-              fontSize: 12.5,
+              fontSize: 12,
               color: colors.onSurfaceVariant,
               whiteSpace: 'nowrap',
               overflow: 'hidden',

@@ -65,7 +65,7 @@ const DailySummarySection: React.FC<{ summary: DailySummaryState; enabled: boole
     <div style={{ padding: `${spacing.sm + 2}px ${spacing.md}px ${spacing.sm}px` }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
         <span style={{ ...type.titleMd, color: colors.onSurface }}>Today at a glance</span>
-        <span style={{ ...type.labelCaps, color: colors.outline }}>{dateLabel}</span>
+        <span style={{ ...type.labelCaps, color: colors.onSurfaceMuted }}>{dateLabel}</span>
       </div>
 
       {!enabled ? (
@@ -126,7 +126,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
               alignItems: 'center',
               gap: 3,
               fontWeight: 700,
-              fontSize: 12.5,
+              fontSize: 12,
               color: vsYesterday.change_percent >= 0 ? colors.successText : colors.errorText,
             }}
           >
@@ -145,7 +145,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
             display: 'flex',
             gap: 8,
             ...type.bodyCompact,
-            fontSize: 12.5,
+            fontSize: 12,
             color: s.notable_change.direction === 'up' ? colors.successText : colors.errorText,
           }}
         >
@@ -156,7 +156,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
 
       {/* Month-to-date context */}
       {mtd.revenue > 0 && (
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
           This month: <strong style={{ color: colors.onSurface, fontVariantNumeric: 'tabular-nums' }}>{money(mtd.revenue)}</strong>
           {mtd.change_percent !== null && mtd.previous_period_revenue !== null && (
             <span style={{ color: mtd.change_percent >= 0 ? colors.successText : colors.errorText, fontWeight: 600 }}>
@@ -181,7 +181,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
             padding: 0,
             cursor: 'pointer',
             ...type.bodyCompact,
-            fontSize: 12.5,
+            fontSize: 12,
             color: colors.onSurfaceVariant,
             textAlign: 'left',
           }}
@@ -204,7 +204,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
 
       {/* New customers */}
       {s.customers.new_today > 0 && (
-        <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+        <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
           {s.customers.new_today} new customer{s.customers.new_today === 1 ? '' : 's'} today
           {s.customers.new_names.length > 0 && (
             <span style={{ color: colors.onSurface }}>
@@ -230,7 +230,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
             cursor: 'pointer',
             textAlign: 'left',
             ...type.bodyCompact,
-            fontSize: 12.5,
+            fontSize: 12,
             color: colors.onSurfaceVariant,
           }}
         >
@@ -266,7 +266,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
           cursor: 'pointer',
           color: colors.primary,
           fontWeight: 600,
-          fontSize: 12.5,
+          fontSize: 12,
           alignSelf: 'flex-start',
         }}
       >
@@ -325,7 +325,7 @@ const AlertsSection: React.FC<{ data: PanelState; paused?: boolean }> = ({ data,
         }}
       >
         <span style={{ ...type.titleMd, color: colors.onSurface }}>Notifications</span>
-        <span style={{ ...type.labelCaps, color: colors.outline }}>{rows.length} alerts</span>
+        <span style={{ ...type.labelCaps, color: colors.onSurfaceMuted }}>{rows.length} alerts</span>
       </div>
 
       {rows.length === 0 ? (

@@ -81,7 +81,7 @@ const ImportDropzone: React.FC<ImportDropzoneProps> = ({ onFile, busy }) => {
       <CoopButton icon={<UploadOutlined />} loading={busy} onClick={() => inputRef.current?.click()}>
         {busy ? 'Reading file…' : 'Browse files'}
       </CoopButton>
-      <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, marginTop: 14 }}>
+      <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 14 }}>
         Excel: first worksheet only, clean tables. Nothing is written until you review the mapping.
       </div>
     </div>

@@ -31,13 +31,24 @@ function buildEmpty(empty: CoopTableEmpty | undefined) {
   return <CoopEmptyState {...e} />;
 }
 
+/**
+ * Between roughly 769px and 1000px the modules' fixed column widths (SKU 120 +
+ * product 130 + prices 240 + stock 130 + status 130 + actions 110, plus
+ * padding) exceed the content column. Without a scroll container the table
+ * either clips or forces the whole page sideways (WCAG 1.4.10).
+ * 'max-content' only scrolls when the columns genuinely do not fit, so wide
+ * screens are unchanged; callers can still pass their own `scroll`.
+ */
+const DEFAULT_SCROLL = { x: 'max-content' } as const;
+
 function CoopTableInner<T extends object>(props: CoopTableProps<T>) {
-  const { empty, rowKey = 'id', pagination, ...rest } = props;
+  const { empty, rowKey = 'id', pagination, scroll, ...rest } = props;
 
   return (
     <Table<T>
       rowKey={rowKey}
       size="middle"
+      scroll={scroll ?? DEFAULT_SCROLL}
       pagination={
         pagination === false
           ? false

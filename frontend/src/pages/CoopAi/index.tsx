@@ -89,7 +89,7 @@ const CoopAiPage: React.FC = () => {
           <CoopMark size={40} title="Zeno" />
           <div>
             <div style={{ ...type.sectionHeading, color: colors.onSurface, letterSpacing: '-0.01em' }}>Zeno</div>
-            <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline }}>
+            <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>
               Notices what's happening · answers from your live data · drafts, never acts
             </div>
           </div>
@@ -199,7 +199,7 @@ const CoopAiPage: React.FC = () => {
                 </button>
               </div>
             ))}
-            <div style={{ ...type.bodyCompact, fontSize: 11, color: colors.outline, padding: '8px 10px 2px' }}>
+            <div style={{ ...type.bodyCompact, fontSize: 11, color: colors.onSurfaceMuted, padding: '8px 10px 2px' }}>
               {dayjs(active?.updated ?? Date.now()).format('MMM D')} · stored locally
             </div>
           </div>
@@ -368,7 +368,7 @@ const CoopAiPage: React.FC = () => {
                 <SendOutlined style={{ fontSize: 14 }} />
               </button>
             </div>
-            <div style={{ ...type.bodyCompact, fontSize: 11, color: colors.outline, marginTop: 8, textAlign: 'center' }}>
+            <div style={{ ...type.bodyCompact, fontSize: 11, color: colors.onSurfaceMuted, marginTop: 8, textAlign: 'center' }}>
               Zeno answers from live business data and labels every claim. It drafts actions — you confirm them.
             </div>
           </div>

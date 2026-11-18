@@ -66,7 +66,7 @@ const DashboardHeader: React.FC<{
           )}
         </h1>
       </div>
-      <div style={{ ...type.bodyCompact, color: colors.outline, whiteSpace: 'nowrap' }}>
+      <div style={{ ...type.bodyCompact, color: colors.onSurfaceMuted, whiteSpace: 'nowrap' }}>
         Last updated: {updatedLabel}
       </div>
     </header>

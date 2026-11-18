@@ -91,7 +91,7 @@ const ReportAiSummary: React.FC<ReportAiSummaryProps> = ({ reportKey, title, fil
           background: colors.primary,
           color: colors.onPrimary,
           fontWeight: 700,
-          fontSize: 13.5,
+          fontSize: 14,
           cursor: 'pointer',
           fontFamily: 'inherit',
         }}

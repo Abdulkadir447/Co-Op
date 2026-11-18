@@ -146,7 +146,7 @@ const AuthPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {children}
       </div>
-      <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.outline }}>
+      <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.onSurfaceMuted }}>
         © {year} CO OP SaaS. All rights reserved.
       </div>
     </div>

@@ -86,7 +86,7 @@ export function DraftCard({
           ) : (
             <ShoppingCartOutlined style={{ color: colors.primary }} />
           )}
-          <span style={{ ...type.titleMd, fontSize: 14.5, color: colors.onSurface }}>
+          <span style={{ ...type.titleMd, fontSize: 15, color: colors.onSurface }}>
             {isInvoice ? 'Invoice draft' : 'Order draft'} — {d.customer?.full_name ?? 'Customer'}
           </span>
         </div>

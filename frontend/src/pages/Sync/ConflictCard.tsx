@@ -216,7 +216,7 @@ const ConflictCard: React.FC<ConflictCardProps> = ({ conflict, productName, onRe
         >
           {conf.reason}
         </span>
-        <span style={{ ...type.bodyCompact, fontSize: 11, color: colors.outline, marginLeft: 'auto' }}>
+        <span style={{ ...type.bodyCompact, fontSize: 11, color: colors.onSurfaceMuted, marginLeft: 'auto' }}>
           {conflict.entity} · {conflict.operation}
         </span>
       </div>
@@ -233,11 +233,11 @@ const ConflictCard: React.FC<ConflictCardProps> = ({ conflict, productName, onRe
           }}
         >
           <span />
-          <span style={{ ...type.labelCaps, fontSize: 10.5, color: colors.outline }}>This device</span>
-          <span style={{ ...type.labelCaps, fontSize: 10.5, color: colors.outline }}>Cloud</span>
+          <span style={{ ...type.labelCaps, fontSize: 11, color: colors.onSurfaceMuted }}>This device</span>
+          <span style={{ ...type.labelCaps, fontSize: 11, color: colors.onSurfaceMuted }}>Cloud</span>
           {rows.map((r) => (
             <React.Fragment key={r.label}>
-              <span style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline }}>{r.label}</span>
+              <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>{r.label}</span>
               <span style={{ ...type.bodyCompact, fontSize: 13, color: colors.onSurface, fontWeight: 500 }}>{r.local}</span>
               <span style={{ ...type.bodyCompact, fontSize: 13, color: colors.onSurface, fontWeight: 500 }}>{r.cloud}</span>
             </React.Fragment>
@@ -253,7 +253,7 @@ const ConflictCard: React.FC<ConflictCardProps> = ({ conflict, productName, onRe
         <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.successText, fontWeight: 600 }}>{done}</div>
       )}
       {error && !done && (
-        <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.error, marginTop: 8 }}>{error}</div>
+        <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.error, marginTop: 8 }}>{error}</div>
       )}
     </div>
   );

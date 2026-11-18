@@ -66,7 +66,7 @@ const InvoiceDocument: React.FC<{ draft: DraftInvoice; onClose: () => void }> = 
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#767586', marginBottom: 6 }}>
             Bill To
           </div>
-          <div style={{ fontSize: 14.5, fontWeight: 600 }}>{draft.customer?.full_name ?? 'Customer'}</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{draft.customer?.full_name ?? 'Customer'}</div>
           {draft.customer?.email && <div style={{ fontSize: 13, color: '#464555', marginTop: 2 }}>{draft.customer.email}</div>}
         </div>
 
@@ -94,13 +94,13 @@ const InvoiceDocument: React.FC<{ draft: DraftInvoice; onClose: () => void }> = 
           <tbody>
             {draft.lines.map((l, i) => (
               <tr key={i} style={{ borderBottom: '1px solid #e9e6f3' }}>
-                <td style={{ padding: '10px 12px', fontSize: 13.5, fontWeight: 500 }}>
+                <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 500 }}>
                   {l.name}
                   {l.sku ? <span style={{ color: '#767586', fontSize: 12 }}> ({l.sku})</span> : null}
                 </td>
-                <td style={{ padding: '10px 12px', fontSize: 13.5, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{l.quantity}</td>
-                <td style={{ padding: '10px 12px', fontSize: 13.5, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.unit_price, cur)}</td>
-                <td style={{ padding: '10px 12px', fontSize: 13.5, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.quantity * l.unit_price, cur)}</td>
+                <td style={{ padding: '10px 12px', fontSize: 14, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{l.quantity}</td>
+                <td style={{ padding: '10px 12px', fontSize: 14, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.unit_price, cur)}</td>
+                <td style={{ padding: '10px 12px', fontSize: 14, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(l.quantity * l.unit_price, cur)}</td>
               </tr>
             ))}
           </tbody>

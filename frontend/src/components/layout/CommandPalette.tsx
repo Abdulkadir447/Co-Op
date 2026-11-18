@@ -378,7 +378,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose }) => {
                       {label}
                     </span>
                     {sub && (
-                      <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {sub}
                       </span>
                     )}

@@ -315,7 +315,7 @@ const OrderDetailsPage: React.FC = () => {
           <ShoppingCartOutlined />
         </span>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 13.5, color: colors.onSurface, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontWeight: 600, fontSize: 14, color: colors.onSurface, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {item.product_name ?? `Product #${item.product_id}`}
           </div>
         </div>
@@ -484,7 +484,7 @@ const OrderDetailsPage: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            <div style={{ ...type.titleMd, fontSize: 16.5, color: colors.onSurface, marginBottom: 14 }}>Update Status</div>
+            <div style={{ ...type.titleMd, fontSize: 16, color: colors.onSurface, marginBottom: 14 }}>Update Status</div>
             <Select
               value={nextStatus ?? undefined}
               onChange={(v) => setNextStatus(v as OrderStatus)}
@@ -509,7 +509,7 @@ const OrderDetailsPage: React.FC = () => {
               marginBottom: 16,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...type.titleMd, fontSize: 16.5, color: colors.onSurface, marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...type.titleMd, fontSize: 16, color: colors.onSurface, marginBottom: 14 }}>
               <MailOutlined style={{ color: colors.outline }} />
               Customer Details
             </div>
@@ -534,12 +534,12 @@ const OrderDetailsPage: React.FC = () => {
               >
                 <CustomerAvatar name={customer.full_name} size={40} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14.5, color: colors.onSurface }}>{customer.full_name}</div>
-                  <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline }}>View customer profile →</div>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: colors.onSurface }}>{customer.full_name}</div>
+                  <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>View customer profile →</div>
                 </div>
               </button>
             ) : (
-              <div style={{ ...type.bodyCompact, color: colors.outline }}>Customer unavailable.</div>
+              <div style={{ ...type.bodyCompact, color: colors.onSurfaceMuted }}>Customer unavailable.</div>
             )}
             <div style={{ borderTop: `1px solid ${colors.borderSubtle}`, marginTop: 10, paddingTop: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
@@ -565,7 +565,7 @@ const OrderDetailsPage: React.FC = () => {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ ...type.titleMd, fontSize: 16.5, color: colors.onSurface }}>Payment</div>
+              <div style={{ ...type.titleMd, fontSize: 16, color: colors.onSurface }}>Payment</div>
               {order.payment_status === 'paid' ? (
                 <CoopBadge variant="success">Paid</CoopBadge>
               ) : order.payment_status === 'partial' ? (
@@ -580,7 +580,7 @@ const OrderDetailsPage: React.FC = () => {
             </div>
 
             {order.payment_status === 'unknown' ? (
-              <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+              <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
                 Payments are recorded online. Reconnect to see what this customer has paid.
               </div>
             ) : (
@@ -628,7 +628,7 @@ const OrderDetailsPage: React.FC = () => {
                   Record payment
                 </CoopButton>
                 {order.status === 'cancelled' && (
-                  <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, marginTop: 8 }}>
+                  <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 8 }}>
                     Cancelled orders cannot receive payments.
                   </div>
                 )}
@@ -645,7 +645,7 @@ const OrderDetailsPage: React.FC = () => {
               padding: 20,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...type.titleMd, fontSize: 16.5, color: colors.onSurface, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...type.titleMd, fontSize: 16, color: colors.onSurface, marginBottom: 16 }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <circle cx="12" cy="12" r="9" stroke={colors.outline} strokeWidth="1.8" />
                 <path d="M12 7v5l3 2" stroke={colors.outline} strokeWidth="1.8" strokeLinecap="round" />
@@ -706,7 +706,7 @@ const OrderDetailsPage: React.FC = () => {
                       {node.label}
                     </div>
                     {node.time && (
-                      <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>
+                      <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>
                         {dayjs(node.time).format('MMM D, h:mm A')}
                       </div>
                     )}
@@ -893,25 +893,25 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
                 tax ID plus company/LLC registration number (the NTA 2025 s.153(d)
                 rule is the clearest statement of the same requirement). */}
             {business?.tax_id && (
-              <div style={{ fontSize: 12.5, color: colors.onSurfaceVariant, marginTop: 2 }}>Tax ID: {business.tax_id}</div>
+              <div style={{ fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 }}>Tax ID: {business.tax_id}</div>
             )}
             {business?.registration_number && (
-              <div style={{ fontSize: 12.5, color: colors.onSurfaceVariant, marginTop: 2 }}>Reg. no.: {business.registration_number}</div>
+              <div style={{ fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2 }}>Reg. no.: {business.registration_number}</div>
             )}
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.onSurface }}>Invoice</div>
             {order.invoice_number ? (
               <>
-                <div style={{ fontSize: 13.5, color: colors.onSurfaceVariant, marginTop: 8 }}>{order.invoice_number}</div>
+                <div style={{ fontSize: 14, color: colors.onSurfaceVariant, marginTop: 8 }}>{order.invoice_number}</div>
                 <div style={{ fontSize: 12, color: colors.outline, marginTop: 2 }}>Order {orderNumber(order.id)}</div>
               </>
             ) : (
-              <div style={{ fontSize: 13.5, color: colors.onSurfaceVariant, marginTop: 8 }}>{orderNumber(order.id)}</div>
+              <div style={{ fontSize: 14, color: colors.onSurfaceVariant, marginTop: 8 }}>{orderNumber(order.id)}</div>
             )}
             <div style={{ fontSize: 13, color: colors.outline, marginTop: 2 }}>Date of supply: {dayjs(order.order_date).format('MMM D, YYYY')}</div>
             {!order.invoice_number && (
-              <div style={{ fontSize: 11.5, color: colors.outline, marginTop: 2 }}>Not yet saved as a numbered invoice</div>
+              <div style={{ fontSize: 12, color: colors.outline, marginTop: 2 }}>Not yet saved as a numbered invoice</div>
             )}
           </div>
         </div>
@@ -921,7 +921,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: colors.outline, marginBottom: 6 }}>
             Bill To
           </div>
-          <div style={{ fontSize: 14.5, fontWeight: 600 }}>{order.customer?.full_name ?? 'Customer'}</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{order.customer?.full_name ?? 'Customer'}</div>
           <div style={{ fontSize: 13, color: colors.onSurfaceVariant, marginTop: 2 }}>Status: {ORDER_STATUS_LABEL[order.status]}</div>
         </div>
 
@@ -950,12 +950,12 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ open, onClose, order, busin
           <tbody>
             {order.items.map((item) => (
               <tr key={item.id} style={{ borderBottom: `1px solid ${colors.borderSubtle}` }}>
-                <td style={{ padding: '10px 12px', fontSize: 13.5, fontWeight: 500 }}>{item.product_name ?? `Product #${item.product_id}`}</td>
-                <td style={{ padding: '10px 12px', fontSize: 13.5, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{item.quantity}</td>
-                <td style={{ padding: '10px 12px', fontSize: 13.5, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 500 }}>{item.product_name ?? `Product #${item.product_id}`}</td>
+                <td style={{ padding: '10px 12px', fontSize: 14, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{item.quantity}</td>
+                <td style={{ padding: '10px 12px', fontSize: 14, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {formatCurrency(item.unit_price, business?.currency)}
                 </td>
-                <td style={{ padding: '10px 12px', fontSize: 13.5, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                <td style={{ padding: '10px 12px', fontSize: 14, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                   {formatCurrency(item.total_price, business?.currency)}
                 </td>
               </tr>
