@@ -18,7 +18,7 @@
 
 ## 1. What was installed
 
-Four sources, installed at **project level** into `.agents/skills/` with `.claude/skills/` symlinks, pinned in `skills-lock.json` (all three repositories are MIT):
+Four sources, installed at **project level** into `.agents/skills/` with `.claude/skills/` symlinks, pinned in `skills-lock.json`. Licensing: `addyosmani`, `jakubkrehel` and `taste-skill` are MIT; `anthropics/skills` is Apache-2.0 and ships its own `LICENSE.txt` inside each skill:
 
 | Source | Skills | Notable ones used in this review |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ npx skills remove --all  # undo everything
 | Not verified | every rendered/visual claim: no Chrome or Chromium in this environment and the browser CDN is unreachable, so no screenshots, no axe run, no 320/1440 render, no tab-through. Contrast figures are computed from the hex values in `theme/colors.ts`, not sampled from a screen |
 | Verification actually run | `grep`/AST-level scans quoted in each finding; WCAG contrast maths (sRGB relative luminance, WCAG 2.2 formula); line counts; live-region inventory |
 
-There is no `CONTRIBUTING.md` design section, no Storybook, and no interface ADR. The nearest thing to a written convention is the header comment in `frontend/src/theme/tokens.ts` (8 px grid, 12 px containers, no square corners) and `typography.ts` (Inter, seven type styles, no more than three levels per view). I hold the code to those documents where they exist.
+`CONTRIBUTING.md` exists but is operational only (prerequisites, commands, folder layout) — no design guidance. There is no Storybook and no interface ADR. The nearest thing to a written convention is the header comment in `frontend/src/theme/tokens.ts` (8 px grid, 12 px containers, no square corners) and `typography.ts` (Inter, seven type styles, no more than three levels per view). I hold the code to those documents where they exist.
 
 ---
 
