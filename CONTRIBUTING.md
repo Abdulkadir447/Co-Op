@@ -83,6 +83,11 @@ true-concurrency stock test.
 
 - The default branch is **`master`**; PRs target `master`.
 - Use conventional commit messages (`feat:`, `fix:`, `chore:`, …).
+- `subject-case` is a **warning**, not an error: a subject that starts with an
+  acronym ("USD pricing…", "VAT on orders…") reads as upper-case to
+  commitlint, and the affected commits are already on `master` — the only way
+  to reword them is a force-push, which this repo forbids. The other message
+  rules (type, 100-character header, 100-character body lines) still block.
 - CI runs the backend test suite plus the frontend type check and
   production build on every push/PR to `master`. Keep it green — a gate that
   can't pass doesn't belong in CI, so if you change tooling, update
