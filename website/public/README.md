@@ -1,22 +1,13 @@
-# Website assets — drop your files here
+# `public/` — files served from the site root
 
-The site looks for these exact paths. If a file is missing, the section shows a
-styled placeholder instead, so nothing breaks — just add the files and refresh.
+Only two things belong here:
 
-## Founders video
-- `videos/founders.mp4` — the founders story (16:9). A poster image is optional:
-  `screenshots/founders-poster.jpg`.
-- Prefer YouTube/Vimeo? Set `FOUNDERS_EMBED` in `src/App.tsx` to the embed URL
-  and it will be used instead of the mp4.
+- `logo.png` — the favicon and apple-touch-icon, referenced as `/logo.png`.
+- `og.png` *(not yet added)* — the 1200×630 social preview image. Add it together
+  with the `og:url` / `og:image` tags in `index.html` once the production domain
+  is fixed; both tags need an absolute URL.
 
-## Product tour (one per app page)
-For each page id below, add a screenshot and (recommended) a short muted loop:
-- `screenshots/<id>.png`  — static screenshot (shown by default)
-- `videos/<id>.mp4`       — 5–10s silent loop (plays on hover / tap)
-
-Page ids: `dashboard`, `products`, `inventory`, `orders`, `customers`,
-`invoices`, `ai`.
-
-Example: `screenshots/customers.png` + `videos/customers.mp4`.
-
-Keep videos small (H.264, < ~2 MB, muted, loopable) so the page stays fast.
+**Product screenshots and videos no longer live here.** They are imported as
+modules from `src/assets/` so the site can tell at build time whether they
+exist — a missing file hides its section instead of rendering a placeholder.
+See `src/assets/README.md`.
