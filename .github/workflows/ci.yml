@@ -94,7 +94,14 @@ jobs:
       - name: Unit tests (local analytics port fidelity)
         run: pnpm --filter ./frontend test
 
+      # VITE_CLERK_PUBLISHABLE_KEY is a build-time hard requirement: Vite
+      # inlines it, and a build without it would emit a bundle that throws on
+      # load (see frontend/vite.config.ts). CI has no Clerk instance and never
+      # ships this bundle, so a syntactically valid placeholder is enough to
+      # prove the production build compiles.
       - name: Production build
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
         run: pnpm --filter ./frontend build
 
   desktop:
