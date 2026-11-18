@@ -11,6 +11,7 @@ Authentication model (this phase):
     to that tenant via ``business_id`` (BSD Ch1.8 multi-tenant isolation).
 """
 
+import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
@@ -33,7 +34,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import case, func, or_, select, text
+from sqlalchemy import case, func, or_, select
 from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -157,6 +158,30 @@ async def lifespan(_app: FastAPI):
     # migrations (backend/alembic) are the real migration path; this never
     # alters existing tables.
     await init_db()
+    # Say out loud whether the database matches this code. Every endpoint
+    # depends on it, so a mismatch is not a detail to discover one 500 at a
+    # time — it is the first thing the operator should read. Never fatal:
+    # /healthcheck and /docs still answer, which is how you diagnose it.
+    from .diagnostics import database_report
+
+    _report = await database_report()
+    _log = logging.getLogger("coop")
+    if not _report["reachable"]:
+        _log.error(
+            "DATABASE PROBLEM: %s (%s)",
+            _report["summary"], _report.get("detail_for_log", "no detail"),
+        )
+    elif _report["cause"] == "schema_behind":
+        _log.error(
+            "DATABASE SCHEMA IS BEHIND THIS CODE: %s Missing tables: %s. "
+            "Missing columns: %s. Fix: alembic upgrade head",
+            _report["summary"],
+            ", ".join(_report["missing_tables"]) or "none",
+            "; ".join(f"{t}: {', '.join(cols)}" for t, cols in _report["missing_columns"].items())
+            or "none",
+        )
+    else:
+        _log.info("Database ready: %s", _report["summary"])
     yield
     await dispose_db()
 
@@ -252,18 +277,36 @@ async def _unhandled_error_handler(request, exc):
     """Never let a traceback or an internal detail reach a client (149).
 
     HTTPException keeps its own (already-sanitised) detail; anything else is
-    a bug, and the client gets a generic 500 while the real error goes to the
-    server log.
+    a bug, and the real error goes to the server log.
+
+    Database errors are the one exception to "generic 500": a schema older
+    than the code, or a DATABASE_URL that points somewhere unreachable, breaks
+    *every* endpoint at once. That happened — the whole app answered "Internal
+    server error" on every request, with no hint that the fix was
+    `alembic upgrade head`. Those two causes now answer 503 with a sentence a
+    shop owner can read; the diagnosis goes to the log and /healthcheck.
     """
-    import logging
     import traceback
 
+    from . import diagnostics
     from .redact import scrub_text
 
     logging.getLogger("coop").error(
         "Unhandled error on %s %s\n%s",
         request.method, request.url.path, scrub_text(traceback.format_exc()),
     )
+
+    if diagnostics.is_database_error(exc):
+        cause = diagnostics.classify_error(exc)
+        # The cause goes to the log (already written above); the client gets a
+        # sentence with no host, schema or stack detail in it.
+        logging.getLogger("coop").error("Database problem (%s): %s", cause,
+                                        diagnostics.explain(cause))
+        return JSONResponse(
+            status_code=503,
+            content={"detail": diagnostics.user_message(cause)},
+        )
+
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error."},
@@ -438,12 +481,33 @@ def _scoped(model):
 async def healthcheck(db: AsyncSession = Depends(get_db)) -> dict:
     """Liveness + database readiness (Task 12 polish).
 
-    Returns 200 when the API and its database are reachable, 503 otherwise.
+    200 only when the API *and* its database are usable: reachable, and with a
+    schema that matches the running code. The old version ran `SELECT 1`,
+    which passes against an empty or outdated database — so it reported
+    "healthy" while every real endpoint returned 500. It now asks the same
+    question a request asks, on the same connection.
+
+    This endpoint is public by design (the platform and CI poll it), so the
+    body carries a status and a cause code — never a host, a table name, a
+    migration name or a stack. `cause` is what makes it useful from a browser:
+    "unreachable" and "schema_behind" have different fixes, and the operator
+    detail for both is in the server log and scripts/check_db.py.
     """
-    try:
-        await db.execute(text("SELECT 1"))
-    except Exception:
-        raise HTTPException(status_code=503, detail="database unavailable")
+    from .diagnostics import database_report, user_message
+
+    report = await database_report(session=db)
+    if not report["reachable"]:
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "down", "database": "unreachable",
+                    "message": user_message("unreachable")},
+        )
+    if report["cause"] == "schema_behind":
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "down", "database": "schema_behind",
+                    "message": user_message("schema_behind")},
+        )
     return {"status": "healthy", "database": "up"}
 
 
