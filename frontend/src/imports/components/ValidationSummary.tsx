@@ -32,7 +32,7 @@ const ValidationSummary: React.FC<ValidationSummaryProps> = ({ validation }) => 
         borderRadius: radius.md,
         background:
           tone === 'bad' ? 'rgba(186,26,26,0.06)' : tone === 'warn' ? 'rgba(224,161,6,0.06)' : 'rgba(46,158,91,0.07)',
-        color: tone === 'bad' ? colors.error : tone === 'warn' ? colors.warning : colors.onSurfaceVariant,
+        color: tone === 'bad' ? colors.errorText : tone === 'warn' ? colors.warningText : colors.onSurfaceVariant,
       }}
     >
       <div style={{ ...type.sectionHeading, fontSize: 22, color: tone === 'bad' ? colors.error : colors.onSurface }}>

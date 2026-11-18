@@ -281,6 +281,11 @@ body .ant-table-thead > tr > td {
     display: none;
   }
 }
+/* Hidden by default; the <=768px rule below reveals it. Kept in CSS (not an
+   inline style) so the media query can win. */
+.coop-topbar-menu-btn {
+  display: none;
+}
 @media (max-width: 768px) {
   .coop-topbar-menu-btn {
     display: inline-flex;

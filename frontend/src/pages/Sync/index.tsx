@@ -111,7 +111,7 @@ const SyncPage: React.FC = () => {
       <div style={{ display: 'flex', gap: 12, marginBottom: spacing.lg, flexWrap: 'wrap' }}>
         {[
           { label: 'Pending upload', value: status.pending, tone: status.pending > 0 ? colors.primary : colors.outline },
-          { label: 'Need attention', value: status.conflicts, tone: status.conflicts > 0 ? colors.warning : colors.outline },
+          { label: 'Need attention', value: status.conflicts, tone: status.conflicts > 0 ? colors.warningText : colors.onSurfaceMuted },
         ].map((s) => (
           <div
             key={s.label}

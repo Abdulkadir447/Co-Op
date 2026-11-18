@@ -166,7 +166,7 @@ export function ResultStrip({ ok, text }: { ok: boolean; text: string }) {
         background: ok ? `rgba(46, 158, 91, 0.1)` : `rgba(186, 26, 26, 0.08)`,
         border: `1px solid ${ok ? 'rgba(46, 158, 91, 0.3)' : 'rgba(186, 26, 26, 0.25)'}`,
         ...type.bodyCompact,
-        color: ok ? colors.success : colors.error,
+        color: ok ? colors.successText : colors.errorText,
       }}
     >
       {ok ? <CheckCircleFilled /> : <CloseCircleFilled />}

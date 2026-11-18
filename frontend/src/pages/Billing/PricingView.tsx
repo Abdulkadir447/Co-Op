@@ -345,7 +345,7 @@ const ResultPanel: React.FC<{
           justifyContent: 'center',
           fontSize: 40,
           background: ok ? tint(colors.success, 0.2) : colors.errorContainer,
-          color: ok ? colors.success : colors.error,
+          color: ok ? colors.successText : colors.errorText,
           marginBottom: 24,
         }}
       >

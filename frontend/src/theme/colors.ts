@@ -79,6 +79,19 @@ export const colors = {
   onWarning: '#ffffff',
   info: '#2d8fd5', // "confirmed / shipped / processing" status
   onInfo: '#ffffff',
+
+  // --- Semantic TEXT variants ------------------------------------------------
+  // The hues above are tuned for fills, dots and glyphs (3:1 against a
+  // surface). As 12–14px text on a 10% tint of themselves they measure
+  // 2.1–3.1:1 and fail WCAG 1.4.3 (4.5:1). Use these for any text drawn in a
+  // semantic colour; keep the base hue for fills. Measured on a white card:
+  // successText 4.69:1, warningText 4.83:1, infoText 4.74:1, errorText 5.45:1.
+  successText: '#1c7a43',
+  warningText: '#8a6100',
+  infoText: '#1c6ea8',
+  errorText: '#ba1a1a',
+  /** Tertiary / caption text — 6.0:1 on the canvas (base `outline` is 4.29:1). */
+  onSurfaceMuted: '#5f5e6e',
 } as const;
 
 export type ColorToken = keyof typeof colors;

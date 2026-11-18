@@ -127,7 +127,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
               gap: 3,
               fontWeight: 700,
               fontSize: 12.5,
-              color: vsYesterday.change_percent >= 0 ? colors.success : colors.error,
+              color: vsYesterday.change_percent >= 0 ? colors.successText : colors.errorText,
             }}
           >
             {vsYesterday.change_percent >= 0 ? <RiseOutlined /> : <FallOutlined />}
@@ -146,7 +146,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
             gap: 8,
             ...type.bodyCompact,
             fontSize: 12.5,
-            color: s.notable_change.direction === 'up' ? colors.success : colors.error,
+            color: s.notable_change.direction === 'up' ? colors.successText : colors.errorText,
           }}
         >
           {s.notable_change.direction === 'up' ? <RiseOutlined /> : <FallOutlined />}
@@ -159,7 +159,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
           This month: <strong style={{ color: colors.onSurface, fontVariantNumeric: 'tabular-nums' }}>{money(mtd.revenue)}</strong>
           {mtd.change_percent !== null && mtd.previous_period_revenue !== null && (
-            <span style={{ color: mtd.change_percent >= 0 ? colors.success : colors.error, fontWeight: 600 }}>
+            <span style={{ color: mtd.change_percent >= 0 ? colors.successText : colors.errorText, fontWeight: 600 }}>
               ({mtd.change_percent > 0 ? '+' : ''}
               {mtd.change_percent.toFixed(0)}% vs {money(mtd.previous_period_revenue)} last month)
             </span>
@@ -194,7 +194,7 @@ const DailySummaryBody: React.FC<{ summary: DailySummary }> = ({ summary: s }) =
           )}
           {s.inventory.out_count > 0 && s.inventory.low_count > 0 && ' · '}
           {s.inventory.low_count > 0 && (
-            <span style={{ color: colors.warning, fontWeight: 600 }}>
+            <span style={{ color: colors.warningText, fontWeight: 600 }}>
               {s.inventory.low_count} low on stock
             </span>
           )}

@@ -210,7 +210,7 @@ const ConflictCard: React.FC<ConflictCardProps> = ({ conflict, productName, onRe
         </span>
         <span
           style={{
-            ...type.bodyCompact, fontSize: 11, fontWeight: 600, color: colors.warning,
+            ...type.bodyCompact, fontSize: 11, fontWeight: 600, color: colors.warningText,
             background: tint(colors.warning, 0.14), padding: '2px 8px', borderRadius: 9999,
           }}
         >
@@ -250,7 +250,7 @@ const ConflictCard: React.FC<ConflictCardProps> = ({ conflict, productName, onRe
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{actions}</div>
       )}
       {done && (
-        <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.success, fontWeight: 600 }}>{done}</div>
+        <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.successText, fontWeight: 600 }}>{done}</div>
       )}
       {error && !done && (
         <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.error, marginTop: 8 }}>{error}</div>

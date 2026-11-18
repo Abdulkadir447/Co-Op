@@ -54,7 +54,7 @@ const MappingTable: React.FC<MappingTableProps> = ({
         <strong style={{ color: colors.onSurface }}>{matched}</strong> of {suggestions.length} columns
         matched
         {needsReview > 0 ? (
-          <> — <strong style={{ color: colors.warning }}>{needsReview} need your review</strong></>
+          <> — <strong style={{ color: colors.warningText }}>{needsReview} need your review</strong></>
         ) : (
           ' ✓'
         )}

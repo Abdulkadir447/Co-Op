@@ -191,7 +191,7 @@ const ProductsPage: React.FC = () => {
       render: (_: unknown, p) => {
         const status = stockStatusOf(p.current_stock, p.reorder_level);
         const countColor =
-          status === 'out' ? colors.error : status === 'low' ? colors.warning : isDark ? colors.primaryContainer : colors.primary;
+          status === 'out' ? colors.errorText : status === 'low' ? colors.warningText : isDark ? colors.primaryContainer : colors.primary;
         return (
           <div>
             <div style={{ fontWeight: 700, color: countColor, fontVariantNumeric: 'tabular-nums' }}>

@@ -187,6 +187,27 @@ const SidebarContent: React.FC<RailContentProps> = ({ variant, onNavigate }) => 
 
 const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
   const { colors } = useCoopTheme();
+  const drawerRef = React.useRef<HTMLElement | null>(null);
+  const closeRef = React.useRef(onClose);
+  closeRef.current = onClose;
+
+  // Drawer keyboard contract: Escape closes it, focus moves to the first item
+  // on open and returns to whatever opened it on close. `open` is the only
+  // dependency — the parent re-creates `onClose` on every render, and
+  // re-running this effect would keep stealing focus back to the first item.
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const returnTo = document.activeElement as HTMLElement | null;
+    drawerRef.current?.querySelector<HTMLElement>('button, a[href]')?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeRef.current?.();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      returnTo?.focus?.();
+    };
+  }, [open]);
 
   return (
     <>
@@ -225,7 +246,13 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
         className="coop-sidebar-overlay"
       />
       <aside
-        aria-hidden={!open}
+        ref={drawerRef}
+        /*
+         * A translated panel keeps its buttons in the tab order, so the closed
+         * drawer was keyboard-reachable while `aria-hidden` told screen readers
+         * it was not (WCAG 4.1.2). `visibility: hidden` removes its subtree from
+         * both; the delayed visibility flip lets the slide-out finish first.
+         */
         style={{
           position: 'fixed',
           inset: `0 auto 0 0`,
@@ -236,7 +263,9 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
           borderRight: `1px solid ${colors.borderSubtle}`,
           padding: `${spacing.lg}px ${spacing.md}px`,
           transform: open ? 'translateX(0)' : 'translateX(-100%)',
-          transition: 'transform 300ms cubic-bezier(0.16, 1, 0.3, 1)',
+          visibility: open ? 'visible' : 'hidden',
+          pointerEvents: open ? 'auto' : 'none',
+          transition: `transform 300ms cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear ${open ? '0s' : '300ms'}`,
           display: 'block',
           boxShadow: open ? shadow.overlay : 'none',
         }}

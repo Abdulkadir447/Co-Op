@@ -311,7 +311,7 @@ const OrdersPage: React.FC = () => {
                             ...type.bodyCompact,
                             fontSize: 11,
                             fontWeight: 600,
-                            color: colors.warning,
+                            color: colors.warningText,
                             background: tint(colors.warning, 0.14),
                             padding: '2px 8px',
                             borderRadius: 9999,

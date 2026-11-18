@@ -604,7 +604,7 @@ const OrderDetailsPage: React.FC = () => {
                       borderTop: `1px solid ${colors.borderSubtle}`,
                       fontWeight: 700,
                       fontSize: 15,
-                      color: (order.balance_due ?? 0) > 0 ? colors.error : colors.success ?? colors.onSurface,
+                      color: (order.balance_due ?? 0) > 0 ? colors.errorText : colors.successText,
                     }}
                   >
                     <span>Balance due</span>

@@ -70,7 +70,7 @@ const ForecastCard: React.FC = () => {
             fontSize: 11.5,
             fontWeight: 600,
             background: tint(colors.warning, isDark ? 0.16 : 0.14),
-            color: isDark ? colors.warning : tint(colors.warning, 0.9),
+            color: colors.warningText,
           }}
         >
           <LineChartOutlined style={{ fontSize: 11 }} />
@@ -126,7 +126,7 @@ const ForecastCard: React.FC = () => {
                   gap: 4,
                   fontSize: 12.5,
                   fontWeight: 700,
-                  color: forecast.trend_percent >= 0 ? colors.success : colors.error,
+                  color: forecast.trend_percent >= 0 ? colors.successText : colors.errorText,
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
