@@ -17,3 +17,11 @@
 # declarations). Keep dependencies explicit.
 packages:
   - 'frontend'
+  # The marketing site is a workspace member so that ONE `pnpm install` at the
+  # repository root installs its dependencies too. It was left out at first,
+  # which broke the Vercel build: Vercel sees the root `pnpm-lock.yaml`, runs
+  # `pnpm install` there (installing only the root + frontend), then runs the
+  # site's `build` script in `website/` — where `node_modules` did not exist, so
+  # `tsc: command not found`. Being a member is also what lets the site import
+  # its design tokens straight out of `frontend/src/theme`, instead of a copy.
+  - 'website'
