@@ -74,11 +74,11 @@ const SyncPage: React.FC = () => {
   if (!local) {
     return (
       <div>
-        <PageHeader title="Sync" subtitle="Offline sync runs in the CO OP desktop app." onBack={() => navigate(-1)} backLabel="Back" />
+        <PageHeader title="Sync" subtitle="Offline sync runs in the Co-op desktop app." onBack={() => navigate(-1)} backLabel="Back" />
         <CoopCard>
           <CoopEmptyState
             title="Sync is a desktop-app feature"
-            description="The local mirror, the sync queue and conflict resolution live in the CO OP desktop app (Electron). In the browser, everything syncs directly with the cloud."
+            description="The local mirror, the sync queue and conflict resolution live in the Co-op desktop app (Electron). In the browser, everything syncs directly with the cloud."
           />
         </CoopCard>
       </div>

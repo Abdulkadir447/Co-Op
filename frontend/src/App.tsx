@@ -72,9 +72,9 @@ const SplashScreen: React.FC = () => {
       transition: 'background-color 300ms',
     }}
   >
-    <CoopMark size={64} title="CO OP" />
+    <CoopMark size={64} title="Co-op" />
     <div style={{ textAlign: 'center' }}>
-      <div style={{ ...type.sectionHeading, color: colors.primary, fontSize: 26, lineHeight: '34px' }}>CO OP</div>
+      <div style={{ ...type.sectionHeading, color: colors.primary, fontSize: 26, lineHeight: '34px' }}>Co-op</div>
       <div style={{ ...type.labelCaps, color: colors.onSurfaceVariant, marginTop: 2, letterSpacing: '0.1em' }}>
         Better business, together.
       </div>
@@ -147,7 +147,7 @@ const AuthPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {children}
       </div>
       <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.onSurfaceMuted }}>
-        © {year} CO OP SaaS. All rights reserved.
+        © {year} Co-op SaaS. All rights reserved.
       </div>
     </div>
   );

@@ -69,7 +69,7 @@ const PAGES = [
   { id: 'orders', name: 'Orders', blurb: 'Create, track and fulfil orders in one flow.' },
   { id: 'customers', name: 'Customers', blurb: 'Add, sort and search; see purchase history.' },
   { id: 'invoices', name: 'Invoices', blurb: 'Generate and export invoices as PDF.' },
-  { id: 'ai', name: 'CO OP AI', blurb: 'Ask Zeno to explain, forecast and draft.' },
+  { id: 'ai', name: 'Co-op AI', blurb: 'Ask Zeno to explain, forecast and draft.' },
 ];
 
 /** The tour is all-or-nothing: half a tour reads more broken than none. */
@@ -117,7 +117,7 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
 
 function WeaveMark({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label="CO OP">
+    <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label="Co-op">
       <defs>
         <linearGradient id="wmA" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#5b5fef" />
@@ -147,7 +147,7 @@ function WeaveMark({ size = 24 }: { size?: number }) {
 function Logo() {
   return (
     <a className="logo" href="#top">
-      <WeaveMark size={24} /> <span>CO OP</span>
+      <WeaveMark size={24} /> <span>Co-op</span>
     </a>
   );
 }
@@ -242,7 +242,7 @@ function Hero() {
             Run your whole business from <span className="grad">one calm place</span>
           </h1>
           <p className="lede">
-            CO OP brings inventory, orders, customers and invoicing together, plus an assistant
+            Co-op brings inventory, orders, customers and invoicing together, plus an assistant
             that explains your numbers and tells you what to do next. It keeps working when the
             internet doesn't.
           </p>
@@ -312,7 +312,7 @@ const FEATURES: Array<{ icon: IconName; title: string; body: string }> = [
   },
   {
     icon: 'ai',
-    title: 'CO OP AI',
+    title: 'Co-op AI',
     body: 'Reports, explanations, forecasts and recommended restocks — grounded in your real data.',
   },
   {
@@ -416,7 +416,7 @@ function Shot({ id, name }: { id: string; name: string }) {
   if (!video) {
     return (
       <div className="shot">
-        <img src={poster} alt={`The ${name} screen in CO OP`} className="shot-media" loading="lazy" />
+        <img src={poster} alt={`The ${name} screen in Co-op`} className="shot-media" loading="lazy" />
       </div>
     );
   }
@@ -516,7 +516,7 @@ function Pricing() {
           <h2 style={t.pageTitle}>Simple plans that scale with you</h2>
           <p className="muted" style={t.bodyDefault}>
             Every paid plan starts with a 10-day free trial. No card needed to begin — you only
-            pay if you decide to keep using CO OP.
+            pay if you decide to keep using Co-op.
           </p>
           <label
             style={{
@@ -559,7 +559,7 @@ const FAQ = [
   },
   {
     q: 'Which platforms?',
-    a: 'CO OP v1 is a Windows desktop app (Electron), with your data backed by the cloud.',
+    a: 'Co-op v1 is a Windows desktop app (Electron), with your data backed by the cloud.',
   },
   {
     q: 'Is my data safe?',
@@ -599,7 +599,7 @@ function FoundersVideo() {
           <span className="caps" style={caps}>
             From the founders
           </span>
-          <h2 style={t.pageTitle}>Why we built CO OP</h2>
+          <h2 style={t.pageTitle}>Why we built Co-op</h2>
         </div>
         <div className="video-frame">
           {FOUNDERS_EMBED ? (
@@ -709,7 +709,7 @@ function Footer() {
       <div className="container foot">
         <Logo />
         <p style={{ ...t.bodyCompact, margin: 0 }}>
-          © 2026 CO OP. The operating system for small businesses.
+          © 2026 Co-op. The operating system for small businesses.
         </p>
         <nav className="nav nav-footer" aria-label="Footer">
           <a href="#features">Features</a>

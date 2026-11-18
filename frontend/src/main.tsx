@@ -21,7 +21,7 @@ if (!clerkPublishableKey) {
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
-    {/* Stage 3: if Clerk cannot initialise, show the CO OP error state
+    {/* Stage 3: if Clerk cannot initialise, show the Co-op error state
         instead of a white screen. */}
     <ClerkErrorBoundary>
       <ClerkProvider publishableKey={clerkPublishableKey}>

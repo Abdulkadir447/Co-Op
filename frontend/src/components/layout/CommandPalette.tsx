@@ -423,7 +423,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose }) => {
           <span>↵ Open</span>
           <span>Esc Close</span>
           <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <CoopMark size={14} /> Powered by CO OP
+            <CoopMark size={14} /> Powered by Co-op
           </span>
         </div>
       </div>

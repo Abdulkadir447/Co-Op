@@ -385,7 +385,7 @@ body .ant-table-thead > tr > td {
   }
 }
 
-/* --- CO OP loader (equalizer bars) --------------------------------------- */
+/* --- Co-op loader (equalizer bars) --------------------------------------- */
 /* Reusable in-app loader. Color is themed via --loader-color (set by the
    CoopLoader component); falls back to the brand indigo. */
 .loader {

@@ -121,7 +121,7 @@ const AppShell: React.FC<AppShellProps> = ({ children, user, onSignOut }) => {
   // Window/title area: "<Module> · Co-op" follows the active route.
   useEffect(() => {
     const active = [...NAV_ITEMS, ...NAV_SECONDARY].find((i) => i.path === location.pathname);
-    document.title = active ? `${active.label} · CO OP` : 'CO OP';
+    document.title = active ? `${active.label} · Co-op` : 'Co-op';
   }, [location.pathname]);
 
   // Route changes are silent to assistive tech: the URL changes, the screen

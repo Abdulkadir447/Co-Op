@@ -19,6 +19,7 @@ import assert from 'node:assert';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { colors } from '../src/theme/colors';
+import { type } from '../src/theme/typography';
 import { darkColors } from '../src/theme/dark';
 
 // Compiled to CommonJS by `npm test`, so use __dirname rather than
@@ -101,6 +102,29 @@ test('semantic TEXT tokens clear 4.5:1 on the surfaces they are drawn on', () =>
     .map((p) => `${p.label} = ${p.ratio.toFixed(2)}:1 (needs 4.5:1)`);
 
   assert.deepStrictEqual(failures, [], `Contrast regressions:\n${failures.join('\n')}`);
+});
+
+test('every type token carries a px line-height that fits its font size (A14)', () => {
+  // A type scale whose line-heights live as fixed px is only safe if a test
+  // ties them to the size: a previous bug turned `lineHeight: 20` (unitless =
+  // 20x the font size) into a 260px line box. Body copy needs 1.4x or more to
+  // be readable; display sizes are deliberately tighter (32/40 = 1.25), and
+  // the dense table step is 18/13 = 1.38 on purpose.
+  const problems: string[] = [];
+  for (const [name, style] of Object.entries(type)) {
+    if (!/^\d+(?:\.\d+)?px$/.test(style.lineHeight)) {
+      problems.push(`${name}.lineHeight = ${style.lineHeight} — must be a px string, not a multiplier`);
+      continue;
+    }
+    const ratio = parseFloat(style.lineHeight) / style.fontSize;
+    const floor = /^body(Default|Compact)$/.test(name) ? 1.4 : 1.15;
+    if (ratio < floor) {
+      problems.push(
+        `${name}: ${style.fontSize}px / ${style.lineHeight} = ${ratio.toFixed(2)} (needs ${floor})`,
+      );
+    }
+  }
+  assert.deepStrictEqual(problems, [], `Type-scale regressions:\n${problems.join('\n')}`);
 });
 
 test('every theme exposes the same token names (light/dark cannot drift)', () => {

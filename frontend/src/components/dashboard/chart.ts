@@ -1,5 +1,5 @@
 /**
- * ApexCharts bootstrap for CO OP.
+ * ApexCharts bootstrap for Co-op.
  *
  * We import the FULL `react-apexcharts` bundle so every chart type
  * (line, area, bar, column, pie, donut) is registered against a single

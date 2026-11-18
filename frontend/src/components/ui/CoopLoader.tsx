@@ -1,5 +1,5 @@
 /**
- * CO OP loader — the equalizer-bar spinner used for every in-app loading
+ * Co-op loader — the equalizer-bar spinner used for every in-app loading
  * state (route changes, splash, auth resolution) so the app feels consistent
  * with the boot loader. Themed via the active palette's primary color.
  */

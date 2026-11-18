@@ -76,7 +76,7 @@ export const CoopLogo: React.FC<CoopLogoProps> = ({ size = 32, iconOnly = false,
   const { colors } = useCoopTheme();
   return (
     <span className={className} style={{ display: 'inline-flex', alignItems: 'center', gap: Math.max(8, size * 0.26) }}>
-      <CoopMark size={size} title="CO OP" />
+      <CoopMark size={size} title="Co-op" />
       {!iconOnly && (
         <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1, minWidth: 0 }}>
           <span
@@ -88,7 +88,7 @@ export const CoopLogo: React.FC<CoopLogoProps> = ({ size = 32, iconOnly = false,
               whiteSpace: 'nowrap',
             }}
           >
-            CO OP
+            Co-op
           </span>
           {subtitle && (
             <span
