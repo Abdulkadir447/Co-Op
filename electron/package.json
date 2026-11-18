@@ -12,7 +12,9 @@
     "build:renderer": "npm --prefix ../frontend run build && node scripts/copy-renderer.js",
     "pack": "npm run build:renderer && electron-builder --dir",
     "dist": "npm run build:renderer && electron-builder --publish never",
-    "release": "npm run build:renderer && node scripts/release.js"
+    "release": "npm run build:renderer && electron-builder --publish always",
+    "pretest": "node scripts/check-node.js",
+    "prestart": "node scripts/check-node.js"
   },
   "devDependencies": {
     "electron": "33.4.11",

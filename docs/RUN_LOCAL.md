@@ -11,9 +11,92 @@ Everything below is the exact command CI runs (`.github/workflows/ci.yml`), so
 | Tool | Version | Notes |
 |---|---|---|
 | Python | 3.11 | `python3 -m venv` + `pip` |
-| Node | 22 | |
-| pnpm | 9 | `corepack enable` (reads nothing here) or `npm i -g pnpm@9` |
-| C++ toolchain | — | Not normally needed. Only if your Node has no `better-sqlite3` prebuild (Node 24+); use Node 22 LTS instead and skip it entirely. See §3. |
+| Node | **22 (18–23)** | **Node 24 breaks the desktop install.** `better-sqlite3` publishes no prebuild for ABI 137, so npm falls back to compiling and demands Visual Studio. `.nvmrc` pins 22.20.0 — run `nvm use` in the repo root. See §3. |
+| pnpm | 9 | `corepack enable` (needs admin on Windows — see §1a) or `npm i -g pnpm@9` |
+| C++ toolchain | — | Not needed on Node 22. Only required if you insist on Node 24. |
+
+### 1a. Windows: three errors that look fatal and are not
+
+If you follow the commands literally you will hit these. Only the second is real.
+
+**1. `python -m venv` — "Unable to copy … venvlauncher.exe to .venv\Scripts\python.exe"**
+
+Harmless. It means `.venv` already existed (or antivirus locked the file for a
+second); Python still finished creating the environment, which is why the very
+next `pip install` line worked. Verify, and if `python.exe` is genuinely
+missing, recreate it cleanly:
+
+```powershell
+Test-Path .venv\Scripts\python.exe          # True = you can ignore the error
+# only if False:
+Remove-Item -Recurse -Force .venv
+python -m venv .venv
+```
+
+Use `python`, not the Windows Store alias, or `py -3.11`. Do not run this while
+`.venv` is active in a shell with the interpreter in use.
+
+**2. `cd electron; npm ci` — a wall of node-gyp / Visual Studio errors**
+
+This one is real, and its cause is **your Node version, not a missing compiler**.
+`better-sqlite3` has prebuilt binaries for Node 18/20/22/23 only. On Node 24
+(ABI 137) npm silently falls back to compiling from source, which needs the
+"Desktop development with C++" workload. Two ways out, in order of preference:
+
+```powershell
+nvm install 22.20.0
+nvm use 22.20.0
+node -p "process.versions.modules"     # must print 127
+Remove-Item -Recurse -Force electron\node_modules   # drop stale artefacts
+cd electron; npm ci; cd ..
+```
+
+If you cannot change Node, install the desktop dependencies without building
+them. Packaging still works — electron-builder fetches the Electron-ABI prebuild
+itself — but `npm start` (dev mode) will not:
+
+```powershell
+cd electron; npm ci --ignore-scripts; cd ..
+```
+
+`electron/.npmrc` now sets `engine-strict=true`, so on Node 24 npm refuses
+immediately with `EBADENGINE` instead of downloading 200 packages and then
+failing. (The old `scripts/check-node.js` could not catch this: npm runs a root
+`preinstall` *after* the dependency tree is built, so `better-sqlite3` had
+already failed by the time it ran. It is still wired to `npm test` / `npm start`
+for its long-form advice.)
+
+**3. `corepack enable` — "EPERM: operation not permitted, open 'C:\Program Files\nodejs\pnpm.CMD'"**
+
+`corepack enable` writes shims into the Node install directory, which needs
+Administrator on Windows. Three ways out:
+
+```powershell
+# a) no admin: install pnpm as a global npm package instead
+npm i -g pnpm@9.15.9
+
+# b) no admin, keep corepack: put the shims in your own profile
+corepack enable --install-directory "$env:LOCALAPPDATA\node\corepack"
+#    then add that folder to PATH
+
+# c) one elevated PowerShell, once
+Start-Process powershell -Verb RunAs -ArgumentList 'corepack enable'
+```
+
+`corepack prepare pnpm@9.15.9 --activate` still works without admin — only
+`enable` (writing the shims) refuses.
+
+**Two more Windows notes from a real run:**
+
+- `pnpm install` may ask *"The modules directory will be removed and reinstalled
+  from scratch. Proceed?"* when `node_modules` was created by npm. Answering yes
+  is fine; to skip the prompt: `pnpm install --frozen-lockfile --config.confirmModulesPurge=false`.
+- A full cold `pnpm install` took **22 minutes** on a home connection. That is
+  normal, not a hang. `--frozen-lockfile` is doing what it should.
+- `website/` is optional. `npm install` there reports 2 high-severity advisories
+  from the Vite toolchain and a `allow-scripts` warning about esbuild; neither
+  affects the app, and no CI job builds the website. Skip it unless you are
+  editing the marketing site.
 
 ### On Windows (PowerShell)
 
@@ -118,6 +201,15 @@ Two ways to point the backend at a database (`backend/config.py database_url`):
 There is one `.env` for the whole repo (`vite envDir: '..'`). Do **not** create
 `frontend/.env` or `backend/.env`.
 
+`VITE_CLERK_PUBLISHABLE_KEY` is a **build-time** requirement, not just a runtime
+one: Vite pastes the value into the bundle as a literal, so a build without it
+used to compile an app whose first line throws — every screen was tree-shaken
+away and you got a blank page with no error. The build now stops with
+`VITE_CLERK_PUBLISHABLE_KEY is missing, so the build would produce a blank
+screen`. Fix: put `VITE_CLERK_PUBLISHABLE_KEY=pk_test_...` in the root `.env`,
+or pass it for a single command (`$env:VITE_CLERK_PUBLISHABLE_KEY="pk_test_..."`
+on Windows, `VITE_CLERK_PUBLISHABLE_KEY=pk_test_... pnpm build` on macOS/Linux).
+
 ## 3. Install
 
 ```sh
@@ -138,8 +230,9 @@ pnpm install --frozen-lockfile
 # for those ABIs; on Node 24+ npm tries to compile it and fails with
 # "Could not find any Visual Studio installation to use". That message is
 # misleading — it is an ABI problem, not a missing compiler. Use Node 22 LTS
-# and no C++ toolchain is needed. scripts/check-node.js blocks the install
-# early with that explanation.
+# (.nvmrc pins 22.20.0: `nvm use`) and no C++ toolchain is needed.
+# electron/.npmrc sets engine-strict=true, so Node 24 now stops immediately
+# with EBADENGINE instead of after 200 downloads. See §1a.
 #
 # Stuck on Node 24 and cannot install another Node? Use:
 #     cd electron && npm ci --ignore-scripts && cd ..
