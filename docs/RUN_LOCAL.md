@@ -162,6 +162,35 @@ $env:DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.
 .venv\Scripts\python -m alembic upgrade head
 ```
 
+#### "Every screen says Internal server error"
+
+This actually happened on the `CoOp` Supabase project (ref
+`clowtikdlkyjxopksash`): `alembic_version` was `0021_tax` while the code was at
+`0027_exact_money`, so `branches`, `devices` and `zeno_lessons` did not exist.
+The tenant lookup in `get_current_business` resolves a branch on **every**
+authenticated request, so *every* endpoint 500'd at once — the dashboard, the
+products list, `/auth/me` — and the app showed "We can't sign you in yet /
+Internal server error". Nothing in the browser pointed at the database.
+
+Diagnose it in one command:
+
+```powershell
+.venv\Scripts\python scripts\check_db.py    # 0 ready | 1 schema behind | 2 unreachable
+```
+
+It prints the missing tables and columns, and the fix. The same check runs at
+startup (the diagnosis goes to the backend log) and at
+`GET /healthcheck`, which now returns 503 with
+`{"database": "schema_behind"}` instead of a false "healthy". After that,
+`alembic upgrade head` — applied and verified on the project above, which now
+matches the ORM exactly (26 tables, 333 columns) and is at `0027_exact_money`.
+
+A second, unrelated failure on the same project at the same time: Supabase
+reported **every** service except the pooler `UNHEALTHY` and SQL queries timed
+out with "Connection terminated due to connection timeout". That is their
+infrastructure, not this repo — the fix is to wait, or to restart the project
+from the Supabase dashboard. `/healthcheck` says `unreachable` for that case.
+
 The Supabase SQL snapshot in `supabase/migrations/` is generated output; it was
 updated by hand for `0025`–`0027` because the build has no `pg_dump`. On a
 machine that has `pg_dump` and a reachable database, regenerate it and diff:
