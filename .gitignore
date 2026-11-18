@@ -63,3 +63,15 @@ stress-report.json
 
 # website build output
 website/dist/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk
+*.aab
+*.ap_
+*.dex
+

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Debug builds permit HTTP to local dev hosts and LAN IPs (e.g. Windows backend + Android Emulator/device) -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
