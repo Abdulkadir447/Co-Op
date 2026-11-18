@@ -55,20 +55,29 @@ async def main() -> int:
 
         url = database_url()
     except Exception as exc:  # noqa: BLE001 — the whole point is to explain it
-        _print_ascii(f"DATABASE_URL      : NOT USABLE — {exc}")
+        # backend.config.validate_database_url already says what is wrong and
+        # what to write instead; print it verbatim rather than wrapping it.
+        _print_ascii("DATABASE_URL      : NOT USABLE")
         _print_ascii("")
-        _print_ascii("Fix: set DATABASE_URL in the repo-root .env, e.g.")
+        for line in str(exc).splitlines():
+            _print_ascii(f"  {line}" if not line.startswith("  ") else line)
+        _print_ascii("")
+        _print_ascii("Where these values come from:")
+        _print_ascii("  DATABASE_URL    Supabase -> Project Settings -> Database")
+        _print_ascii("                  -> Connection string -> URI (not the Project URL)")
+        _print_ascii("  SUPABASE_URL    the https://<ref>.supabase.co address (Storage)")
+        _print_ascii("")
         _print_ascii(
-            "  DATABASE_URL=postgresql://postgres.<ref>:<password>"
-            "@aws-0-<region>.pooler.supabase.com:5432/postgres"
-        )
-        _print_ascii(
-            "  (testing only: COOP_ENV=testing uses a local SQLite file instead)"
+            "Testing only: COOP_ENV=testing ignores DATABASE_URL and uses the "
+            "local file ./coop_test.db."
         )
         return 2
 
     _print_ascii(f"DATABASE_URL      : {_redact_url(url)}")
-    kind = "Postgres" if url.startswith("postgres") else "SQLite"
+    scheme = url.split("://", 1)[0].split("+", 1)[0]
+    kind = {"postgresql": "Postgres", "postgres": "Postgres", "sqlite": "SQLite"}.get(
+        scheme, scheme
+    )
     _print_ascii(f"Engine            : {kind}")
 
     # -- 2. reachability + schema ------------------------------------------
@@ -161,7 +170,13 @@ async def reset_testing_db() -> int:
     from backend.config import database_url
 
     env = os.getenv("COOP_ENV", "development")
-    url = database_url()
+    try:
+        url = database_url()
+    except Exception as exc:  # noqa: BLE001
+        _print_ascii("DATABASE_URL is not usable, so there is nothing to reset:")
+        for line in str(exc).splitlines():
+            _print_ascii(f"  {line}" if not line.startswith("  ") else line)
+        return 2
     if env != "testing":
         _print_ascii(f"COOP_ENV is {env!r}, not 'testing' — refusing to delete anything.")
         return 2

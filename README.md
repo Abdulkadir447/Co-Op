@@ -241,7 +241,7 @@ Copy `.env.example` to `.env` and fill in real values. The important ones:
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `VITE_CLERK_PUBLISHABLE_KEY` | frontend | Clerk publishable key (baked at build/dev time) |
-| `DATABASE_URL` (or `SUPABASE_DB_URL`) | backend (prod + dev) | Supabase/Postgres connection string |
+| `DATABASE_URL` (or `SUPABASE_DB_URL`) | backend (prod + dev) | Supabase/Postgres **connection string** (`postgresql://postgres.<ref>:…@aws-0-<region>.pooler.supabase.com:5432/postgres`). **Not** the `https://<ref>.supabase.co` project URL — that is `SUPABASE_URL`, and the app rejects it with an explanation |
 | `CLERK_FRONTEND_API` | backend (prod) | Clerk Frontend API host used to verify session tokens |
 | `CLERK_ALLOWED_ORIGINS` | optional | Comma-separated `azp` allow-list |
 | `CORS_ORIGINS` | required in prod | Comma-separated CORS allow-list. Development/testing default to `*`; **production refuses to start** if neither this nor `cors.origins` in `config/production.json` is set |

@@ -185,6 +185,25 @@ startup (the diagnosis goes to the backend log) and at
 `alembic upgrade head` — applied and verified on the project above, which now
 matches the ORM exactly (26 tables, 333 columns) and is at `0027_exact_money`.
 
+**Two values that look alike and are not.** Supabase shows a *project URL*
+(`https://<ref>.supabase.co`) and a *database connection string*
+(`postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`)
+next to each other. Only the second goes in `DATABASE_URL`; the first is
+`SUPABASE_URL` (used for logo storage). Pasting the project URL produced
+`Can't load plugin: sqlalchemy.dialects:https`, which names neither the
+variable nor the fix. `DATABASE_URL` is now validated at startup and says:
+
+```
+DATABASE_URL is a web address (https://...), not a database connection string.
+That value belongs in SUPABASE_URL.
+Use the Postgres string from Supabase (Project Settings -> Database ->
+Connection string -> URI), which looks like:
+  postgresql://postgres.<your-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+The same check runs in `scripts/check_db.py`, so it is the first thing you see
+there too.
+
 **The same wall of "missing column" errors on your own machine has a different
 cause.** If you started the backend with `COOP_ENV=testing`, you are on a local
 SQLite file (`./coop_test.db`), not on Supabase — and that file was probably
