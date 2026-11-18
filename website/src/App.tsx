@@ -11,11 +11,43 @@ const caps = { ...t.labelCaps, textTransform: 'uppercase' as const };
 // shows a placeholder, a code path or a dead link: a section whose
 // configuration is missing is not rendered at all.
 
-const CONTACT = {
-  email: '', // e.g. 'hello@coop.ng'
-  phone: '',
-  whatsapp: '', // digits only, with country code: '2348012345678'
+/**
+ * The site's own address, used for canonical, og:url and og:image.
+ *
+ * TEMPORARY — this is a placeholder, not a claim. `coop.example` uses the
+ * `.example` TLD, which RFC 2606 reserves so that it can never be registered
+ * or resolve; a fake-but-plausible domain (coop.ng, coop-website.vercel.app)
+ * would be either someone else's or a link that 404s. When the real
+ * deployment exists, change this one line and public/og.png's social preview
+ * starts pointing at the right place.
+ *
+ * See README "Temporary placeholders" for the full list and how to clear it.
+ */
+const SITE = {
+  url: 'https://coop.example',
 };
+
+/**
+ * Contact details — TEMPORARY PLACEHOLDERS.
+ *
+ * Deliberately obvious: `coop.example` cannot receive mail, `+234 800 000
+ * 0000` is not a routable Nigerian number, and the WhatsApp link therefore
+ * goes nowhere. That is the point — a visitor who tries them learns the site
+ * is not live yet, instead of landing in a stranger's inbox.
+ *
+ * Replace all three before launch; see README "Temporary placeholders".
+ */
+const CONTACT = {
+  email: 'hello@coop.example',
+  phone: '+234 800 000 0000',
+  whatsapp: '2348000000000', // digits only, with country code
+};
+
+/** True while any contact detail is still the placeholder above. */
+const CONTACT_IS_PLACEHOLDER =
+  CONTACT.email.endsWith('.example') ||
+  CONTACT.whatsapp.startsWith('234800') ||
+  CONTACT.phone.replace(/[^0-9]/g, '') === '2348000000000';
 
 /** Founders story: paste a YouTube/Vimeo embed URL here. */
 const FOUNDERS_EMBED = '';
@@ -638,6 +670,25 @@ function Contact() {
           <p className="muted" style={t.bodyDefault}>
             Questions about plans, onboarding or moving your data across? Reach us any time.
           </p>
+          {CONTACT_IS_PLACEHOLDER && (
+            /* Shown only while the details above are the shipped placeholder.
+               It disappears the moment a real address is filled in — no flag to
+               remember to flip. */
+            <p
+              style={{
+                ...t.bodyCompact,
+                margin: '12px 0 0',
+                padding: '10px 14px',
+                borderRadius: 10,
+                background: 'rgba(138, 97, 0, 0.10)',
+                color: '#8a6100',
+                display: 'inline-block',
+              }}
+            >
+              <strong>Not live yet:</strong> these details are placeholders. Use the
+              GitHub issues link in the footer until they are replaced.
+            </p>
+          )}
         </div>
         <div className="contact-grid">
           {CONTACT.email && (
@@ -710,6 +761,15 @@ function Footer() {
         <Logo />
         <p style={{ ...t.bodyCompact, margin: 0 }}>
           © 2026 Co-op. The operating system for small businesses.
+          {/* Rendered from SITE.url so the placeholder host has one source in
+              the app code and one in index.html, and a reviewer can see it.
+              Remove this line (and the constant) when the real domain exists. */}
+          {SITE.url.endsWith('.example') && (
+            <span style={{ display: 'block', marginTop: 6, opacity: 0.75 }}>
+              Preview build — the public address in this page's share links is a
+              placeholder until launch.
+            </span>
+          )}
         </p>
         <nav className="nav nav-footer" aria-label="Footer">
           <a href="#features">Features</a>

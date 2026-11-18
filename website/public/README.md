@@ -3,9 +3,11 @@
 Only two things belong here:
 
 - `logo.png` — the favicon and apple-touch-icon, referenced as `/logo.png`.
-- `og.png` *(not yet added)* — the 1200×630 social preview image. Add it together
-  with the `og:url` / `og:image` tags in `index.html` once the production domain
-  is fixed; both tags need an absolute URL.
+- `og.png` — the 1200×630 social preview image (WhatsApp, Twitter/X, LinkedIn).
+  Regenerate it after a rename or a palette change with the script kept in
+  `scripts/make_og.py`. The tags that point at it are in `index.html` and use a
+  placeholder host until the real domain exists — see the README section
+  "Temporary placeholders".
 
 **Product screenshots and videos no longer live here.** They are imported as
 modules from `src/assets/` so the site can tell at build time whether they

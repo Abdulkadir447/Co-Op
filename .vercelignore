@@ -1,0 +1,40 @@
+# Vercel builds the marketing site only (website/). Everything below is either
+# large, irrelevant to that build, or a secret.
+#
+# Without this file the uploader sends the whole repository — including
+# node_modules trees and the Electron app — on every deploy.
+
+# Dependency and build output
+node_modules/
+**/node_modules/
+frontend/dist/
+website/dist/
+electron/dist/
+electron/out/
+release/
+*.tsbuildinfo
+
+# The app, the desktop shell and the API are not part of this deployment
+electron/
+backend/
+frontend/src/
+frontend/Dockerfile
+frontend/nginx.conf
+supabase/
+.github/
+
+# Environments, keys and local databases
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+*.db
+.venv/
+venv/
+
+# Docs, skills and agent definitions: not needed to render a marketing page
+.claude/
+.agents/
+docs/
+*.md

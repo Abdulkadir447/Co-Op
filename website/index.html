@@ -12,17 +12,25 @@
 
     <!-- Sharing. WhatsApp is the primary channel in this market, and without
          these every shared link renders as a bare URL.
-         Deliberately missing: canonical, og:url and og:image. All three need a
-         real absolute production URL, and inventing one would put a wrong
-         domain (or a broken preview image) in front of every shared link.
-         Add them together with public/og.png once the domain is fixed. -->
+         The absolute URL is PLACEHOLDER_HOST, not the production domain — see
+         README "Temporary placeholders". `coop.example` is reserved by RFC 2606
+         so it can never point at somebody else's server by accident. Swap the
+         host here and `SITE.url` in src/App.tsx when the real one exists. -->
+    <link rel="canonical" href="https://coop.example/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Co-op" />
+    <meta property="og:url" content="https://coop.example/" />
     <meta property="og:title" content="Co-op — run your whole business from one calm place" />
     <meta property="og:description" content="Inventory, orders, customers and invoicing in one offline-first desktop app, with an assistant that explains your numbers. Built for Nigerian retail." />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="https://coop.example/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Co-op — inventory, orders, customers and invoicing in one desktop app for Nigerian retail." />
+    <meta property="og:locale" content="en_NG" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Co-op — run your whole business from one calm place" />
     <meta name="twitter:description" content="Inventory, orders, customers and invoicing in one offline-first desktop app. Built for Nigerian retail." />
+    <meta name="twitter:image" content="https://coop.example/og.png" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <meta name="theme-color" content="#4143d5" />

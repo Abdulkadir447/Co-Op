@@ -170,6 +170,33 @@ electron/   Optional Electron desktop wrapper
 Documents/  Product documentation (PRD, TRD, BSD, AFD, IPD, UXDS chapters)
 ```
 
+## Temporary placeholders (read before showing the site to anyone)
+
+The marketing site is wired and deployable, but three things in it are
+**deliberately fake** and must be replaced before launch. They are fake in a
+way that *cannot* be mistaken for real: the domain uses `.example`, which
+RFC 2606 reserves so it can never be registered or resolve, and the phone
+numbers are not routable. Nothing here points at a real stranger's inbox.
+
+| What | Value shipped now | Where | Replace with | Effect of leaving it |
+| --- | --- | --- | --- | --- |
+| Site URL (canonical, `og:url`, `og:image`) | `https://coop.example` | `website/index.html` (5 tags) and `SITE.url` in `website/src/App.tsx` | The real https domain | WhatsApp previews still work (the image renders) but its link points nowhere |
+| Support email | `hello@coop.example` | `CONTACT.email` in `website/src/App.tsx` | A monitored inbox | Mail bounces |
+| Phone / WhatsApp | `+234 800 000 0000` / `2348000000000` | `CONTACT.phone`, `CONTACT.whatsapp` | A real number | The WhatsApp link opens an empty chat with nobody |
+
+While these values are in place the site says so out loud: the contact cards
+carry a "Not live yet" note and the footer carries "Preview build — the public
+address in this page's share links is a placeholder until launch." Both
+appear automatically while the placeholder values are present, so replacing
+the values above is the only edit needed — there is no flag to remember to
+remove.
+
+Two further assets are still missing on purpose: the product tour needs real
+screenshots (drop 1600×1000 PNGs into `website/src/assets/screenshots/`, named
+`dashboard`, `products`, `inventory`, `orders`, `customers`, `reports`,
+`ai`), and the founders section needs either `website/src/assets/videos/founders.mp4`
+or a `FOUNDERS_EMBED` URL. Sections whose assets are absent are not rendered.
+
 ## Prerequisites
 
 - Node.js **>= 22**, Python **3.11+**
@@ -287,6 +314,19 @@ Auth        /auth/me  /business/settings  /healthcheck
 ```
 
 ## Database migrations (Supabase/Postgres)
+
+**If every screen is failing with a 500 or "Internal server error", run this
+first** — it is the answer to that symptom about 90% of the time:
+
+```bash
+python scripts/check_db.py     # 0 = ready, 1 = schema behind, 2 = unreachable
+```
+
+It reports whether the database is reachable, which tables and columns the
+code expects but the database does not have, and what to run. The backend now
+does the same check at startup (it logs the diagnosis) and at
+`GET /healthcheck`, which returns 503 with `database: "schema_behind"` or
+`database: "unreachable"` instead of a bare "healthy".
 
 Migrations live in `backend/alembic/` (baseline → import provenance →
 `source_order_ref` → `ai_usage` → `subscriptions`) and are applied with
