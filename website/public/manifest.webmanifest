@@ -1,0 +1,14 @@
+{
+  "name": "Co-op — run your whole business from one place",
+  "short_name": "Co-op",
+  "description": "Inventory, orders, customers and invoicing in one calm app for Nigerian retail.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fcf8ff",
+  "theme_color": "#4143d5",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

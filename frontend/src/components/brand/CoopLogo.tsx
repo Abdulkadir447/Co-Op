@@ -2,23 +2,42 @@ import React from 'react';
 import { useCoopTheme } from '../../theme-provider';
 
 /**
- * Co-op brand mark — "two partners, one spark".
+ * Co-op brand mark — "the C that holds the shop".
  *
- * Two overlapping rounded squares (cooperation), a deeper shared overlap
- * (the common ground), and a four-point spark at the center (intelligence).
- * Built from the design system's purple family so it feels native in both
- * light and dark modes. Inline SVG = crisp at any size, themeable,
- * accessible.
+ * One shape does the work: the C is the product name, and it wraps a crate —
+ * stock, the trader's goods — the way the software wraps a business. The
+ * crate's gradient runs against the ring's so the two read as two objects, and
+ * the ring stays open on the right so the mark never looks like a © or a
+ * padlock at 16px (both were tried and both did).
+ *
+ * Why it replaced the old three-petal "weave": that mark was three abstract
+ * blobs with a white spark, and at the sizes it actually appears — 16px
+ * favicon, 30px in the top bar, 40px in the rail — it collapsed into a flower
+ * shape that told a shopkeeper nothing about what the software does.
+ *
+ * Source of truth: brand/coop-mark.svg (this is that file as a component).
+ * Geometry: ring centre 24,24 r14.2 stroke 6.8; crate 15.2×13.6 r4.8.
+ * Colours are the design system's AI gradient, hard-coded on purpose — a
+ * logo is a fixed asset, not a themed surface, and `useId` keeps the two
+ * gradients unique when the mark renders more than once on a page.
  */
 export interface CoopMarkProps {
   size?: number;
   className?: string;
-  /** Accessible label (default describes the mark). */
+  /** Accessible label (default: the mark is decorative). */
   title?: string;
+  /** Force a single colour (print, one-colour surfaces, watermarks). */
+  color?: string;
 }
 
-export const CoopMark: React.FC<CoopMarkProps> = ({ size = 32, className, title }) => {
+export const CoopMark: React.FC<CoopMarkProps> = ({ size = 32, className, title, color }) => {
   const id = React.useId();
+  const ring = color ?? `url(#${id}-ring)`;
+  const crate = color ?? `url(#${id}-crate)`;
+  // The crate is knocked out of the ring by a gap so the two shapes stay
+  // separate when they share a colour. In full colour the gradients already
+  // separate them, so the mask is only needed for the single-colour version.
+  const gapMask = color ? `${id}-gap` : undefined;
   return (
     <svg
       width={size}
@@ -31,28 +50,30 @@ export const CoopMark: React.FC<CoopMarkProps> = ({ size = 32, className, title 
       focusable="false"
     >
       <defs>
-        <linearGradient id={`${id}-a`} x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={`${id}-ring`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#5b5fef" />
-          <stop offset="1" stopColor="#4143d5" />
+          <stop offset="1" stopColor="#8a4cfc" />
         </linearGradient>
-        <linearGradient id={`${id}-b`} x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={`${id}-crate`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#8a4cfc" />
-          <stop offset="1" stopColor="#712ae2" />
+          <stop offset="1" stopColor="#5b5fef" />
         </linearGradient>
-        <linearGradient id={`${id}-c`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#c0c1ff" />
-          <stop offset="1" stopColor="#8a8df5" />
-        </linearGradient>
+        {gapMask && (
+          <mask id={gapMask}>
+            <rect width="48" height="48" fill="#fff" />
+            <rect x="18.2" y="14" width="21.6" height="20" rx="7.4" fill="#000" />
+          </mask>
+        )}
       </defs>
-      {/* Weave: three overlapping rounded petals, transparent background. */}
-      <rect x="14" y="5" width="20" height="21" rx="9" fill={`url(#${id}-a)`} />
-      <rect x="6" y="19" width="20" height="21" rx="9" fill={`url(#${id}-b)`} opacity="0.94" />
-      <rect x="22" y="19" width="20" height="21" rx="9" fill={`url(#${id}-c)`} opacity="0.9" />
       <path
-        d="M24 17 Q26.6 22.4 30.5 25 Q26.6 27.6 24 33 Q21.4 27.6 17.5 25 Q21.4 22.4 24 17 Z"
-        fill="#ffffff"
-        opacity="0.96"
+        d="M33.4 13.2 A14.2 14.2 0 1 0 33.4 34.8"
+        fill="none"
+        stroke={ring}
+        strokeWidth="6.8"
+        strokeLinecap="round"
+        mask={gapMask ? `url(#${gapMask})` : undefined}
       />
+      <rect x="21.4" y="17.2" width="15.2" height="13.6" rx="4.8" fill={crate} />
     </svg>
   );
 };

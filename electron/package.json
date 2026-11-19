@@ -50,6 +50,7 @@
       "db/**/*",
       "renderer-dist/**/*",
       "coop-icon.png",
+      "coop-icon.ico",
       "package.json"
     ],
     "asar": true,
@@ -74,7 +75,7 @@
           ]
         }
       ],
-      "icon": "coop-icon.png",
+      "icon": "coop-icon.ico",
       "artifactName": "${productName}-${version}-setup.${ext}"
     },
     "nsis": {

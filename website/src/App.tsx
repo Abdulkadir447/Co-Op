@@ -147,31 +147,33 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   );
 }
 
-function WeaveMark({ size = 24 }: { size?: number }) {
+/**
+ * The Co-op mark — "the C that holds the shop".
+ * Same geometry and colours as brand/coop-mark.svg and the app's CoopMark;
+ * ids are suffixed so this instance cannot collide with anything else on the
+ * page.
+ */
+function CoopMark({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label="Co-op">
       <defs>
-        <linearGradient id="wmA" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="siteRing" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#5b5fef" />
-          <stop offset="1" stopColor="#4143d5" />
+          <stop offset="1" stopColor="#8a4cfc" />
         </linearGradient>
-        <linearGradient id="wmB" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="siteCrate" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#8a4cfc" />
-          <stop offset="1" stopColor="#712ae2" />
-        </linearGradient>
-        <linearGradient id="wmC" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#c0c1ff" />
-          <stop offset="1" stopColor="#8a8df5" />
+          <stop offset="1" stopColor="#5b5fef" />
         </linearGradient>
       </defs>
-      <rect x="14" y="5" width="20" height="21" rx="9" fill="url(#wmA)" />
-      <rect x="6" y="19" width="20" height="21" rx="9" fill="url(#wmB)" opacity="0.94" />
-      <rect x="22" y="19" width="20" height="21" rx="9" fill="url(#wmC)" opacity="0.9" />
       <path
-        d="M24 17 Q26.6 22.4 30.5 25 Q26.6 27.6 24 33 Q21.4 27.6 17.5 25 Q21.4 22.4 24 17 Z"
-        fill="#ffffff"
-        opacity="0.96"
+        d="M33.4 13.2 A14.2 14.2 0 1 0 33.4 34.8"
+        fill="none"
+        stroke="url(#siteRing)"
+        strokeWidth="6.8"
+        strokeLinecap="round"
       />
+      <rect x="21.4" y="17.2" width="15.2" height="13.6" rx="4.8" fill="url(#siteCrate)" />
     </svg>
   );
 }
@@ -179,7 +181,7 @@ function WeaveMark({ size = 24 }: { size?: number }) {
 function Logo() {
   return (
     <a className="logo" href="#top">
-      <WeaveMark size={24} /> <span>Co-op</span>
+      <CoopMark size={26} /> <span>Co-op</span>
     </a>
   );
 }

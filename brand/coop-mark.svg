@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Co-op">
+  <!--
+    Co-op mark — "the C that holds the shop".
+
+    One shape does the work: the C is the product name, and it wraps a crate —
+    stock, the trader's goods — the way the software wraps a business. The
+    crate's gradient runs against the ring's, so the two read as two objects
+    rather than one glyph, and the ring stays open on the right so the mark
+    never looks like a © or a padlock at 16px.
+
+    Geometry (48-unit grid, so it scales cleanly to any pixel size):
+      ring    centre 24,24 · radius 14.2 · stroke 6.8 · round caps
+      crate   15.2 × 13.6 · corner radius 4.8 · centred on 24,24
+      live area x/y 6.4–41.6, i.e. 13% clearspace inside the box
+
+    Colours are the design system's AI gradient: #5b5fef → #8a4cfc.
+    A single-colour version lives beside this file as coop-mark-mono.svg.
+  -->
+  <defs>
+    <linearGradient id="coopRing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b5fef"/>
+      <stop offset="1" stop-color="#8a4cfc"/>
+    </linearGradient>
+    <linearGradient id="coopCrate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a4cfc"/>
+      <stop offset="1" stop-color="#5b5fef"/>
+    </linearGradient>
+  </defs>
+  <!-- The C: an open ring, not a closed circle. -->
+  <path d="M33.4 13.2 A14.2 14.2 0 1 0 33.4 34.8" fill="none" stroke="url(#coopRing)" stroke-width="6.8" stroke-linecap="round"/>
+  <!-- The crate: what Co-op holds. -->
+  <rect x="21.4" y="17.2" width="15.2" height="13.6" rx="4.8" fill="url(#coopCrate)"/>
+</svg>
