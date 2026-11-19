@@ -1,4 +1,4 @@
-# Co-op — business plan (zero start-up capital, USD market)
+# Co-op — business plan (zero start-up capital, Nigerian retail chains)
 
 **Status:** working document, 2026-11-23. Supersedes the Naira-market plan of
 2026-11-06. Every number below is either measured from this repository or cited
@@ -102,38 +102,50 @@ customer money, run payroll, or file taxes.
 1. **It cannot lie about your money.** The assistant is given only verified rows
    and may state nothing else; it can propose one action and cannot execute it.
 2. **It works offline.** SQLite + sync queue; every competitor above is a web app.
-3. **It is priced per business, not per seat.** $29 or $99 flat, no $11/seat,
-   no "multi-user starts at $85".
+3. **It is priced per business, not per seat.** ₦25,000 or ₦75,000 flat, no
+   per-seat add-on, no "multi-user starts at" tier.
 
 Price is not the differentiator — Wave is free. The differentiator is
 **consequence**: a wrong number costs a small business money, and every incumbent
 above has an incentive to sell the upgrade rather than the number.
 
-## 5. Pricing (USD, set from the compared list prices)
+## 5. Pricing (Naira, sold to Nigerian retail chains)
 
 | Plan | Price | Annual (20% off) | AI credits/mo | Comparable |
 |---|---|---|---|---|
-| Free | $0 | — | 25 | entry, no card |
-| **Starter** | **$29/mo** | $278.40 | 200 | above Zoho Standard ($15–20), below QuickBooks Simple Start ($38) |
-| **Professional** | **$99/mo** | $950.40 | 1,000 | above FreshBooks Premium ($70), below QuickBooks Plus ($140) |
+| Free | ₦0 | — | 25 | entry, no card |
+| **Starter** | **₦25,000/mo** | ₦240,000 | 200 | below a single Zoho Books seat once the Naira conversion is applied; far below QuickBooks |
+| **Professional** | **₦75,000/mo** | ₦720,000 | 1,000 | the whole back office for a shop that would otherwise buy two or three products |
 | Enterprise | contact | — | unlimited | multi-outlet, support SLA |
 
-Why these numbers: Starter must read as "cheaper than QuickBooks, more than the
-free tiers", and Professional must read as "the whole back office for less than
-QuickBooks Essentials plus a seat". Both sit inside the published range above, and
-both leave room for a **50% founding-customer price** that costs nothing to give
-and creates urgency without a discount coupon culture.
+The competitor prices in §4 are quoted in the currencies those vendors publish
+(mostly USD). That is a fact about *them*, not a decision for us: Co-op charges
+Naira, and the customer never sees an exchange rate.
+
+**Why Naira, not dollars.** This edition is Naira-only end to end — money is
+stored as integer kobo and `Business.currency` is constrained to `NGN` by the
+database, so a dollar list price would be a price the ledger cannot represent.
+It is also cheaper to collect: a local Naira charge costs 1.5% + ₦100 (capped at
+₦2,000), while a USD charge from the same Nigerian Paystack account costs 3.9%
+and needs USD enabled plus a domiciliary settlement account.
+
+**Why these numbers.** Starter must read as "cheaper than the accounting
+software, more than the free tools"; Professional as "the whole back office for
+less than two subscriptions". Both sit inside the published range Nigerian SMEs
+already pay for Zoho Books and QuickBooks, and both leave room for a **50%
+founding-customer price** that costs nothing to give and creates urgency
+without a discount coupon culture.
 
 **Unit economics per Starter customer (measured inputs, modelled outputs):**
 
-| Rail | Fee on $29 | Share of revenue | Monthly margin before AI |
+| Rail | Fee on ₦25,000 | Share of revenue | Monthly margin before AI |
 |---|---|---|---|
-| Paystack (USD, from a Nigerian entity) | 3.9% + ₦100 ≈ **$1.20** | 4.1% | **$27.80 (96%)** |
-| Stripe (US entity) | 2.9% + $0.30 = **$1.14** | 3.9% | **$27.86 (96%)** |
+| Paystack (NGN, local card/transfer/USSD) | 1.5% + ₦100 = **₦475** | 1.9% | **₦24,525 (98%)** |
+| Paystack (USD, from a Nigerian entity) — *not used* | 3.9% + ₦100 ≈ **₦1,075** | 4.3% | ₦23,925 (96%) |
 
 Hosting is $0 until roughly 50–100 active businesses (free tiers); the database is
 Supabase free tier at the start. The AI ceiling implied by the plan is
-**$0.145 per credit** ($29 ÷ 200). At Professional, $99 ÷ 1,000 = $0.099 per
+**₦125 per credit** (₦25,000 ÷ 200). At Professional, ₦75,000 ÷ 1,000 = ₦75 per
 credit. **That ceiling is modelled, not measured** — instrument OpenRouter cost
 per business in the first month of real usage; it is the single most important
 number in this document.
@@ -149,9 +161,11 @@ This is the part most plans skip, and it is the part that can stop revenue.
 | Stripe Atlas forms a **Delaware C-corp or LLC for a one-time $500** (state filing, EIN, first-year registered agent), open to founders anywhere | the route to Stripe's 2.9% + $0.30, and to a US bank account |
 | Delaware costs after year one: ~$100 registered agent + state franchise tax | a real recurring cost, not a one-off |
 
-**Decision:** launch on **Paystack USD** (no new entity, no cash), and open the
-Stripe Atlas route **only when MRR justifies $500 plus the annual compliance**.
-Pricing is identical on both rails; only the fee line changes by ~$0.06.
+**Decision (revised):** launch on **Paystack in Naira** — no new entity, no
+cash, the cheapest rail (1.9% versus 4.3%) and the only currency the ledger can
+represent. The USD rail and the Stripe Atlas route stay documented above as a
+**parked option** for the day there is a paying customer outside Nigeria who
+needs a dollar invoice; nothing in the product is built for it today.
 
 ## 7. Zero-capital operating plan
 
@@ -198,8 +212,8 @@ the SmartScreen warning — which, for a US buyer downloading from an unknown
 vendor, is a real conversion cost, not a cosmetic one.
 
 **Equity discipline:** grants first (no dilution), revenue second, equity last.
-At $29, 100 paying businesses is **$2,900/month** — enough to fund the company
-without selling it.
+At ₦25,000, 100 paying businesses is **₦2,500,000/month** — enough to fund the
+company without selling it.
 
 ## 8. Measuring it (built, not aspirational)
 
@@ -233,9 +247,13 @@ application, so the dashboard and the application cannot disagree. See
 
 Detailed in `docs/PRODUCT_MARKET_FIT_AUDIT.md`; summarised:
 
-1. **USD pricing end to end** — `$29` / `$99` in the catalogue and in
-   `config/<env>.json` (`prices_kobo` now holds **cents**, currency `USD`), with
-   the payment tests pinned to those figures.
+1. **Naira pricing end to end** — `₦25,000` / `₦75,000` in the catalogue
+   (`frontend/src/billing/plans.ts`) and in `config/<env>.json`
+   (`prices_kobo` holds **kobo**, currency `NGN`), with the payment tests pinned
+   to those figures. It was briefly the opposite (USD cents) while the market
+   was assumed to be dollar-billed; that was reverted when the market decision
+   changed, and the leftovers are what made the app print `$` for a Naira
+   amount.
 2. **Neutral tax defaults** — a new business gets **0% / "Tax"** instead of
    Nigeria's 7.5% VAT (migration `0024_tax_defaults`). Sales tax is set per state
    and county, so a pre-filled rate is a number the owner must notice and fix.

@@ -149,7 +149,7 @@ async def snapshot(
     mrr = round(sum(monthly(p.amount_kobo, p.interval) for p in window_payments), 2)
     prev_mrr = round(sum(monthly(p.amount_kobo, p.interval) for p in prev_payments), 2)
     paying = {p.business_id for p in window_payments}
-    currencies = sorted({(p.currency or "USD") for p in window_payments}) or ["USD"]
+    currencies = sorted({(p.currency or "NGN") for p in window_payments}) or ["NGN"]
 
     # --- AI usage ----------------------------------------------------------
     ai_row = (
@@ -228,7 +228,9 @@ def headline(metrics: dict[str, Any]) -> str:
         + (f" ({growth:+.1f}% vs the previous 7)" if growth is not None else ""),
     ]
     if rev["paying_businesses"]:
-        symbol = {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3"}.get(str(rev["currency"]))
+        symbol = {"NGN": "\u20a6", "USD": "$", "EUR": "\u20ac", "GBP": "\u00a3"}.get(
+            str(rev["currency"])
+        )
         money = f"{symbol}{rev['mrr']:,.2f}" if symbol else f"{rev['currency']} {rev['mrr']:,.2f}"
         parts.append(f"{rev['paying_businesses']} paying, {money} MRR")
     else:

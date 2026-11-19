@@ -23,7 +23,7 @@ module.exports = {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         client_id TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
-        currency TEXT NOT NULL DEFAULT 'USD',
+        currency TEXT NOT NULL DEFAULT 'NGN',
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
 

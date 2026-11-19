@@ -142,7 +142,7 @@ export function presetDates(preset: PeriodPreset, today = new Date()): { from: s
   }
 }
 
-/** Currency formatting that mirrors the rest of the app (USD default). */
+/** Currency formatting that mirrors the rest of the app (Naira). */
 export function fmtMoney(v: number | null | undefined, currency = 'NGN'): string {
   if (v === null || v === undefined) return '—';
   return v.toLocaleString(undefined, {

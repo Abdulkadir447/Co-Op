@@ -15,7 +15,7 @@ Co-op is an **offline-first business system for one small wholesaler/retailer**:
 products, stock, customers, orders, invoices, receivables, reports, exports and a
 5-step CSV/XLSX importer. It ships as an **Electron desktop app** with a local
 SQLite database, a React/TypeScript frontend, and a FastAPI + Postgres backend.
-It is sold per business in USD ($29 / $99 a month).
+It is sold per business in Naira (₦25,000 / ₦75,000 a month).
 
 The AI assistant ("Zeno") answers only from data the server rebuilds itself,
 returns a validated JSON object, never queries the database and cannot write.

@@ -15,7 +15,7 @@ holes is a liability in a code review.
 > cloud, plus an AI assistant that answers only from the business's own verified
 > records and can never change data.
 >
-> It is sold per business in USD ($29 / $99 a month), not per seat, and it is
+> It is sold per business in Naira (₦25,000 / ₦75,000 a month), not per seat, and it is
 > built for the customer who cannot afford the system to be down or to be wrong.
 
 That is the intent. If the code does not match it, the code is wrong.
@@ -132,7 +132,7 @@ That is the intent. If the code does not match it, the code is wrong.
 
 | Capability | Status | Notes |
 |---|---|---|
-| Plans: Free / Starter $29 / Professional $99 / Enterprise | **Done** | Catalogue in `frontend/src/billing/plans.ts`, prices charged from `config/*.json` |
+| Plans: Free / Starter ₦25,000 / Professional ₦75,000 / Enterprise | **Done** | Catalogue in `frontend/src/billing/plans.ts`, prices charged from `config/*.json` (kobo, NGN) |
 | 10-day trial (one per business) | **Done** | Never overwrites the paid plan; lazy expiry, no scheduler |
 | Paystack checkout | **Done (never live-charged)** | `POST /transaction/initialize` + `verify` + HMAC-SHA512 webhook. **No real charge has ever been made** |
 | Licence activation (offline installs) | **Done** | Signed key, SHA-256 fingerprint stored, revocation wins |

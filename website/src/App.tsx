@@ -569,11 +569,12 @@ function Pricing() {
             <PlanCard key={plan.id} plan={plan} annual={annual} />
           ))}
         </div>
-        {/* These are the amounts the card is actually charged today, so they are
-            shown as they are rather than converted to an invented Naira price.
-            Replace this note the day Naira billing ships. */}
+        {/* The cards show the Naira amount the card is actually charged, taken
+            from the same catalog the app bills from (frontend/src/billing),
+            so the site cannot quote a price the product does not charge. */}
         <p className="muted billing-note" style={t.bodyCompact}>
-          Prices are in US dollars, the amount charged today. Naira billing is coming.
+          Prices are in Naira, inclusive of tax, billed through Paystack. Pay in Naira with
+          any Nigerian card, transfer or USSD — no dollar card needed.
         </p>
       </div>
     </section>

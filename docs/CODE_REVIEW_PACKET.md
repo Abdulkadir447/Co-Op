@@ -50,7 +50,7 @@ a private location, not to unpublish the code.
 > assistant that answers only from the business's own verified records and can
 > never change data.
 >
-> It is sold per business in USD ($29 / $99 a month), not per seat, for the
+> It is sold per business in Naira (₦25,000 / ₦75,000 a month), not per seat, for the
 > customer who cannot afford the system to be down or to be wrong.
 
 Full feature-by-feature grading of the code against that intent, including what

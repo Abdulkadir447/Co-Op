@@ -184,6 +184,22 @@ numbers are not routable. Nothing here points at a real stranger's inbox.
 | Support email | `hello@coop.example` | `CONTACT.email` in `website/src/App.tsx` | A monitored inbox | Mail bounces |
 | Phone / WhatsApp | `+234 800 000 0000` / `2348000000000` | `CONTACT.phone`, `CONTACT.whatsapp` | A real number | The WhatsApp link opens an empty chat with nobody |
 
+**One more decision that is not mine to make final: the price level.** The plans
+are now priced in Naira — **Starter ₦25,000/mo, Professional ₦75,000/mo, 20% off
+annual (₦240,000 and ₦720,000 a year)**. Those numbers were chosen as a
+defensible starting point for Nigerian retail chains (below the effective Naira
+cost of the accounting software they would otherwise buy, above the free tools);
+they are a **business decision, not a technical one**, and changing them is two
+edits, never more:
+
+- `frontend/src/billing/plans.ts` — `priceMonthly` (what the customer reads)
+- `config/<env>.json` — `paystack.prices_kobo` (what the card is charged, in
+  kobo: Naira × 100)
+
+The reasoning and the unit economics are in `docs/BUSINESS_PLAN.md` §5. Nothing
+is charged until a Paystack secret key is set, so this commits you to nothing
+today.
+
 While these values are in place the site says so out loud: the contact cards
 carry a "Not live yet" note and the footer carries "Preview build — the public
 address in this page's share links is a placeholder until launch." Both

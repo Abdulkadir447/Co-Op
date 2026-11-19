@@ -47,9 +47,10 @@ TEST_CONFIG = PaystackConfig(
     callback_url="https://app.example.test/billing",
     allowed_callback_hosts=("localhost", "127.0.0.1"),
     payment_pages={"starter": PAGE_STARTER, "professional": PAGE_PRO},
+    # The shipped Naira catalog (config/<env>.json), in kobo.
     prices_kobo={
-        "starter": {"monthly": 2_900_000, "annual": 27_840_000},
-        "professional": {"monthly": 9_900_000, "annual": 95_040_000},
+        "starter": {"monthly": 2_500_000, "annual": 24_000_000},
+        "professional": {"monthly": 7_500_000, "annual": 72_000_000},
     },
 )
 
@@ -215,9 +216,9 @@ def test_public_config_reports_disabled_cleanly():
 
 
 def test_price_lookup_is_per_plan_and_interval(paystack):
-    assert TEST_CONFIG.price_kobo("starter", "monthly") == 2_900_000
-    assert TEST_CONFIG.price_kobo("starter", "annual") == 27_840_000
-    assert TEST_CONFIG.price_kobo("professional", "monthly") == 9_900_000
+    assert TEST_CONFIG.price_kobo("starter", "monthly") == 2_500_000
+    assert TEST_CONFIG.price_kobo("starter", "annual") == 24_000_000
+    assert TEST_CONFIG.price_kobo("professional", "monthly") == 7_500_000
     # Enterprise is Contact Sales: no price exists, so a charge claiming it can
     # never be verified — and is therefore never auto-granted.
     assert TEST_CONFIG.price_kobo("enterprise", "monthly") is None
@@ -266,7 +267,7 @@ async def test_initialize_sends_the_shape_paystack_expects():
     assert req.headers["authorization"] == f"Bearer {SECRET}"
     body = json.loads(req.content)
     assert body["amount"] == 2_900
-    assert body["currency"] == "USD"
+    assert body["currency"] == "NGN"  # the only currency this edition charges
     assert body["reference"] == "coop_r1"
     assert body["metadata"] == {"plan": "starter"}
 
@@ -332,7 +333,7 @@ async def test_checkout_redirects_to_the_plans_hosted_page(api, paystack):
     assert out["url"].startswith(PAGE_STARTER + "?")
     q = parse_qs(urlparse(out["url"]).query)
     assert q["reference"] == [out["reference"]]
-    assert q["amount"] == ["2900000"]  # Co-op price for starter/monthly
+    assert q["amount"] == ["2500000"]  # Co-op price for starter/monthly (N25,000)
     assert out["currency"] == "NGN"
 
     history = await api.client.get("/billing/payments")
@@ -622,15 +623,15 @@ def test_shipped_config_charges_through_the_api():
 
     raw = load_config("development").get("paystack", {})
     assert raw["enabled"] is True
-    assert raw["currency"] == "USD"
+    assert raw["currency"] == "NGN"
     # The hosted payment pages were removed: paystack.shop is not a Paystack
     # domain, so a charge through it could not be trusted. Checkout now goes
     # through POST /transaction/initialize, which requires a price.
     assert raw["payment_pages"] == {}
     assert raw["prices_kobo"] == {
-        # USD cents: $29/mo and $278.40/yr (20% off); $99 and $950.40.
-        "starter": {"monthly": 2900, "annual": 27840},
-        "professional": {"monthly": 9900, "annual": 95040},
+        # Kobo: N25,000/mo and N240,000/yr (20% off); N75,000 and N720,000.
+        "starter": {"monthly": 2_500_000, "annual": 24_000_000},
+        "professional": {"monthly": 7_500_000, "annual": 72_000_000},
     }
     # Enterprise is Contact Sales, so it must carry no price to charge.
     assert "enterprise" not in raw["prices_kobo"]
@@ -786,12 +787,12 @@ async def test_shipped_catalog_produces_a_real_api_checkout(api, monkeypatch):
 
     out = await start_checkout(api, "starter", interval="annual")
     assert out["mode"] == "api"
-    assert out["currency"] == "USD"
+    assert out["currency"] == "NGN"
     assert out["url"] == "https://checkout.paystack.test/xyz"
 
     body = json.loads(calls[0].content)
-    assert body["amount"] == 27840        # $278.40 annual, in cents
-    assert body["currency"] == "USD"
+    assert body["amount"] == 24_000_000   # N240,000 annual, in kobo
+    assert body["currency"] == "NGN"
     assert body["metadata"]["plan"] == "starter"
 
 
@@ -827,7 +828,7 @@ async def test_a_page_charge_cannot_be_upgraded_by_editing_metadata(api, paystac
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["ignored"] == "underpayment"
-    assert body["expected"] == 9_900_000
+    assert body["expected"] == 7_500_000
 
     summary = await api.client.get("/billing/summary")
     assert summary.json()["plan"] == "free"
