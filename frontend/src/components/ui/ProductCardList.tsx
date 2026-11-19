@@ -81,7 +81,7 @@ const ProductCardList: React.FC<ProductCardListProps> = ({ items, onEdit }) => {
             </div>
 
             {/* SKU */}
-            <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.outline, marginTop: 6 }}>
+            <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.onSurfaceMuted, marginTop: 6 }}>
               SKU: {p.sku}
             </div>
 
@@ -117,7 +117,7 @@ const ProductCardList: React.FC<ProductCardListProps> = ({ items, onEdit }) => {
                   background: 'transparent',
                   color: colors.primary,
                   fontWeight: 600,
-                  fontSize: 13.5,
+                  fontSize: 14,
                   cursor: 'pointer',
                   padding: '4px 8px',
                   borderRadius: radius.md,

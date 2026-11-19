@@ -7,7 +7,7 @@
  * view and back into their own business.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Col, Row, Segmented, Statistic, Table, Tabs, Tag } from 'antd';
+import { Alert, Button, Col, Row, Segmented, Space, Statistic, Table, Tabs, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Navigate, useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/layout/PageHeader';
@@ -43,6 +43,46 @@ interface BusinessItem {
   created_at: string | null;
 }
 
+/**
+ * The five numbers an accelerator or investor asks for. The backend computes
+ * them from the ledgers (businesses, invoices, audit_log, ai_usage, payments)
+ * and returns the definition of each one, so this screen can never show a
+ * figure nobody can explain.
+ */
+interface InvestorMetrics {
+  as_of: string;
+  window_days: number;
+  headline: string;
+  businesses: {
+    total: number;
+    new_last_7_days: number;
+    new_previous_7_days: number;
+    signup_growth_pct_week_over_week: number | null;
+  };
+  activation: { eligible_businesses: number; activated: number; rate_pct: number | null; definition: string };
+  engagement: {
+    active_last_7_days: number;
+    active_previous_7_days: number;
+    week_over_week_retention_pct: number | null;
+    definition: string;
+  };
+  revenue: {
+    currency: string | string[];
+    mrr: number;
+    previous_window_mrr: number;
+    mrr_growth_pct: number | null;
+    paying_businesses: number;
+    arpu: number | null;
+    definition: string;
+  };
+  ai: {
+    credits_used: number;
+    requests: number;
+    credits_per_paying_business: number | null;
+    definition: string;
+  };
+}
+
 interface LicenseItem {
   id: number;
   business_name: string | null;
@@ -66,6 +106,8 @@ const AdminConsole: React.FC = () => {
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [businesses, setBusinesses] = useState<BusinessItem[]>([]);
   const [licenses, setLicenses] = useState<LicenseItem[]>([]);
+  const [metrics, setMetrics] = useState<InvestorMetrics | null>(null);
+  const [messageApi, messageCtx] = message.useMessage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,16 +115,18 @@ const AdminConsole: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [ov, fb, biz, lic] = await Promise.all([
+      const [ov, fb, biz, lic, met] = await Promise.all([
         api.get<Overview>('/platform/overview'),
         api.get<{ items: FeedbackItem[] }>('/platform/feedback', { params: { limit: 100 } }),
         api.get<{ items: BusinessItem[] }>('/platform/businesses', { params: { limit: 200 } }),
         api.get<{ items: LicenseItem[] }>('/platform/licenses', { params: { limit: 200 } }),
+        api.get<InvestorMetrics>('/platform/investor-metrics'),
       ]);
       setOverview(ov.data);
       setFeedback(fb.data.items);
       setBusinesses(biz.data.items);
       setLicenses(lic.data.items);
+      setMetrics(met.data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to load the admin console');
     } finally {
@@ -175,6 +219,7 @@ const AdminConsole: React.FC = () => {
 
   return (
     <div>
+      {messageCtx}
       <PageHeader
         title="Admin console"
         subtitle="Product-wide view — Co-op team only."
@@ -222,6 +267,120 @@ const AdminConsole: React.FC = () => {
             <Tabs
               tabBarStyle={{ paddingLeft: 16, paddingRight: 16 }}
               items={[
+                {
+                  key: 'metrics',
+                  label: 'Fundraising',
+                  children: metrics ? (
+                    <div style={{ padding: 16 }}>
+                      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                        <div>
+                          <Typography.Text type="secondary">
+                            The five numbers an accelerator asks for, computed from the ledgers
+                            (not typed in by hand). Window: last {metrics.window_days} days.
+                          </Typography.Text>
+                          <div
+                            style={{
+                              marginTop: 8, padding: 12, borderRadius: 8,
+                              background: 'rgba(0,0,0,0.03)', fontFamily: 'monospace',
+                              display: 'flex', justifyContent: 'space-between', gap: 12,
+                              alignItems: 'center', flexWrap: 'wrap',
+                            }}
+                          >
+                            <span>{metrics.headline}</span>
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                void navigator.clipboard
+                                  .writeText(metrics.headline)
+                                  .then(() => messageApi.success('Copied — paste it into the traction field'))
+                                  .catch(() => messageApi.error('Could not copy; select the text instead'));
+                              }}
+                            >
+                              Copy
+                            </Button>
+                          </div>
+                        </div>
+
+                        <Row gutter={[16, 16]}>
+                          <Col xs={12} md={8} lg={6}>
+                            <CoopCard>
+                              <Statistic title="Businesses" value={metrics.businesses.total} />
+                              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                {metrics.businesses.new_last_7_days} new this week vs{' '}
+                                {metrics.businesses.new_previous_7_days} last
+                                {metrics.businesses.signup_growth_pct_week_over_week !== null
+                                  ? ` (${metrics.businesses.signup_growth_pct_week_over_week > 0 ? '+' : ''}${metrics.businesses.signup_growth_pct_week_over_week}%)`
+                                  : ' (no base to compare)'}
+                              </Typography.Text>
+                            </CoopCard>
+                          </Col>
+                          <Col xs={12} md={8} lg={6}>
+                            <CoopCard>
+                              <Statistic
+                                title="Activation"
+                                value={metrics.activation.rate_pct ?? '—'}
+                                suffix={metrics.activation.rate_pct !== null ? '%' : ''}
+                              />
+                              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                {metrics.activation.definition}
+                              </Typography.Text>
+                            </CoopCard>
+                          </Col>
+                          <Col xs={12} md={8} lg={6}>
+                            <CoopCard>
+                              <Statistic
+                                title="MRR"
+                                value={metrics.revenue.mrr}
+                                precision={2}
+                                prefix={Array.isArray(metrics.revenue.currency) ? '' : `${metrics.revenue.currency} `}
+                              />
+                              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                {metrics.revenue.paying_businesses} paying
+                                {metrics.revenue.arpu !== null ? ` · ARPU ${metrics.revenue.arpu.toFixed(2)}` : ''}
+                              </Typography.Text>
+                            </CoopCard>
+                          </Col>
+                          <Col xs={12} md={8} lg={6}>
+                            <CoopCard>
+                              <Statistic
+                                title="Weekly retention"
+                                value={metrics.engagement.week_over_week_retention_pct ?? '—'}
+                                suffix={metrics.engagement.week_over_week_retention_pct !== null ? '%' : ''}
+                              />
+                              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                {metrics.engagement.active_last_7_days} active now,{' '}
+                                {metrics.engagement.active_previous_7_days} last week
+                              </Typography.Text>
+                            </CoopCard>
+                          </Col>
+                        </Row>
+
+                        <CoopCard title="How each number is calculated">
+                          <Space direction="vertical" size={6}>
+                            <Typography.Text style={{ fontSize: 13 }}>
+                              <strong>Activation</strong> — {metrics.activation.definition}.
+                            </Typography.Text>
+                            <Typography.Text style={{ fontSize: 13 }}>
+                              <strong>Engagement</strong> — a business that {metrics.engagement.definition}.
+                            </Typography.Text>
+                            <Typography.Text style={{ fontSize: 13 }}>
+                              <strong>Revenue</strong> — {metrics.revenue.definition}.
+                            </Typography.Text>
+                            <Typography.Text style={{ fontSize: 13 }}>
+                              <strong>AI usage</strong> — {metrics.ai.definition}: {metrics.ai.credits_used}{' '}
+                              credits across {metrics.ai.requests} turns
+                              {metrics.ai.credits_per_paying_business !== null
+                                ? `, ${metrics.ai.credits_per_paying_business} per paying business`
+                                : ''}.
+                            </Typography.Text>
+                          </Space>
+                        </CoopCard>
+                      </Space>
+                    </div>
+                  ) : (
+                    <CoopLoading label="Loading metrics…" />
+                  ),
+                },
                 {
                   key: 'feedback',
                   label: `Feedback (${feedback.length})`,

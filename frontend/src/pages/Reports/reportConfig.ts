@@ -142,8 +142,8 @@ export function presetDates(preset: PeriodPreset, today = new Date()): { from: s
   }
 }
 
-/** Currency formatting that mirrors the rest of the app (USD default). */
-export function fmtMoney(v: number | null | undefined, currency = 'USD'): string {
+/** Currency formatting that mirrors the rest of the app (Naira). */
+export function fmtMoney(v: number | null | undefined, currency = 'NGN'): string {
   if (v === null || v === undefined) return '—';
   return v.toLocaleString(undefined, {
     style: 'currency',
@@ -157,7 +157,7 @@ export function fmtNumber(v: number | null | undefined): string {
   return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-export function fmtValue(k: ReportKpi, currency = 'USD'): string {
+export function fmtValue(k: ReportKpi, currency = 'NGN'): string {
   if (k.value === null || k.value === undefined) return '—';
   if (k.format === 'money') return fmtMoney(k.value as number, currency);
   if (k.format === 'percent') return `${fmtNumber(k.value as number)}%`;

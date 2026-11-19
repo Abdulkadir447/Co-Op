@@ -12,6 +12,7 @@ from datetime import date, datetime, time, timedelta, timezone as dtz
 import pytest
 
 from backend import timezones as tz_mod
+from backend import branches as branches_mod
 from backend.models import Business, Customer, Order, OrderItem, OrderStatus, Product
 from backend.reports import ReportFilters, build_report
 
@@ -27,7 +28,8 @@ async def _add_delivered_order(session_factory, business_id, order_date, amount=
         cust = Customer(business_id=business_id, full_name="Buyer", email="buyer@x.com")
         db.add(cust)
         await db.flush()
-        db.add(Order(business_id=business_id, customer_id=cust.id,
+        br = (await branches_mod.default_branch(db, business_id)).id
+        db.add(Order(business_id=business_id, branch_id=br, customer_id=cust.id,
                      status=OrderStatus.delivered, total_amount=amount,
                      order_date=order_date))
         await db.commit()
@@ -113,16 +115,17 @@ async def _seed_one_order(session_factory, owner_id, tz_name, order_date, sku):
         b = Business(name=f"Co {owner_id}", owner_id=owner_id, timezone=tz_name)
         db.add(b)
         await db.flush()
+        br = (await branches_mod.default_branch(db, b.id)).id
         prod = Product(business_id=b.id, name="Widget", sku=sku, category="General",
                        unit_price=100, cost_price=40, current_stock=10, reorder_level=2)
         cust = Customer(business_id=b.id, full_name="Buyer", email=f"{owner_id}@x.com")
         db.add_all([prod, cust])
         await db.flush()
-        o = Order(business_id=b.id, customer_id=cust.id, status=OrderStatus.delivered,
+        o = Order(business_id=b.id, branch_id=br, customer_id=cust.id, status=OrderStatus.delivered,
                   total_amount=100.0, order_date=order_date)
         db.add(o)
         await db.flush()
-        db.add(OrderItem(business_id=b.id, order_id=o.id, product_id=prod.id,
+        db.add(OrderItem(business_id=b.id, branch_id=br, order_id=o.id, product_id=prod.id,
                          quantity=1, unit_price=100, total_price=100))
         await db.commit()
         return b.id
@@ -155,3 +158,74 @@ async def test_sales_report_defaults_to_utc_when_no_timezone_is_set(session_fact
 
     assert await _orders_kpi(session_factory, bid, "2026-01-09") == 1
     assert await _orders_kpi(session_factory, bid, "2026-01-10") == 0
+
+
+# --- a machine with no IANA database (Windows) -------------------------------
+# PEP 615 reads the time zone database from the OS. Windows does not ship one,
+# so unless the `tzdata` package is installed every ZoneInfo() call raises —
+# "UTC" included. That turned every business-local report into a 500 whose only
+# cause was the operating system, which is the worst kind of bug: correct code,
+# correct data, wrong machine.
+
+
+def _no_database(*_a, **_kw):
+    from zoneinfo import ZoneInfoNotFoundError
+
+    raise ZoneInfoNotFoundError("No time zone found with key UTC")
+
+
+def test_business_tz_falls_back_to_utc_when_the_database_is_missing(monkeypatch):
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    monkeypatch.setattr(tz_mod, "_warned", False)
+
+    assert tz_mod.business_tz("Africa/Lagos") is dtz.utc
+    assert tz_mod.business_tz(None) is dtz.utc
+
+
+def test_the_missing_database_warning_is_logged_once(monkeypatch, caplog):
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    monkeypatch.setattr(tz_mod, "_warned", False)
+
+    with caplog.at_level("WARNING", logger="coop"):
+        for _ in range(5):
+            tz_mod.business_tz("Africa/Lagos")
+
+    warnings = [r for r in caplog.records if "tzdata" in r.getMessage()]
+    assert len(warnings) == 1, [r.getMessage() for r in caplog.records]
+
+
+def test_has_tz_database_reports_the_truth(monkeypatch):
+    # Not "is True": a Windows box without tzdata must be allowed to run the
+    # suite. The contract is only that the probe answers what ZoneInfo does.
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    assert tz_mod.has_tz_database() is False
+
+
+@pytest.mark.asyncio
+async def test_dashboard_timeseries_answers_instead_of_500_with_no_database(
+    api, session_factory, monkeypatch
+):
+    """The reported symptom: revenue chart 500 on Windows, 200 on Linux."""
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    monkeypatch.setattr(tz_mod, "_warned", False)
+
+    api.set_user("user-notz")
+    r = await api.client.get("/dashboard/revenue/timeseries", params={"days": 30})
+    assert r.status_code == 200, r.text
+    assert isinstance(r.json(), list)
+
+    # And the local-day helpers still do arithmetic on the UTC fallback.
+    assert tz_mod.utc_to_local_date(
+        datetime(2026, 10, 23, 23, 30), tz_mod.business_tz(None)
+    ) == date(2026, 10, 23)
+
+
+@pytest.mark.asyncio
+async def test_dashboard_summary_also_survives_with_no_database(api, monkeypatch):
+    """The same helper backs /dashboard/summary — it must not 500 either."""
+    monkeypatch.setattr(tz_mod, "ZoneInfo", _no_database)
+    monkeypatch.setattr(tz_mod, "_warned", False)
+
+    api.set_user("user-notz-2")
+    r = await api.client.get("/dashboard/summary")
+    assert r.status_code == 200, r.text

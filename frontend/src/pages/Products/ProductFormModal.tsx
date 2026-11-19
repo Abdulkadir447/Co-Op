@@ -100,7 +100,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               background: 'transparent',
               color: colors.error,
               fontWeight: 600,
-              fontSize: 13.5,
+              fontSize: 14,
               cursor: 'pointer',
               padding: '6px 8px',
               borderRadius: radius.md,
@@ -136,7 +136,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               label={
                 <span>
                   SKU{' '}
-                  <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, fontWeight: 400 }}>
+                  <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, fontWeight: 400 }}>
                     *Must be unique
                   </span>
                 </span>
@@ -179,7 +179,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
               marginBottom: 12,
               color: colors.primary,
               fontWeight: 600,
-              fontSize: 13.5,
+              fontSize: 14,
             }}
           >
             <DollarOutlined />

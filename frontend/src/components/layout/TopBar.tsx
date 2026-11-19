@@ -128,7 +128,9 @@ const TopBar: React.FC<TopBarProps> = ({ user, onSignOut, onMenuClick, onOpenPal
         aria-label="Open menu"
         className="coop-topbar-menu-btn"
         style={{
-          display: 'none',
+          // Visibility is owned by CSS (`.coop-topbar-menu-btn`): an inline
+          // `display` would beat the <=768px media query and hide the only
+          // navigation control on a phone.
           width: 36,
           height: 36,
           borderRadius: radius.md,

@@ -30,6 +30,7 @@ import { getLocalBundle } from '../../analytics/localData';
 import { buildLocalBriefing } from '../../analytics/localBriefing';
 import { CoopButton, CoopCard, CoopErrorState, CoopLoading, CoopBadge } from '../../components/ui';
 import { SparkleIcon } from '../../components/ui/icons';
+import { getCurrency } from '../../services/currency';
 
 // ---------------------------------------------------------------------------
 // Types (mirror the backend /dashboard/briefing payload)
@@ -83,7 +84,7 @@ const SEVERITY_COLOR: Record<Insight['severity'], 'primary' | 'warning' | 'error
 };
 
 const money = (v: number) =>
-  v.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  v.toLocaleString(undefined, { style: 'currency', currency: getCurrency(), maximumFractionDigits: 0 });
 
 const greeting = () => {
   const h = dayjs().hour();
@@ -158,10 +159,10 @@ const HeroInsight: React.FC<InsightCardProps> = ({ ins, colors, drafted, onDraft
       <div style={{ ...type.sectionHeading, fontSize: 24, color: colors.onBackground, letterSpacing: '-0.01em', marginBottom: 10 }}>
         {ins.title}
       </div>
-      <div style={{ ...type.bodyCompact, fontSize: 15.5, color: colors.onSurfaceVariant, lineHeight: '24px', maxWidth: 640 }}>
+      <div style={{ ...type.bodyCompact, fontSize: 16, color: colors.onSurfaceVariant, lineHeight: '24px', maxWidth: 640 }}>
         {ins.body}
       </div>
-      <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span aria-hidden style={{ opacity: 0.7 }}>evidence:</span>
         <span>{ins.evidence}</span>
       </div>
@@ -353,7 +354,7 @@ const BriefingPage: React.FC = () => {
           >
             <SparkleIcon size={20} />
           </span>
-          <div style={{ ...type.labelCaps, color: colors.outline, letterSpacing: '0.1em' }}>
+          <div style={{ ...type.labelCaps, color: colors.onSurfaceMuted, letterSpacing: '0.1em' }}>
             {greeting()} · {dayjs().format('dddd, MMMM D')}
           </div>
         </div>

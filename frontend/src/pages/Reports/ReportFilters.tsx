@@ -70,7 +70,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
               background: preset === p.key ? colors.primary : 'transparent',
               color: preset === p.key ? colors.onPrimary : colors.onSurfaceVariant,
               fontWeight: 600,
-              fontSize: 12.5,
+              fontSize: 12,
               borderRadius: radius.full,
               padding: '6px 12px',
               cursor: 'pointer',
@@ -104,7 +104,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
       <div aria-hidden style={{ width: 1, height: 26, background: colors.borderSubtle }} />
 
       {/* Comparison */}
-      <label style={{ display: 'flex', alignItems: 'center', gap: 6, ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
         Compare
         <select value={compare} onChange={(e) => onCompare(e.target.value as CompareMode)} aria-label="Comparison period" style={selectStyle(colors)}>
           {COMPARE_OPTIONS.map((c) => (
@@ -115,7 +115,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
 
       {/* Category */}
       {categories.length > 0 && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
           Category
           <select value={category} onChange={(e) => onCategory(e.target.value)} aria-label="Category filter" style={selectStyle(colors)}>
             <option value="">All categories</option>

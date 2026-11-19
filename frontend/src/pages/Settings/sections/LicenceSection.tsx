@@ -79,9 +79,18 @@ const LicenceSection: React.FC = () => {
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{r.value}</span>
                 </div>
               ))}
+              {/* The key itself is never stored (only a SHA-256 fingerprint), so it
+                  cannot be redisplayed — by design, and worth saying on screen:
+                  it tells the owner the reference is all anyone can recover. */}
               {license.fingerprint && (
-                <Typography.Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
-                  Key fingerprint {license.fingerprint.slice(0, 16)}…
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  Licence reference{' '}
+                  <span style={{ fontFamily: 'monospace', letterSpacing: '0.04em' }}>
+                    {license.fingerprint.slice(0, 8).toUpperCase()}
+                  </span>
+                  <br />
+                  Only the owner can see this. Co-op stores a fingerprint, never the key
+                  itself, so keep the key the team sent you somewhere safe.
                 </Typography.Text>
               )}
             </Space>
@@ -108,7 +117,7 @@ const LicenceSection: React.FC = () => {
               onChange={(e) => setKey(e.target.value)}
               placeholder="COOP-XXXXX-XXXXX-…"
               autoSize={{ minRows: 2, maxRows: 4 }}
-              style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12.5 }}
+              style={{ marginTop: 8, fontFamily: 'monospace', fontSize: 12 }}
               aria-label="Licence activation key"
             />
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>

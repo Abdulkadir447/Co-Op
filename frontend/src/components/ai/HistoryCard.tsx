@@ -106,7 +106,7 @@ const HistoryCard: React.FC = () => {
       </div>
 
       {state === 'loading' && (
-        <div style={{ ...type.bodyCompact, color: colors.outline, padding: '8px 0' }}>Loading activity…</div>
+        <div style={{ ...type.bodyCompact, color: colors.onSurfaceMuted, padding: '8px 0' }}>Loading activity…</div>
       )}
 
       {state === 'error' && (
@@ -152,7 +152,7 @@ const HistoryCard: React.FC = () => {
                     gap: 8,
                     marginTop: 4,
                     flexWrap: 'wrap',
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: colors.outline,
                   }}
                 >
@@ -175,7 +175,7 @@ const HistoryCard: React.FC = () => {
                     </span>
                   )}
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 'auto', flexShrink: 0 }}>
-                    <ClockCircleOutlined style={{ fontSize: 10.5 }} />
+                    <ClockCircleOutlined style={{ fontSize: 11 }} />
                     {it.created_at ? dayjs(it.created_at).format('MMM D, HH:mm') : '—'}
                     {it.credits_used > 0 ? ` · ${it.credits_used} credit${it.credits_used > 1 ? 's' : ''}` : ''}
                   </span>
@@ -184,7 +184,7 @@ const HistoryCard: React.FC = () => {
             ))}
           </div>
           {total > items.length && (
-            <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, marginTop: 'auto' }}>
+            <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 'auto' }}>
               Showing the {items.length} most recent of {total} answers.
             </div>
           )}

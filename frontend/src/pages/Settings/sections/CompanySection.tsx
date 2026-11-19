@@ -3,13 +3,14 @@
  * business profile; the signed-in Clerk account is shown read-only.
  */
 import React, { useEffect } from 'react';
-import { Alert, Col, Divider, Form, Input, Row, Space, Typography } from 'antd';
+import { Alert, Col, Divider, Form, Input, InputNumber, Row, Space, Switch, Typography } from 'antd';
 import type { MessageInstance } from 'antd/es/message/interface';
 import { useUser } from '@clerk/react';
 import CoopSelect from '../../../components/ui/CoopSelect';
 import { CoopButton, CoopCard, CoopLoading } from '../../../components/ui';
 import { CURRENCY_OPTIONS, TIMEZONE_OPTIONS } from '../useSettings';
 import type { BusinessSettings, BusinessSettingsUpdate } from '../useSettings';
+import { describeError } from '../../../lib/describeError';
 
 interface CompanyFormValues {
   name: string;
@@ -19,8 +20,12 @@ interface CompanyFormValues {
   address?: string;
   phone?: string;
   tax_id?: string;
+  registration_number?: string;
   website?: string;
   timezone?: string;
+  tax_enabled?: boolean;
+  tax_rate?: number;
+  tax_label?: string;
 }
 
 export interface CompanySectionProps {
@@ -45,8 +50,12 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
       address: settings.address ?? undefined,
       phone: settings.phone ?? undefined,
       tax_id: settings.tax_id ?? undefined,
+      registration_number: settings.registration_number ?? undefined,
       website: settings.website ?? undefined,
       timezone: settings.timezone ?? undefined,
+      tax_enabled: settings.tax_enabled,
+      tax_rate: settings.tax_rate,
+      tax_label: settings.tax_label,
     });
   }, [settings, form]);
 
@@ -67,7 +76,7 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
       await save(updates);
       messageApi.success('Company settings saved');
     } catch (e) {
-      messageApi.error(e instanceof Error ? e.message : 'Save failed');
+      messageApi.error(describeError(e, 'save', 'company details'));
     }
   };
 
@@ -81,8 +90,12 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
       address: settings.address ?? undefined,
       phone: settings.phone ?? undefined,
       tax_id: settings.tax_id ?? undefined,
+      registration_number: settings.registration_number ?? undefined,
       website: settings.website ?? undefined,
       timezone: settings.timezone ?? undefined,
+      tax_enabled: settings.tax_enabled,
+      tax_rate: settings.tax_rate,
+      tax_label: settings.tax_label,
     });
     messageApi.info('Changes reset to last saved values.');
   };
@@ -162,12 +175,21 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item label="Phone" name="phone">
-                <Input placeholder="+234…" maxLength={20} />
+                <Input placeholder="+1 555 010 0000" maxLength={20} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
               <Form.Item label="Tax ID" name="tax_id">
-                <Input placeholder="VAT / TIN (optional)" maxLength={100} />
+                <Input placeholder="Tax ID / VAT / EIN (optional)" maxLength={100} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Registration number"
+                name="registration_number"
+                tooltip="Your company or LLC registration number (CRN, EIN, CAC RC/BN). Tax invoices show it."
+              >
+                <Input placeholder="e.g. 12345678" maxLength={60} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
@@ -187,6 +209,34 @@ const CompanySection: React.FC<CompanySectionProps> = ({ settings, loading, savi
             <Col span={24}>
               <Form.Item label="Address" name="address">
                 <Input.TextArea rows={2} placeholder="Business address" maxLength={500} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider>Tax</Divider>
+          <Typography.Paragraph type="secondary" style={{ marginTop: -4, fontSize: 12 }}>
+            Tax is added <strong>on top</strong> of the line subtotal (exclusive), and the rate is
+            recorded on each order as it is raised — changing it later never reprices an existing
+            order or an invoice a customer already holds. Revenue reports stay net of tax.
+          </Typography.Paragraph>
+          <Row gutter={16}>
+            <Col xs={24} sm={8}>
+              <Form.Item
+                label="Charge tax on orders"
+                name="tax_enabled"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="Rate (%)" name="tax_rate">
+                <InputNumber min={0} max={100} step={0.5} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="Label on invoices" name="tax_label">
+                <Input placeholder="Tax" maxLength={20} />
               </Form.Item>
             </Col>
           </Row>

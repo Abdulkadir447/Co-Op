@@ -28,7 +28,7 @@ const AppearanceSection: React.FC = () => {
                 <span style={{ color: colors.primary, fontSize: 16 }}>{o.icon}</span>
                 <span>
                   <Typography.Text strong>{o.label}</Typography.Text>
-                  <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12.5 }}>
+                  <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
                     {o.blurb}
                   </Typography.Text>
                 </span>

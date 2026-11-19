@@ -72,18 +72,27 @@ ROLE_AGNOSTIC_PREFIXES = (
 
 
 def role_can_write(role: str, path: str) -> bool:
+    """Whether ``role`` may mutate ``path``.
+
+    ``path`` is the FULL request path. The owner-only check runs against it
+    before the first segment is stripped, because the entries there are not
+    all one segment deep: ``/business/settings`` is a two-segment surface, and
+    comparing its *prefix* ("/business") against the tuple never matched — so
+    a manager could rewrite the currency, tax rate and legal name that print
+    on every invoice.
+    """
     if role == "owner":
         return True
     if role == "manager":
         return not path.startswith(OWNER_ONLY_PREFIXES)
-    allowed = WRITE_MATRIX.get(path, None)
+    allowed = WRITE_MATRIX.get(_path_prefix(path), None)
     if allowed is None:
         return False
     return role in allowed
 
 
 def _path_prefix(path: str) -> str:
-    """First two segments (/customers/1 -> /customers)."""
+    """First segment of the path (/customers/1 -> /customers)."""
     parts = [p for p in path.split("/") if p]
     return "/" + parts[0] if parts else path
 
@@ -100,7 +109,20 @@ def assert_can_write(role: str, method: str, path: str) -> None:
         return
     if any(path.startswith(p) for p in ROLE_AGNOSTIC_PREFIXES):
         return
-    if not role_can_write(role, _path_prefix(path)):
+    if not role_can_write(role, path):
+        # Tier 4 visibility: a refusal is a security signal, not just a 403.
+        # Without this line an escalation attempt leaves no trace anywhere —
+        # there is nothing to alert on. security_event() always logs at
+        # WARNING and POSTs to SECURITY_ALERT_WEBHOOK when configured, and
+        # deep-redacts the payload before it leaves the process.
+        from .security_events import security_event
+
+        security_event(
+            "authz_denied",
+            role=role,
+            method=method,
+            route=_path_prefix(path),
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Role {role!r} cannot perform this action",
@@ -130,6 +152,29 @@ async def require_owner(
             detail="Only the business owner can manage the team",
         )
     return role
+
+
+def require_any(*roles: str):
+    """A dependency that admits only the listed roles.
+
+    Needed because ``assert_can_write`` is a *write* gate: every GET passes it.
+    The data exports and the audit trail are reads that carry the whole
+    tenant's history, so they get an explicit check rather than inheriting the
+    "reads are always allowed" rule.
+    """
+
+    async def dependency(role: str = Depends(get_current_role)) -> str:
+        if role not in roles:
+            from .security_events import security_event
+
+            security_event("role_denied", role=role, allowed=list(roles))
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role {role!r} cannot read this surface",
+            )
+        return role
+
+    return dependency
 
 
 async def require_manager(

@@ -18,7 +18,7 @@ import { AppShell } from './components/layout';
 import { CoopMark } from './components/brand/CoopLogo';
 import { startSyncEngine } from './sync/engine';
 import { isLocalAvailable } from './sync/localDb';
-import { fetchIdentity } from './repositories/identity';
+import { clearIdentityCache, fetchIdentity } from './repositories/identity';
 import type { TeamInviteIdentity } from './repositories/identity';
 import InviteJoinCard from './pages/Team/InviteJoinCard';
 
@@ -32,6 +32,7 @@ const CustomersPage = lazy(() => import('./pages/Customers'));
 const CustomerProfilePage = lazy(() => import('./pages/Customers/CustomerProfilePage'));
 const OrdersPage = lazy(() => import('./pages/Orders'));
 const InvoicesPage = lazy(() => import('./pages/Invoices'));
+const ReceivablesPage = lazy(() => import('./pages/Receivables'));
 const CreateOrderPage = lazy(() => import('./pages/Orders/CreateOrderPage'));
 const OrderDetailsPage = lazy(() => import('./pages/Orders/OrderDetailsPage'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
@@ -71,9 +72,9 @@ const SplashScreen: React.FC = () => {
       transition: 'background-color 300ms',
     }}
   >
-    <CoopMark size={64} title="CO OP" />
+    <CoopMark size={64} title="Co-op" />
     <div style={{ textAlign: 'center' }}>
-      <div style={{ ...type.sectionHeading, color: colors.primary, fontSize: 26, lineHeight: '34px' }}>CO OP</div>
+      <div style={{ ...type.sectionHeading, color: colors.primary, fontSize: 26, lineHeight: '34px' }}>Co-op</div>
       <div style={{ ...type.labelCaps, color: colors.onSurfaceVariant, marginTop: 2, letterSpacing: '0.1em' }}>
         Better business, together.
       </div>
@@ -145,8 +146,8 @@ const AuthPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {children}
       </div>
-      <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.outline }}>
-        © {year} CO OP SaaS. All rights reserved.
+      <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.onSurfaceMuted }}>
+        © {year} Co-op SaaS. All rights reserved.
       </div>
     </div>
   );
@@ -296,8 +297,11 @@ const CurrencySeeder: React.FC = () => {
 // ---------------------------------------------------------------------------
 const RootGate: React.FC = () => {
   const api = useApiClient();
+  const { colors } = useCoopTheme();
   const [invite, setInvite] = useState<TeamInviteIdentity | null>(null);
   const [identityResolved, setIdentityResolved] = useState(false);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+  const [identityAttempt, setIdentityAttempt] = useState(0);
   const [hasData, setHasData] = useState<boolean | null>(null);
 
   // The owner can explicitly choose "Start from scratch" on /welcome —
@@ -316,17 +320,31 @@ const RootGate: React.FC = () => {
   // has no business yet and must not touch business endpoints (they 409).
   useEffect(() => {
     let cancelled = false;
+    // A retry must not reuse the cached failure — fetchIdentity caches a
+    // successful result, and without this a second attempt would replay the
+    // first one instantly.
+    clearIdentityCache();
+    setIdentityError(null);
     fetchIdentity(api)
       .then((me) => {
         if (cancelled) return;
         if (me.pending_invitation) setInvite(me.pending_invitation);
         setIdentityResolved(true);
       })
-      .catch(() => !cancelled && setIdentityResolved(true));
+      .catch((e) => {
+        if (cancelled) return;
+        // A refused identity is a configuration problem the user cannot work
+        // around (the common one: the Clerk session token has no `email`
+        // claim). Swallowing it sends them into an app where every page 403s,
+        // so say what is wrong once, here.
+        setIdentityError(e instanceof Error ? e.message : 'Could not load your account');
+        setIdentityResolved(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [api]);
+    // identityAttempt is the retry counter: bumping it re-runs this effect.
+  }, [api, identityAttempt]);
 
   useEffect(() => {
     if (!identityResolved || invite) return undefined;
@@ -341,6 +359,54 @@ const RootGate: React.FC = () => {
   }, [api, identityResolved, invite]);
 
   if (!identityResolved || hasData === null) return <RouteFallback />;
+  if (identityError) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+          background: colors.surface,
+        }}
+      >
+        <div style={{ maxWidth: 480, textAlign: 'center' }}>
+          <InfoCircleFilled style={{ fontSize: 28, color: colors.primary }} />
+          <h2 style={{ margin: '16px 0 8px', color: colors.onSurface }}>We can’t sign you in yet</h2>
+          {/* Two sentences, deliberately: what happened, then what to do. The
+              old screen showed the API's message and nothing else — no retry,
+              no next step, so the only way out was a manual reload. */}
+          <p style={{ color: colors.onSurfaceVariant, lineHeight: 1.6 }}>{identityError}</p>
+          <p style={{ color: colors.onSurfaceMuted, lineHeight: 1.6, fontSize: 13 }}>
+            Your data is safe. If this is the first time, the server may still be
+            starting up — try again in a moment.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setIdentityResolved(false);
+              setHasData(null);
+              setIdentityAttempt((n) => n + 1);
+            }}
+            style={{
+              marginTop: 8,
+              padding: '10px 20px',
+              borderRadius: radius.md,
+              border: 'none',
+              background: colors.primary,
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: 'pointer',
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (invite) {
     return (
       <InviteJoinCard
@@ -443,6 +509,7 @@ const App: React.FC = () => {
                         <Route path="/orders/new" element={<CreateOrderPage />} />
                         <Route path="/orders/:id" element={<OrderDetailsPage />} />
                         <Route path="/invoices" element={<InvoicesPage />} />
+                        <Route path="/receivables" element={<ReceivablesPage />} />
               <Route path="/coop-ai" element={<CoopAiPage />} />
               <Route path="/billing" element={<BillingPage />} />
               <Route path="/sync" element={<SyncPage />} />

@@ -113,7 +113,10 @@ async def test_sync_push_records_offline_ops(api):
     assert len(rows) == 1
     assert rows[0]["table_name"] == "product"
     assert rows[0]["action"] == "create"
-    assert rows[0]["actor"] == "offline-sync"
+    # D1: the audit row names who pushed it, not a placeholder. Without an
+    # enrolled device the machine half of (actor, device) is empty, which is
+    # honest — but the person is always known.
+    assert rows[0]["actor"] == "user-a"
     assert "01J0SYNC" in (rows[0]["change"] or "")
 
 

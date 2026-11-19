@@ -92,7 +92,7 @@ const AnswerCard: React.FC<{
           {meta.label}
         </span>
         {answer.basis && (
-          <span style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline }}>{answer.basis}</span>
+          <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>{answer.basis}</span>
         )}
       </div>
 
@@ -119,7 +119,7 @@ const AnswerCard: React.FC<{
                 background: colors.surfaceContainerLow,
                 color: colors.primary,
                 fontWeight: 600,
-                fontSize: 12.5,
+                fontSize: 12,
                 borderRadius: radius.full,
                 padding: '6px 12px',
                 cursor: 'pointer',
@@ -204,7 +204,7 @@ const AnswerCard: React.FC<{
                 background: 'transparent',
                 color: colors.primary,
                 fontWeight: 600,
-                fontSize: 12.5,
+                fontSize: 12,
                 borderRadius: radius.full,
                 padding: '6px 12px',
                 cursor: 'pointer',

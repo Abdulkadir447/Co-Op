@@ -50,7 +50,7 @@ const CoopOfflineBanner: React.FC = () => {
       <WifiOutlined style={{ color: colors.error, fontSize: 18, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ ...type.bodyCompact, fontWeight: 700, color: colors.error }}>Offline / network error</div>
-        <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+        <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
           You appear to be offline. Reconnecting to Co-op…
         </div>
       </div>
@@ -62,7 +62,7 @@ const CoopOfflineBanner: React.FC = () => {
           background: colors.surfaceContainerLowest,
           color: colors.onSurfaceVariant,
           fontWeight: 600,
-          fontSize: 12.5,
+          fontSize: 12,
           borderRadius: radius.md,
           padding: '7px 12px',
           cursor: 'pointer',

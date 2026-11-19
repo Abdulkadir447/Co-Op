@@ -72,7 +72,7 @@ async def test_settings_are_isolated(api):
     api.set_user("user-b")
     settings = await api.client.get("/business/settings")
     assert settings.json()["name"] == "My Business"  # user-b's own fresh tenant
-    assert settings.json()["currency"] == "USD"
+    assert settings.json()["currency"] == "NGN"
 
     # user-b cannot see user-a's inventory either.
     summary = await api.client.get("/inventory/summary")

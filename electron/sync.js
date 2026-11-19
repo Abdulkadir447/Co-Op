@@ -177,9 +177,9 @@ function applyPull(dataLayer, payload, { full = false } = {}) {
   return db.tx(() => {
     const biz = payload.business;
     if (!biz || biz.id == null) throw new Error('mirror: payload has no business');
-    const bizRow = dataLayer.business.ensure({ client_id: String(biz.id), name: biz.name, currency: biz.currency || 'USD' });
-    if (bizRow.name !== biz.name || bizRow.currency !== (biz.currency || 'USD')) {
-      dataLayer.business.update(bizRow.id, { name: biz.name, currency: biz.currency || 'USD' });
+    const bizRow = dataLayer.business.ensure({ client_id: String(biz.id), name: biz.name, currency: biz.currency || 'NGN' });
+    if (bizRow.name !== biz.name || bizRow.currency !== (biz.currency || 'NGN')) {
+      dataLayer.business.update(bizRow.id, { name: biz.name, currency: biz.currency || 'NGN' });
     }
     const bizId = Number(bizRow.id);
     const applied = { customers: 0, products: 0, orders: 0, order_items: 0, stock_movements: 0 };

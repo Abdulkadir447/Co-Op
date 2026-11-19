@@ -11,6 +11,7 @@
  * provenance (ImportBatch rows) that the local mirror does not track; the
  * local port reports imported=false, latest_import=null.
  */
+import { formatMoneyCompact } from '../services/currency';
 import { dayOf, monthStart, previousMonthStart, todayIso } from './localTypes';
 import type { LocalBundle } from './localTypes';
 
@@ -47,10 +48,9 @@ export interface LBriefing {
   insights: LBriefingInsight[];
 }
 
-const money = (v: number): string =>
-  Math.abs(v - Math.round(v)) < 0.05
-    ? `$${Math.round(v).toLocaleString('en-US')}`
-    : `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// Shared formatter: the same amount must not print as $ here and ₦ on the
+// dashboard. See services/currency.
+const money = (v: number): string => formatMoneyCompact(v);
 
 const pct = (v: number): string => `${v.toFixed(1)}%`; // negatives keep their sign, like the server's _pct
 

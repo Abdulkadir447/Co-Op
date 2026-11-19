@@ -1,31 +1,99 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { type as t } from '../../frontend/src/theme/typography';
 import { colors } from '../../frontend/src/theme/colors';
-import {
-  PLAN_CATALOG,
-  displayPrice,
-  type Plan,
-} from '../../frontend/src/billing/plans';
+import { PLAN_CATALOG, displayPrice, type Plan } from '../../frontend/src/billing/plans';
 import { applyTheme, type Mode } from './theme';
 
 const caps = { ...t.labelCaps, textTransform: 'uppercase' as const };
 
-// --- Site config (fill these in when ready) -------------------------------
-const CONTACT = {
-  // Set when the domain email is ready, e.g. "hello@coop.app".
-  email: '',
-  // Optional — a call/WhatsApp number converts well for this audience.
-  phone: '',
-  whatsapp: '',
-};
-// Prefer a YouTube/Vimeo embed for the founders story? Paste the embed URL here
-// (e.g. "https://www.youtube.com/embed/VIDEO_ID") and it wins over the mp4.
-const FOUNDERS_EMBED = '';
-// Where the desktop installer is published. Swap for your own release/download URL.
-const DOWNLOAD_URL = 'https://github.com/Abdulkadir447/Co-Op/releases';
+// --- Site config -----------------------------------------------------------
+// Everything here is either a real destination or empty. Nothing on this page
+// shows a placeholder, a code path or a dead link: a section whose
+// configuration is missing is not rendered at all.
 
-// Product tour — one entry per app page. Assets live in public/ (see
-// public/README.md): screenshots/<id>.png and videos/<id>.mp4.
+/**
+ * The site's own address, used for canonical, og:url and og:image.
+ *
+ * TEMPORARY — this is a placeholder, not a claim. `coop.example` uses the
+ * `.example` TLD, which RFC 2606 reserves so that it can never be registered
+ * or resolve; a fake-but-plausible domain (coop.ng, coop-website.vercel.app)
+ * would be either someone else's or a link that 404s. When the real
+ * deployment exists, change this one line and public/og.png's social preview
+ * starts pointing at the right place.
+ *
+ * See README "Temporary placeholders" for the full list and how to clear it.
+ */
+const SITE = {
+  url: 'https://coop.example',
+};
+
+/**
+ * Contact details — TEMPORARY PLACEHOLDERS.
+ *
+ * Deliberately obvious: `coop.example` cannot receive mail, `+234 800 000
+ * 0000` is not a routable Nigerian number, and the WhatsApp link therefore
+ * goes nowhere. That is the point — a visitor who tries them learns the site
+ * is not live yet, instead of landing in a stranger's inbox.
+ *
+ * Replace all three before launch; see README "Temporary placeholders".
+ */
+const CONTACT = {
+  email: 'hello@coop.example',
+  phone: '+234 800 000 0000',
+  whatsapp: '2348000000000', // digits only, with country code
+};
+
+/** True while any contact detail is still the placeholder above. */
+const CONTACT_IS_PLACEHOLDER =
+  CONTACT.email.endsWith('.example') ||
+  CONTACT.whatsapp.startsWith('234800') ||
+  CONTACT.phone.replace(/[^0-9]/g, '') === '2348000000000';
+
+/** Founders story: paste a YouTube/Vimeo embed URL here. */
+const FOUNDERS_EMBED = '';
+
+/**
+ * Where "start free trial" sends a visitor.
+ *
+ * Co-op is a Windows desktop app today, so the honest destination is the
+ * installer. There is no web sign-up yet — set this once one exists and every
+ * trial CTA switches over without touching the markup.
+ */
+const SIGNUP_URL = '';
+
+const DOWNLOAD_URL = 'https://github.com/Abdulkadir447/Co-Op/releases';
+const ISSUES_URL = 'https://github.com/Abdulkadir447/Co-Op/issues';
+
+const TRIAL_HREF = SIGNUP_URL || DOWNLOAD_URL;
+
+// --- Assets ----------------------------------------------------------------
+// Vite resolves these at build time. An empty glob means the file is absent,
+// and the section that needs it is skipped rather than shown empty.
+const shotUrls = import.meta.glob('./assets/screenshots/*.{png,jpg,jpeg,webp}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
+const videoUrls = import.meta.glob('./assets/videos/*.mp4', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+
+/** Map `./assets/screenshots/dashboard.png` to `{ dashboard: '/assets/…' }`. */
+function byId(urls: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [path, url] of Object.entries(urls)) {
+    const id = path.split('/').pop()?.replace(/\.[^.]+$/, '');
+    if (id) out[id] = url;
+  }
+  return out;
+}
+
+const SHOTS = byId(shotUrls);
+const VIDEOS = byId(videoUrls);
+
 const PAGES = [
   { id: 'dashboard', name: 'Dashboard', blurb: 'KPIs, revenue and low-stock at a glance.' },
   { id: 'products', name: 'Products', blurb: 'Your catalog, prices, stock and SKUs.' },
@@ -33,68 +101,79 @@ const PAGES = [
   { id: 'orders', name: 'Orders', blurb: 'Create, track and fulfil orders in one flow.' },
   { id: 'customers', name: 'Customers', blurb: 'Add, sort and search; see purchase history.' },
   { id: 'invoices', name: 'Invoices', blurb: 'Generate and export invoices as PDF.' },
-  { id: 'ai', name: 'CO OP AI', blurb: 'Ask Zeno to explain, forecast and draft.' },
+  { id: 'ai', name: 'Co-op AI', blurb: 'Ask Zeno to explain, forecast and draft.' },
 ];
 
-/** Shows a page's video (on hover) over its screenshot, or a styled placeholder
- *  until the real asset is dropped into public/. */
-function Shot({ id, name }: { id: string; name: string }) {
-  const img = `screenshots/${id}.png`;
-  const vid = `videos/${id}.mp4`;
-  const [imgFailed, setImgFailed] = useState(false);
-  const [vidFailed, setVidFailed] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+/** The tour is all-or-nothing: half a tour reads more broken than none. */
+const TOUR = PAGES.filter((p) => Boolean(SHOTS[p.id]));
+const TOUR_READY = TOUR.length === PAGES.length;
 
-  const play = () => videoRef.current?.play().catch(() => {});
-  const pause = () => videoRef.current?.pause();
+const FOUNDERS_VIDEO = videoUrls['./assets/videos/founders.mp4'];
+const FOUNDERS_POSTER = SHOTS['founders-poster'];
+const FOUNDERS_READY = Boolean(FOUNDERS_EMBED || FOUNDERS_VIDEO);
 
+const CONTACT_READY = Boolean(CONTACT.email || CONTACT.phone || CONTACT.whatsapp);
+
+// --- Icons -----------------------------------------------------------------
+// Real vector icons rather than emoji. Emoji render differently on every OS
+// and are the clearest tell of a generated page.
+type IconName = 'dashboard' | 'orders' | 'inventory' | 'customers' | 'ai' | 'offline';
+
+const ICON_PATHS: Record<IconName, string> = {
+  dashboard: 'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
+  orders: 'M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1zM9 8h6M9 12h6',
+  inventory: 'M3 8l9-5 9 5-9 5-9-5zM3 8v8l9 5 9-5V8M12 13v8',
+  customers: 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM22 20v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+  ai: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM18.5 16.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z',
+  offline: 'M2 8.8a15 15 0 0 1 8-2.3M14 6.6a15 15 0 0 1 8 2.2M5.5 12.4a10 10 0 0 1 3-1.1M15.5 11.4a10 10 0 0 1 3 1M8.8 16a5 5 0 0 1 6.4 0M12 20h.01M2 2l20 20',
+};
+
+function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   return (
-    <div
-      className="shot"
-      onMouseEnter={play}
-      onMouseLeave={pause}
-      onClick={play}
-      role="img"
-      aria-label={`${name} screenshot`}
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
     >
-      {!vidFailed && (
-        <video
-          ref={videoRef}
-          src={vid}
-          poster={img}
-          muted
-          loop
-          playsInline
-          preload="none"
-          onError={() => setVidFailed(true)}
-          className="shot-media"
-        />
-      )}
-      {vidFailed && !imgFailed && (
-        <img src={img} alt={name} className="shot-media" onError={() => setImgFailed(true)} />
-      )}
-      {(vidFailed && imgFailed) && (
-        <div className="shot-placeholder">
-          <span style={caps}>{name}</span>
-          <small style={t.bodyCompact}>screenshot / clip goes here</small>
-        </div>
-      )}
-    </div>
+      <path d={ICON_PATHS[name]} />
+    </svg>
   );
 }
 
-function WeaveMark({ size = 24 }: { size?: number }) {
+/**
+ * The Co-op mark — "the C that holds the shop".
+ * Same geometry and colours as brand/coop-mark.svg and the app's CoopMark;
+ * ids are suffixed so this instance cannot collide with anything else on the
+ * page.
+ */
+function CoopMark({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label="CO OP">
+    <svg width={size} height={size} viewBox="0 0 48 48" role="img" aria-label="Co-op">
       <defs>
-        <linearGradient id="wmA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#5b5fef" /><stop offset="1" stopColor="#4143d5" /></linearGradient>
-        <linearGradient id="wmB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8a4cfc" /><stop offset="1" stopColor="#712ae2" /></linearGradient>
-        <linearGradient id="wmC" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#c0c1ff" /><stop offset="1" stopColor="#8a8df5" /></linearGradient>
+        <linearGradient id="siteRing" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#5b5fef" />
+          <stop offset="1" stopColor="#8a4cfc" />
+        </linearGradient>
+        <linearGradient id="siteCrate" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#8a4cfc" />
+          <stop offset="1" stopColor="#5b5fef" />
+        </linearGradient>
       </defs>
-      <rect x="14" y="5" width="20" height="21" rx="9" fill="url(#wmA)" />
-      <rect x="6" y="19" width="20" height="21" rx="9" fill="url(#wmB)" opacity="0.94" />
-      <rect x="22" y="19" width="20" height="21" rx="9" fill="url(#wmC)" opacity="0.9" />
-      <path d="M24 17 Q26.6 22.4 30.5 25 Q26.6 27.6 24 33 Q21.4 27.6 17.5 25 Q21.4 22.4 24 17 Z" fill="#ffffff" opacity="0.96" />
+      <path
+        d="M33.4 13.2 A14.2 14.2 0 1 0 33.4 34.8"
+        fill="none"
+        stroke="url(#siteRing)"
+        strokeWidth="6.8"
+        strokeLinecap="round"
+      />
+      <rect x="21.4" y="17.2" width="15.2" height="13.6" rx="4.8" fill="url(#siteCrate)" />
     </svg>
   );
 }
@@ -102,28 +181,89 @@ function WeaveMark({ size = 24 }: { size?: number }) {
 function Logo() {
   return (
     <a className="logo" href="#top">
-      <WeaveMark size={24} /> <span>CO OP</span>
+      <CoopMark size={26} /> <span>Co-op</span>
     </a>
   );
 }
 
+// --- Chrome ----------------------------------------------------------------
+
+const NAV = [
+  { href: '#features', label: 'Features' },
+  { href: '#tour', label: 'Tour', show: TOUR_READY },
+  { href: '#pricing', label: 'Pricing' },
+  { href: '#faq', label: 'FAQ' },
+  { href: '#contact', label: 'Contact', show: CONTACT_READY },
+];
+
 function TopBar({ mode, onToggle }: { mode: Mode; onToggle: () => void }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const items = NAV.filter((i) => i.show !== false);
+
+  // A nav that simply disappears under 860px leaves a phone with no way around
+  // the page. This is a real disclosure button instead (aria-expanded, closes
+  // on Escape and on navigation).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
   return (
     <header className="topbar">
       <div className="container topbar-inner">
         <Logo />
-        <nav className="nav">
-          <a href="#features">Features</a>
-          <a href="#tour">Tour</a>
-          <a href="#ai">CO OP AI</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#contact">Contact</a>
-          <a href={DOWNLOAD_URL} target="_blank" rel="noreferrer">Download</a>
-        </nav>
-        <button className="theme-toggle" onClick={onToggle} aria-label="Toggle dark mode">
-          {mode === 'dark' ? '☀' : '◐'}
+
+        <button
+          type="button"
+          className="nav-toggle"
+          aria-expanded={menuOpen}
+          aria-controls="site-nav"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
         </button>
-        <a className="btn btn-primary btn-sm" href="#pricing">Start free trial</a>
+
+        <nav
+          id="site-nav"
+          className={`nav${menuOpen ? ' nav-open' : ''}`}
+          aria-label="Main"
+          onClick={() => setMenuOpen(false)}
+        >
+          {items.map((i) => (
+            <a key={i.href} href={i.href}>
+              {i.label}
+            </a>
+          ))}
+          <a href={DOWNLOAD_URL} target="_blank" rel="noreferrer">
+            Download
+          </a>
+          {/* Shown only inside the mobile panel (see .nav-cta in styles.css):
+              below 560px the header's trial button is hidden so the logo, menu
+              and theme toggle can fit on one 320px line. */}
+          <a className="nav-cta" href={TRIAL_HREF}>
+            Start 10-day free trial
+          </a>
+        </nav>
+
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={onToggle}
+          // The label names the destination, not the current state, so a
+          // screen-reader user hears what pressing it will do.
+          aria-label={mode === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={mode === 'dark' ? 'Light theme' : 'Dark theme'}
+        >
+          <span aria-hidden="true">{mode === 'dark' ? '☀' : '◐'}</span>
+        </button>
+        <a className="btn btn-primary btn-sm" href={TRIAL_HREF}>
+          Start free trial
+        </a>
       </div>
     </header>
   );
@@ -132,31 +272,58 @@ function TopBar({ mode, onToggle }: { mode: Mode; onToggle: () => void }) {
 function Hero() {
   return (
     <section className="hero">
-      <div className="hero-glow" />
+      <div className="hero-glow" aria-hidden="true" />
       <div className="container hero-inner">
-        <div>
-          <span className="eyebrow" style={caps}>Offline-first · AI-assisted</span>
-          <h1 style={{ ...t.pageTitle, fontSize: 48, lineHeight: '56px' }}>
+        <div data-enter="hero-copy">
+          <span className="eyebrow" style={caps}>
+            Offline-first · Built for Nigerian retail
+          </span>
+          {/* Sized by .hero-title (clamp 30→48px). It used to be a fixed 48px,
+              which on a 320px screen took four lines and pushed the buttons up
+              against the copy. */}
+          <h1 className="hero-title">
             Run your whole business from <span className="grad">one calm place</span>
           </h1>
           <p className="lede">
-            CO OP brings inventory, orders, customers and invoicing together — plus an AI
-            assistant that explains your numbers and tells you what to do next. It keeps
-            working when the internet doesn't.
+            Co-op brings inventory, orders, customers and invoicing together, plus an assistant
+            that explains your numbers and tells you what to do next. It keeps working when the
+            internet doesn't.
           </p>
           <div className="hero-cta">
-            <a className="btn btn-primary" href="#pricing">Start 10-day free trial</a>
-            <a className="btn btn-ghost" href="#features">See how it works</a>
-            <a className="btn btn-ghost" href={DOWNLOAD_URL} target="_blank" rel="noreferrer">Download for Windows</a>
+            <a className="btn btn-primary" href={TRIAL_HREF}>
+              Start 10-day free trial
+            </a>
+            <a className="btn btn-ghost" href="#features">
+              See how it works
+            </a>
           </div>
-          <p className="hero-note">No credit card required · Windows desktop app · Your data, backed up and encrypted</p>
+          <p className="hero-note">
+            No card to start · Windows desktop app · Your data stays on your machine and syncs
+            when you're online
+          </p>
         </div>
-        <div className="preview" aria-hidden="true">
-          <div className="preview-bar"><span /><span /><span /></div>
+        <div className="preview" data-enter="hero-preview" aria-hidden="true">
+          <div className="preview-bar">
+            <span />
+            <span />
+            <span />
+          </div>
           <div className="kpis">
-            <div className="kpi"><div style={caps}>Revenue today</div><div className="k-value">$2,845</div><div style={{ ...caps, color: colors.success }}>▲ 12.4%</div></div>
-            <div className="kpi"><div style={caps}>Orders</div><div className="k-value">37</div><div style={{ ...caps, color: colors.success }}>▲ 5</div></div>
-            <div className="kpi"><div style={caps}>Low stock</div><div className="k-value">6</div><div style={{ ...caps, color: colors.warning }}>reorder</div></div>
+            <div className="kpi">
+              <div style={caps}>Revenue today</div>
+              <div className="k-value">₦1,240,500</div>
+              <div style={{ ...caps, color: colors.successText }}>▲ 12.4%</div>
+            </div>
+            <div className="kpi">
+              <div style={caps}>Orders</div>
+              <div className="k-value">37</div>
+              <div style={{ ...caps, color: colors.successText }}>▲ 5</div>
+            </div>
+            <div className="kpi">
+              <div style={caps}>Low stock</div>
+              <div className="k-value">6</div>
+              <div style={{ ...caps, color: colors.warningText }}>reorder</div>
+            </div>
           </div>
           <div className="chart" />
         </div>
@@ -165,13 +332,37 @@ function Hero() {
   );
 }
 
-const FEATURES = [
-  { icon: '▦', title: 'Dashboard', body: 'KPIs, revenue charts, inventory summaries and customer growth — your whole business at a glance.' },
-  { icon: '🧾', title: 'Orders & invoices', body: 'Create orders, track status, and generate invoices and PDFs in one flow.' },
-  { icon: '📦', title: 'Inventory', body: 'Products, categories, low-stock alerts, valuation and a full movement ledger.' },
-  { icon: '👥', title: 'Customers', body: 'A central database with purchase history and spending analysis per customer.' },
-  { icon: '✨', title: 'CO OP AI', body: 'Reports, explanations, forecasts and recommended restocks — grounded in your real data.' },
-  { icon: '🔌', title: 'Works offline', body: 'Core operations run locally and sync automatically when you are back online.' },
+const FEATURES: Array<{ icon: IconName; title: string; body: string }> = [
+  {
+    icon: 'dashboard',
+    title: 'Dashboard',
+    body: 'KPIs, revenue charts, inventory summaries and customer growth — your whole business at a glance.',
+  },
+  {
+    icon: 'orders',
+    title: 'Orders & invoices',
+    body: 'Create orders, track status, and generate invoices and PDFs in one flow.',
+  },
+  {
+    icon: 'inventory',
+    title: 'Inventory',
+    body: 'Products, categories, low-stock alerts, valuation and a full movement ledger.',
+  },
+  {
+    icon: 'customers',
+    title: 'Customers',
+    body: 'A central database with purchase history and spending analysis per customer.',
+  },
+  {
+    icon: 'ai',
+    title: 'Co-op AI',
+    body: 'Reports, explanations, forecasts and recommended restocks — grounded in your real data.',
+  },
+  {
+    icon: 'offline',
+    title: 'Works offline',
+    body: 'Core operations run locally and sync automatically when you are back online.',
+  },
 ];
 
 function Features() {
@@ -179,14 +370,20 @@ function Features() {
     <section id="features">
       <div className="container">
         <div className="section-head">
-          <span className="caps" style={caps}>Everything in v1</span>
-          <h2 style={t.pageTitle}>Five systems, one workspace</h2>
-          <p className="muted" style={t.bodyDefault}>Built for owners with little time and no patience for enterprise software.</p>
+          <span className="caps" style={caps}>
+            Everything in v1
+          </span>
+          <h2 className="section-title">Five systems, one workspace</h2>
+          <p className="muted" style={t.bodyDefault}>
+            Built for owners with little time and no patience for enterprise software.
+          </p>
         </div>
         <div className="grid-3">
           {FEATURES.map((f) => (
             <div className="card" key={f.title}>
-              <div className="icon">{f.icon}</div>
+              <div className="icon">
+                <Icon name={f.icon} />
+              </div>
               <h3 style={t.titleMd}>{f.title}</h3>
               <p style={t.bodyDefault}>{f.body}</p>
             </div>
@@ -198,9 +395,18 @@ function Features() {
 }
 
 const AI = [
-  { title: 'Explain the numbers', body: 'Ask why revenue moved and get a plain-English answer from your own data — never invented.' },
-  { title: 'Forecast & restock', body: 'Statistical sales forecasts plus recommended reorder actions before you run out.' },
-  { title: 'Draft in seconds', body: 'Generate reports and invoices from a sentence, scoped to what you are allowed to see.' },
+  {
+    title: 'Explain the numbers',
+    body: 'Ask why revenue moved and get a plain-English answer from your own data — never invented.',
+  },
+  {
+    title: 'Forecast & restock',
+    body: 'Statistical sales forecasts plus recommended reorder actions before you run out.',
+  },
+  {
+    title: 'Draft in seconds',
+    body: 'Generate reports and invoices from a sentence, scoped to what you are allowed to see.',
+  },
 ];
 
 function AiBand() {
@@ -208,8 +414,10 @@ function AiBand() {
     <section id="ai" className="ai-band">
       <div className="container">
         <div className="section-head">
-          <span className="caps" style={caps}>The defining feature</span>
-          <h2 style={t.pageTitle}>Meet Zeno, an assistant that knows your business</h2>
+          <span className="caps" style={caps}>
+            The defining feature
+          </span>
+          <h2 className="section-title">Meet Zeno, an assistant that knows your business</h2>
         </div>
         <div className="grid-3">
           {AI.map((a) => (
@@ -224,25 +432,117 @@ function AiBand() {
   );
 }
 
+/**
+ * One app page in the tour.
+ *
+ * It is a real <button>, so it is reachable by keyboard and announces what it
+ * does. It used to be a `div role="img"` with onClick and no tabIndex: the
+ * hover-to-play loop was pointer-only (WCAG 2.1.1), and `role="img"` hid its
+ * contents from screen readers.
+ */
+function Shot({ id, name }: { id: string; name: string }) {
+  const video = VIDEOS[id];
+  const poster = SHOTS[id];
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+
+  const play = useCallback(() => {
+    videoRef.current?.play().catch(() => undefined);
+    setPlaying(true);
+  }, []);
+
+  const pause = useCallback(() => {
+    videoRef.current?.pause();
+    setPlaying(false);
+  }, []);
+
+  if (!video) {
+    return (
+      <div className="shot">
+        <img src={poster} alt={`The ${name} screen in Co-op`} className="shot-media" loading="lazy" />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="shot shot-button"
+      aria-label={`${playing ? 'Pause' : 'Play'} the ${name} walkthrough`}
+      onClick={() => (playing ? pause() : play())}
+      onMouseEnter={play}
+      onMouseLeave={pause}
+      onFocus={play}
+      onBlur={pause}
+    >
+      <video
+        ref={videoRef}
+        src={video}
+        poster={poster}
+        muted
+        loop
+        playsInline
+        preload="none"
+        className="shot-media"
+      />
+    </button>
+  );
+}
+
+function ProductTour() {
+  if (!TOUR_READY) return null; // assets missing: no section, no placeholders
+  return (
+    <section id="tour">
+      <div className="container">
+        <div className="section-head">
+          <span className="caps" style={caps}>
+            Product tour
+          </span>
+          <h2 className="section-title">See every page</h2>
+        </div>
+        <div className="tour-grid">
+          {TOUR.map((p) => (
+            <div className="card tour-card" key={p.id}>
+              <Shot id={p.id} name={p.name} />
+              <h3 style={t.titleMd}>{p.name}</h3>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PlanCard({ plan, annual }: { plan: Plan; annual: boolean }) {
   const price = displayPrice(plan, annual);
   return (
     <div className={`card plan${plan.highlight ? ' featured' : ''}`}>
-      {plan.highlight && <span className="badge" style={caps}>Best value</span>}
+      {plan.highlight && (
+        <span className="badge" style={caps}>
+          Best value
+        </span>
+      )}
       <h3 style={t.sectionHeading}>{plan.name}</h3>
       <div className="price">
         <span className="amount">{price.amount}</span>
         {plan.priceMonthly != null && <span className="per">/mo</span>}
       </div>
-      <p className="muted" style={t.bodyCompact}>{price.note} · {plan.tagline}</p>
+      <p className="muted" style={t.bodyCompact}>
+        {price.note} · {plan.tagline}
+      </p>
       <ul style={t.bodyCompact}>
         {plan.features.map((f) => (
           <li key={f.label} className={f.included ? '' : 'off'}>
-            <span className="tick">{f.included ? '✓' : '—'}</span> {f.label}
+            <span className="tick" aria-hidden="true">
+              {f.included ? '✓' : '—'}
+            </span>
+            {f.included ? f.label : <s>{f.label}</s>}
           </li>
         ))}
       </ul>
-      <a className={`btn ${plan.highlight ? 'btn-primary' : 'btn-ghost'}`} href="#top">{plan.cta}</a>
+      <a className={`btn ${plan.highlight ? 'btn-primary' : 'btn-ghost'}`} href={TRIAL_HREF}>
+        {plan.cta}
+      </a>
     </div>
   );
 }
@@ -253,12 +553,24 @@ function Pricing() {
     <section id="pricing">
       <div className="container">
         <div className="section-head">
-          <span className="caps" style={caps}>Pricing</span>
-          <h2 style={t.pageTitle}>Simple plans that scale with you</h2>
+          <span className="caps" style={caps}>
+            Pricing
+          </span>
+          <h2 className="section-title">Simple plans that scale with you</h2>
           <p className="muted" style={t.bodyDefault}>
-            Every paid plan starts with a 10-day free trial. The trial runs to the end — subscribe to keep going.
+            Every paid plan starts with a 10-day free trial. No card needed to begin — you only
+            pay if you decide to keep using Co-op.
           </p>
-          <label style={{ ...t.bodyCompact, display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8, cursor: 'pointer' }}>
+          <label
+            style={{
+              ...t.bodyCompact,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 8,
+              cursor: 'pointer',
+            }}
+          >
             <input type="checkbox" checked={annual} onChange={(e) => setAnnual(e.target.checked)} />
             Bill annually (save 20%)
           </label>
@@ -268,65 +580,52 @@ function Pricing() {
             <PlanCard key={plan.id} plan={plan} annual={annual} />
           ))}
         </div>
+        {/* The cards show the Naira amount the card is actually charged, taken
+            from the same catalog the app bills from (frontend/src/billing),
+            so the site cannot quote a price the product does not charge. */}
+        <p className="muted billing-note" style={t.bodyCompact}>
+          Prices are in Naira, inclusive of tax, billed through Paystack. Pay in Naira with
+          any Nigerian card, transfer or USSD — no dollar card needed.
+        </p>
       </div>
     </section>
   );
 }
 
 const FAQ = [
-  { q: 'Does it work without internet?', a: 'Yes. Inventory, orders, customers and dashboards run locally; everything syncs when you reconnect.' },
-  { q: 'What happens when the trial ends?', a: 'The 10-day trial runs to the end and cannot be cancelled early. Subscribe to keep using CO OP.' },
-  { q: 'Which platforms?', a: 'CO OP v1 is a Windows desktop app (Electron), with your data backed by the cloud.' },
-  { q: 'Is my data safe?', a: 'Tenant isolation, encrypted backups and strict security headers are on by default.' },
+  {
+    q: 'Does it work without internet?',
+    a: 'Yes. Inventory, orders, customers and dashboards run locally; everything syncs when you reconnect.',
+  },
+  {
+    q: 'What happens when the trial ends?',
+    a: 'You keep everything you have entered. If you do not subscribe, the app stops accepting new entries until you do. Nothing is deleted.',
+  },
+  {
+    q: 'Which platforms?',
+    a: 'Co-op v1 is a Windows desktop app (Electron), with your data backed by the cloud.',
+  },
+  {
+    q: 'Is my data safe?',
+    a: 'Your records stay on your own machine and sync to a database that only your business can read. Backups are encrypted before they leave the device.',
+  },
 ];
 
 function Faq() {
   return (
     <section id="faq">
       <div className="container">
-        <div className="section-head"><span className="caps" style={caps}>FAQ</span><h2 style={t.pageTitle}>Good to know</h2></div>
+        <div className="section-head">
+          <span className="caps" style={caps}>
+            FAQ
+          </span>
+          <h2 className="section-title">Good to know</h2>
+        </div>
         <div className="grid-2">
           {FAQ.map((f) => (
-            <div className="card" key={f.q}><h3 style={t.titleMd}>{f.q}</h3><p style={t.bodyDefault}>{f.a}</p></div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Cta() {
-  return (
-    <section>
-      <div className="container">
-        <div className="cta">
-          <h2 style={t.pageTitle}>Start your 10-day free trial</h2>
-          <p style={{ ...t.bodyDefault, opacity: 0.92, margin: '0 0 24px' }}>Set up in minutes. No credit card required.</p>
-          <a className="btn" href="#top">Get started free</a>
-          <a className="btn btn-ghost" href={DOWNLOAD_URL} target="_blank" rel="noreferrer" style={{ marginLeft: 12 }}>Download the app</a>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ProductTour() {
-  return (
-    <section id="tour">
-      <div className="container">
-        <div className="section-head">
-          <span className="caps" style={caps}>Product tour</span>
-          <h2 style={t.pageTitle}>See every page</h2>
-          <p className="muted" style={t.bodyDefault}>
-            Hover a page to watch it in action — adding a customer, sorting, creating an order.
-          </p>
-        </div>
-        <div className="tour-grid">
-          {PAGES.map((p) => (
-            <div className="card tour-card" key={p.id}>
-              <Shot id={p.id} name={p.name} />
-              <h3 style={t.titleMd}>{p.name}</h3>
-              <p style={t.bodyCompact}>{p.blurb}</p>
+            <div className="card" key={f.q}>
+              <h3 style={t.titleMd}>{f.q}</h3>
+              <p style={t.bodyDefault}>{f.a}</p>
             </div>
           ))}
         </div>
@@ -336,15 +635,15 @@ function ProductTour() {
 }
 
 function FoundersVideo() {
+  if (!FOUNDERS_READY) return null; // no empty 16:9 frame, no build instructions
   return (
     <section id="founders" className="ai-band">
       <div className="container">
         <div className="section-head">
-          <span className="caps" style={caps}>From the founders</span>
-          <h2 style={t.pageTitle}>Why we built CO OP</h2>
-          <p className="muted" style={t.bodyDefault}>
-            A short word from the team behind CO OP.
-          </p>
+          <span className="caps" style={caps}>
+            From the founders
+          </span>
+          <h2 className="section-title">Why we built Co-op</h2>
         </div>
         <div className="video-frame">
           {FOUNDERS_EMBED ? (
@@ -356,16 +655,13 @@ function FoundersVideo() {
             />
           ) : (
             <video
-              src="videos/founders.mp4"
-              poster="screenshots/founders-poster.jpg"
+              src={FOUNDERS_VIDEO}
+              poster={FOUNDERS_POSTER}
               controls
               playsInline
               preload="none"
             />
           )}
-          <div className="video-hint" style={t.bodyCompact}>
-            Founders video slot — drop <code>videos/founders.mp4</code> (or set the embed) to play it here.
-          </div>
         </div>
       </div>
     </section>
@@ -373,43 +669,98 @@ function FoundersVideo() {
 }
 
 function Contact() {
-  const hasEmail = Boolean(CONTACT.email);
-  const hasPhone = Boolean(CONTACT.phone || CONTACT.whatsapp);
+  if (!CONTACT_READY) return null;
   const wa = CONTACT.whatsapp || CONTACT.phone;
   return (
     <section id="contact">
       <div className="container">
         <div className="section-head">
-          <span className="caps" style={caps}>Contact</span>
-          <h2 style={t.pageTitle}>Talk to a human</h2>
+          <span className="caps" style={caps}>
+            Contact
+          </span>
+          <h2 className="section-title">Talk to a human</h2>
           <p className="muted" style={t.bodyDefault}>
-            Questions about plans, onboarding or migrating your data? Reach us any time.
+            Questions about plans, onboarding or moving your data across? Reach us any time.
           </p>
+          {CONTACT_IS_PLACEHOLDER && (
+            /* Shown only while the details above are the shipped placeholder.
+               It disappears the moment a real address is filled in — no flag to
+               remember to flip. */
+            <p
+              style={{
+                ...t.bodyCompact,
+                margin: '12px 0 0',
+                padding: '10px 14px',
+                borderRadius: 10,
+                background: 'rgba(138, 97, 0, 0.10)',
+                color: '#8a6100',
+                display: 'inline-block',
+              }}
+            >
+              <strong>Not live yet:</strong> these details are placeholders. Use the
+              GitHub issues link in the footer until they are replaced.
+            </p>
+          )}
         </div>
         <div className="contact-grid">
-          <div className="card contact-item">
-            <div className="icon">✉</div>
-            <h3 style={t.titleMd}>Email</h3>
-            {hasEmail ? (
-              <a className="contact-link" style={t.bodyDefault} href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
-            ) : (
-              <p style={t.bodyCompact}>Support email coming soon.</p>
-            )}
-          </div>
-          <div className="card contact-item">
-            <div className="icon">{wa ? '💬' : '📞'}</div>
-            <h3 style={t.titleMd}>{wa ? 'Call / WhatsApp' : 'Phone'}</h3>
-            {hasPhone ? (
+          {CONTACT.email && (
+            <div className="card contact-item">
+              <div className="icon" aria-hidden="true">
+                <Icon name="orders" />
+              </div>
+              <h3 style={t.titleMd}>Email</h3>
+              <a className="contact-link" style={t.bodyDefault} href={`mailto:${CONTACT.email}`}>
+                {CONTACT.email}
+              </a>
+            </div>
+          )}
+          {wa && (
+            <div className="card contact-item">
+              <div className="icon" aria-hidden="true">
+                <Icon name="customers" />
+              </div>
+              <h3 style={t.titleMd}>Call / WhatsApp</h3>
               <a
                 className="contact-link"
                 style={t.bodyDefault}
-                href={CONTACT.whatsapp ? `https://wa.me/${CONTACT.whatsapp.replace(/[^0-9]/g, '')}` : `tel:${CONTACT.phone}`}
+                href={
+                  CONTACT.whatsapp
+                    ? `https://wa.me/${CONTACT.whatsapp.replace(/[^0-9]/g, '')}`
+                    : `tel:${CONTACT.phone}`
+                }
               >
                 {CONTACT.phone || CONTACT.whatsapp}
               </a>
-            ) : (
-              <p style={t.bodyCompact}>Add a number in <code>CONTACT</code> to enable this.</p>
-            )}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Cta() {
+  return (
+    <section>
+      <div className="container">
+        <div className="cta">
+          <h2 className="section-title">Start your 10-day free trial</h2>
+          <p style={{ ...t.bodyDefault, opacity: 0.92, margin: '0 0 24px' }}>
+            Install it in minutes. No card needed to start.
+          </p>
+          {/* The two buttons were inline links with a `marginLeft: 12` between
+              them. On a phone they cannot both fit, so the second wrapped onto
+              the next line and sat flush against the first — with both painted
+              white, that reads as one button with two labels overlapping. They
+              are a flex row now: side by side when there is room, stacked with
+              a real gap when there is not. */}
+          <div className="cta-actions">
+            <a className="btn cta-btn-primary" href={TRIAL_HREF}>
+              Get started free
+            </a>
+            <a className="btn btn-ghost cta-btn-secondary" href={DOWNLOAD_URL} target="_blank" rel="noreferrer">
+              Download the app
+            </a>
           </div>
         </div>
       </div>
@@ -422,24 +773,65 @@ function Footer() {
     <footer>
       <div className="container foot">
         <Logo />
-        <p style={{ ...t.bodyCompact, margin: 0 }}>© 2026 CO OP. The operating system for small businesses.</p>
-        <nav className="nav" style={{ margin: 0 }}><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></nav>
+        <p style={{ ...t.bodyCompact, margin: 0 }}>
+          © 2026 Co-op. The operating system for small businesses.
+          {/* Rendered from SITE.url so the placeholder host has one source in
+              the app code and one in index.html, and a reviewer can see it.
+              Remove this line (and the constant) when the real domain exists. */}
+          {SITE.url.endsWith('.example') && (
+            <span style={{ display: 'block', marginTop: 6, opacity: 0.75 }}>
+              Preview build — the public address in this page's share links is a
+              placeholder until launch.
+            </span>
+          )}
+        </p>
+        <nav className="nav nav-footer" aria-label="Footer">
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
+          <a href={ISSUES_URL} target="_blank" rel="noreferrer">
+            Support
+          </a>
+        </nav>
       </div>
     </footer>
   );
 }
 
 export default function App() {
-  const [mode, setMode] = useState<Mode>('light');
+  const [mode, setMode] = useState<Mode>(() => {
+    // Respect the OS on first paint and remember an explicit choice, instead of
+    // snapping everyone back to light on every reload.
+    try {
+      const stored = window.localStorage.getItem('coop-web:theme');
+      if (stored === 'light' || stored === 'dark') return stored;
+    } catch {
+      /* private mode */
+    }
+    return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    applyTheme(mode);
+  }, [mode]);
+
   const toggle = () => {
     const next: Mode = mode === 'dark' ? 'light' : 'dark';
     setMode(next);
-    applyTheme(next);
+    try {
+      window.localStorage.setItem('coop-web:theme', next);
+    } catch {
+      /* private mode: the choice just does not persist */
+    }
   };
+
   return (
     <div id="top">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
       <TopBar mode={mode} onToggle={toggle} />
-      <main>
+      <main id="main">
         <Hero />
         <Features />
         <ProductTour />

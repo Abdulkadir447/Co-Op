@@ -13,6 +13,10 @@ the AI never creates, edits or deletes data on its own.
 """
 from __future__ import annotations
 
+from decimal import InvalidOperation
+
+from .. import money
+
 from typing import Any, Optional
 
 from sqlalchemy import select
@@ -121,15 +125,16 @@ async def _resolve_draft_order(
     stock = product.current_stock or 0
     if stock < quantity:
         return None, f"only {stock} of {product.name!r} in stock"
+    # Money is Decimal (backend/money.py); the model may propose a price as a
+    # string or a number, and either is coerced without ever becoming a float.
     unit_price = params.get("unit_price")
     try:
-        unit_price = (
-            float(unit_price)
-            if unit_price is not None and float(unit_price) > 0
-            else (product.unit_price or 0)
+        proposed = money.as_money(unit_price) if unit_price not in (None, "") else None
+        unit_price = proposed if proposed is not None and proposed > 0 else (
+            product.unit_price or money.ZERO
         )
-    except (TypeError, ValueError):
-        unit_price = product.unit_price or 0
+    except (TypeError, ValueError, InvalidOperation):
+        unit_price = product.unit_price or money.ZERO
     if unit_price <= 0:
         return None, f"{product.name!r} has no selling price"
 
@@ -140,9 +145,9 @@ async def _resolve_draft_order(
             "name": product.name,
             "sku": product.sku or "",
             "quantity": quantity,
-            "unit_price": round(unit_price, 2),
+            "unit_price": money.as_money(unit_price),
         }],
-        "total": round(quantity * unit_price, 2),
+        "total": money.as_money(quantity * unit_price),
         "note": f"{quantity} x {product.name} for {customer.full_name} — review before ordering.",
     }, None
 
@@ -176,4 +181,7 @@ async def validate_actions(
                 accepted.append({"type": atype, "parameters": resolved})
         else:  # pragma: no cover — registry is closed in v1
             rejected.append({"type": str(atype), "reason": "not available yet"})
-    return accepted, rejected
+    # The wire carries money as a JSON number (backend/money.py); Pydantic would
+    # otherwise emit a Decimal as a string and the draft card would post a price
+    # that is not the same type every other endpoint accepts.
+    return money.jsonable(accepted), rejected

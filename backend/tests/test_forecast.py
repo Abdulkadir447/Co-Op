@@ -12,6 +12,7 @@ import datetime as dt
 
 from sqlalchemy import select
 
+from backend import branches as branches_mod
 from backend.models import Business, Order, OrderItem, OrderStatus
 
 
@@ -74,9 +75,11 @@ async def _seed_orders(
 ):
     """specs: (order_date, total, status) — one order per entry."""
     async with session_factory() as db:
+        br = (await branches_mod.default_branch(db, business_id)).id
         for od, total, status in specs:
             o = Order(
                 business_id=business_id,
+                branch_id=br,
                 customer_id=customer_id,
                 order_date=dt.datetime.combine(od, dt.time(12, 0)),
                 status=OrderStatus(status),
@@ -88,6 +91,7 @@ async def _seed_orders(
             db.add(
                 OrderItem(
                     business_id=business_id,
+                    branch_id=br,
                     order_id=o.id,
                     product_id=product_id,
                     quantity=qty,

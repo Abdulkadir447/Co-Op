@@ -1,5 +1,5 @@
 import React from 'react';
-import Chart from './chart';
+import Chart from './LazyChart';
 import { theme as antdTheme } from 'antd';
 import type { ApexOptions } from 'apexcharts';
 import { useCoopTheme } from '../../theme-provider';

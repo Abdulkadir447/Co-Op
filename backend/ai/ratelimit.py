@@ -11,6 +11,8 @@ limiting (used by the testing environment so unrelated tests never trip).
 
 from __future__ import annotations
 
+import hashlib
+
 import time
 from collections import defaultdict, deque
 from typing import Callable
@@ -38,8 +40,12 @@ class SlidingWindowRateLimiter:
         window_seconds: float,
         now_fn: Callable[[], float] = time.monotonic,
         detail: str | None = None,
+        name: str = "",
     ) -> None:
         self.requests = max(0, int(requests))
+        # Which limiter this is — carried into the rate_limit_tripped event so
+        # an alert says "imports" instead of nothing.
+        self.name = name
         self.window = float(window_seconds)
         self._now = now_fn
         # Non-AI sections (imports, exports) reuse this limiter with their own
@@ -58,6 +64,21 @@ class SlidingWindowRateLimiter:
             window.popleft()
         if len(window) >= self.requests:
             retry_after = max(1, int(window[0] + self.window - now) + 1)
+            # A tripped limit is a security/abuse signal: it is the moment a
+            # loop, a stolen token or a denial-of-wallet attempt becomes
+            # visible. Emitted at WARNING; the key is hashed so a raw user id
+            # never travels to an alert webhook.
+            try:
+                from ..security_events import security_event
+
+                security_event(
+                    "rate_limit_tripped",
+                    scope=getattr(self, "name", "") or "",
+                    key=hashlib.sha256(key.encode("utf-8")).hexdigest()[:12],
+                    limit=self.requests,
+                )
+            except Exception:  # noqa: BLE001 — never let telemetry break a 429
+                pass
             raise HTTPException(
                 status_code=429,
                 detail=self.detail,

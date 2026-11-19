@@ -149,3 +149,27 @@ async def test_imports_commit_still_works_when_limiting_is_off(api):
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["created"]["products"] == 1, resp.json()
+
+
+# --- /admin licence routes --------------------------------------------------
+
+def test_the_admin_gate_has_its_own_default_limit():
+    assert ratelimits.DEFAULTS["admin"] == {"requests": 30, "window_seconds": 60}
+    assert "admin" in ratelimits.limiter_for("admin").detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_admin_routes_return_429_when_the_limiter_refuses(api, monkeypatch):
+    """A constant-time compare stops timing attacks, not a guessing loop."""
+    monkeypatch.setenv("LICENSE_ADMIN_TOKENS", "a-real-token")
+    refuser = _RefusingLimiter("Too many admin attempts.")
+    ratelimits._limiters["admin"] = refuser  # noqa: SLF001 — deliberate seam
+
+    resp = await api.client.get("/admin/licenses", headers={"x-admin-token": "guess"})
+    assert resp.status_code == 429
+    assert refuser.checks == 1, "throttled before the token is even compared"
+
+
+@pytest.mark.asyncio
+async def test_the_admin_limit_is_off_in_testing(api):
+    assert ratelimits.limiter_for("admin").requests == 0

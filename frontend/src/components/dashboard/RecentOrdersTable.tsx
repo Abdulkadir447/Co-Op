@@ -58,7 +58,7 @@ const RecentOrdersTable: React.FC<{ orders?: OrderRow[] }> = ({ orders = [] }) =
       render: (value: string, row) => (
         <div>
           <div style={{ fontWeight: 700, color: colors.onSurface }}>{value}</div>
-          <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, marginTop: 2 }}>{row.date}</div>
+          <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 2 }}>{row.date}</div>
         </div>
       ),
     },
@@ -118,7 +118,7 @@ const RecentOrdersTable: React.FC<{ orders?: OrderRow[] }> = ({ orders = [] }) =
             background: 'transparent',
             color: colors.primary,
             fontWeight: 600,
-            fontSize: 13.5,
+            fontSize: 14,
             cursor: 'pointer',
             padding: '4px 6px',
             borderRadius: radius.md,

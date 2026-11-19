@@ -63,7 +63,7 @@ const AiInsightsCard: React.FC = () => {
       >
         <CoopMark size={30} title="Zeno" />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ ...type.labelCaps, textTransform: 'uppercase', letterSpacing: '0.08em', color: colors.outline }}>
+          <span style={{ ...type.labelCaps, textTransform: 'uppercase', letterSpacing: '0.08em', color: colors.onSurfaceMuted }}>
             Zeno · Live Insights
           </span>
         </div>
@@ -138,15 +138,15 @@ const AiInsightsCard: React.FC = () => {
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ color: sevColor(ins.severity), display: 'inline-flex' }}>{SEVERITY_ICON[ins.severity]}</span>
-                  <span style={{ ...type.bodyCompact, fontWeight: 700, fontSize: 13.5, color: colors.onSurface, lineHeight: '18px' }}>
+                  <span style={{ ...type.bodyCompact, fontWeight: 700, fontSize: 14, color: colors.onSurface, lineHeight: '18px' }}>
                     {ins.title}
                   </span>
                 </span>
-                <span style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant, lineHeight: '19px' }}>
+                <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant, lineHeight: '19px' }}>
                   {ins.why}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
-                  <span style={{ ...type.bodyCompact, fontSize: 11, color: colors.outline, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ ...type.bodyCompact, fontSize: 11, color: colors.onSurfaceMuted, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {ins.evidence}
                   </span>
                   <span style={{ ...type.bodyCompact, fontSize: 12, fontWeight: 600, color: colors.primary, whiteSpace: 'nowrap' }}>

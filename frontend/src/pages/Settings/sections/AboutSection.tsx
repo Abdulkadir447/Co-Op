@@ -29,7 +29,7 @@ const AboutSection: React.FC = () => {
             business key under Settings → Licence.
           </Descriptions.Item>
         </Descriptions>
-        <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           Co-op works offline and syncs when you're back online. Run your business anywhere.
         </Typography.Text>
       </Space>

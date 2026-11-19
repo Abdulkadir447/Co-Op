@@ -18,6 +18,7 @@ so the backup format is a stable, reviewed contract.
 
 from __future__ import annotations
 
+from .money import CURRENCY
 import base64
 import hashlib
 import json
@@ -31,11 +32,14 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from . import money
+from .config import get_env
 from .models import (
     Business,
     Customer,
     Order,
     OrderItem,
+    OrderPayment,
     OrderStatus,
     Product,
     StockMovement,
@@ -52,10 +56,26 @@ _BACKUP_KEY_ENV = "BACKUP_ENCRYPTION_KEY"
 _DEV_FALLBACK = "coop-backup-default-key-not-for-production"
 
 
+class BackupKeyMissing(RuntimeError):
+    """No backup key is configured, and guessing one is not acceptable."""
+
+
 def _fernet_key() -> bytes:
-    """Derive a Fernet key from BACKUP_ENCRYPTION_KEY, else SECRET, else a dev
-    constant. The same key must be present at export and restore time."""
-    raw = os.getenv(_BACKUP_KEY_ENV) or os.getenv("SECRET") or _DEV_FALLBACK
+    """Derive a Fernet key from BACKUP_ENCRYPTION_KEY, else SECRET.
+
+    The dev constant exists so tests and local runs work. In production a
+    missing key is a REFUSAL, not a fallback: the constant is in the source, so
+    "encrypted" with it means anyone who has read this repo can decrypt the
+    file — and mint a restore file of their own.
+    """
+    raw = os.getenv(_BACKUP_KEY_ENV) or os.getenv("SECRET")
+    if not raw:
+        if get_env() == "production":
+            raise BackupKeyMissing(
+                "BACKUP_ENCRYPTION_KEY (or SECRET) must be set in production: "
+                "backups cannot be encrypted with the built-in development key."
+            )
+        raw = _DEV_FALLBACK
     return base64.urlsafe_b64encode(hashlib.sha256(raw.encode()).digest())
 
 
@@ -105,10 +125,17 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
     ),
     "orders": (
         "id", "client_id", "source_order_ref", "customer_id", "order_date",
-        "status", "total_amount", "deleted_at", "created_at", "updated_at",
+        "status", "total_amount", "tax_rate", "tax_amount",
+        "deleted_at", "created_at", "updated_at",
     ),
     "order_items": (
         "id", "order_id", "product_id", "quantity", "unit_price", "total_price",
+    ),
+    # Receivables (0020). A backup that silently dropped what customers had
+    # paid would restore a business into a worse state than it left.
+    "order_payments": (
+        "id", "order_id", "amount", "method", "reference", "note",
+        "received_at", "created_at",
     ),
     "stock_movements": (
         "id", "client_id", "product_id", "order_id", "change", "reason",
@@ -116,7 +143,9 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
     ),
 }
 
-_RESTORE_ORDER = ("products", "customers", "orders", "order_items", "stock_movements")
+_RESTORE_ORDER = (
+    "products", "customers", "orders", "order_items", "stock_movements", "order_payments",
+)
 
 
 class BackupValidationError(ValueError):
@@ -165,6 +194,8 @@ async def build_backup(db: AsyncSession, business: Business) -> dict[str, Any]:
             rows = await _collect(db, Order, business.id)
         elif entity == "order_items":
             rows = await _collect(db, OrderItem, business.id)
+        elif entity == "order_payments":
+            rows = await _collect(db, OrderPayment, business.id)
         else:
             rows = await _collect(db, StockMovement, business.id)
         data[entity] = [_row_to_dict(r, fields) for r in rows]
@@ -172,7 +203,7 @@ async def build_backup(db: AsyncSession, business: Business) -> dict[str, Any]:
         "app": BACKUP_APP,
         "version": BACKUP_VERSION,
         "exported_at": datetime.utcnow().isoformat(),
-        "business": {"name": business.name, "currency": business.currency or "USD"},
+        "business": {"name": business.name, "currency": business.currency or CURRENCY},
         "entities": data,
     }
 
@@ -253,6 +284,13 @@ async def restore_backup(
             "Your current data is untouched — download the backup file to keep it."
         )
 
+    # D1: a restore targets a business, and every row it writes needs a
+    # location. A backup carries no branch dimension (it predates branches),
+    # so the whole file lands in the business's default branch.
+    from .branches import default_branch
+
+    branch_id = (await default_branch(db, business.id)).id
+
     id_map: dict[str, dict[int, int]] = {"customers": {}, "products": {}, "orders": {}}
     restored: dict[str, int] = {}
 
@@ -267,12 +305,15 @@ async def restore_backup(
                 name=str(row["name"])[:255],
                 description=row.get("description"),
                 category=row.get("category"),
-                unit_price=float(row.get("unit_price") or 0.0),
+                unit_price=money.as_money(row.get("unit_price") or 0),
                 # cost_price is nullable, so cast only when present. The export
                 # stringifies every value (_iso), and SQLite coerces "4.0" back
                 # to a number silently — Postgres/asyncpg does not, so an
                 # uncast string here fails the insert on the real database.
-                cost_price=float(row["cost_price"]) if row.get("cost_price") is not None else None,
+                cost_price=(
+                    money.as_money(row["cost_price"])
+                    if row.get("cost_price") is not None else None
+                ),
                 current_stock=int(row.get("current_stock") or 0),
                 reorder_level=int(row.get("reorder_level") or 0),
                 deleted_at=_parse_dt(row.get("deleted_at")),
@@ -315,12 +356,19 @@ async def restore_backup(
                 )
             o = Order(
                 business_id=business.id,
+                branch_id=branch_id,
                 client_id=row.get("client_id"),
                 source_order_ref=row.get("source_order_ref"),
                 customer_id=id_map["customers"][old_customer],
                 order_date=_parse_dt(row.get("order_date")),
                 status=OrderStatus(_check_status(row.get("status") or "pending")),
-                total_amount=float(row.get("total_amount") or 0.0),
+                total_amount=money.as_money(row.get("total_amount") or 0),
+                # Old backups predate tax (0021): absent -> no tax recorded.
+                tax_rate=(
+                    money.as_rate(row["tax_rate"])
+                    if row.get("tax_rate") is not None else None
+                ),
+                tax_amount=money.as_money(row.get("tax_amount") or 0),
                 deleted_at=_parse_dt(row.get("deleted_at")),
                 created_by="backup-restore",
             )
@@ -342,15 +390,41 @@ async def restore_backup(
             db.add(
                 OrderItem(
                     business_id=business.id,
+                    branch_id=branch_id,
                     order_id=id_map["orders"][old_order],
                     product_id=id_map["products"][old_product],
                     quantity=int(row.get("quantity") or 0),
-                    unit_price=float(row.get("unit_price") or 0.0),
-                    total_price=float(row.get("total_price") or 0.0),
+                    unit_price=money.as_money(row.get("unit_price") or 0),
+                    total_price=money.as_money(row.get("total_price") or 0),
                     created_by="backup-restore",
                 )
             )
         restored["order_items"] = len(_rows_for(payload, "order_items"))
+
+        # --- Receivables (0020) ---------------------------------------------
+        # Older backups simply have no section; _rows_for returns [] and the
+        # restored business starts unpaid, which is the truthful default.
+        for row in _rows_for(payload, "order_payments"):
+            _check_required(row, "order_payments", ("order_id", "amount"))
+            old_order = int(row["order_id"])
+            if old_order not in id_map["orders"]:
+                raise BackupValidationError(
+                    "Backup payment references an order that is not in the backup."
+                )
+            db.add(
+                OrderPayment(
+                    business_id=business.id,
+                    branch_id=branch_id,
+                    order_id=id_map["orders"][old_order],
+                    amount=money.as_money(row.get("amount") or 0),
+                    method=str(row.get("method") or "cash")[:20],
+                    reference=(str(row["reference"])[:120] if row.get("reference") else None),
+                    note=(str(row["note"])[:500] if row.get("note") else None),
+                    received_at=_parse_dt(row.get("received_at")),
+                    created_by="backup-restore",
+                )
+            )
+        restored["order_payments"] = len(_rows_for(payload, "order_payments"))
 
         # --- Stock movements (the immutable ledger travels with the data) ---
         for row in _rows_for(payload, "stock_movements"):
@@ -364,6 +438,7 @@ async def restore_backup(
             db.add(
                 StockMovement(
                     business_id=business.id,
+                    branch_id=branch_id,
                     client_id=row.get("client_id"),
                     product_id=id_map["products"][old_product],
                     order_id=id_map["orders"].get(int(old_order)) if old_order else None,
@@ -375,12 +450,43 @@ async def restore_backup(
             )
         restored["stock_movements"] = len(_rows_for(payload, "stock_movements"))
 
+        # The ledger is the source of truth (ADR-002), so the restored
+        # `current_stock` is RECOMPUTED from it rather than trusted from the
+        # file. A backup written while the two disagreed would otherwise
+        # restore a product whose stock cannot be explained by its movements.
         await db.flush()
+        for old_id, new_id in id_map["products"].items():
+            total = (
+                await db.execute(
+                    select(func.coalesce(func.sum(StockMovement.change), 0)).where(
+                        StockMovement.product_id == new_id,
+                        StockMovement.business_id == business.id,
+                    )
+                )
+            ).scalar_one()
+            product = (
+                await db.execute(
+                    select(Product).where(
+                        Product.id == new_id, Product.business_id == business.id
+                    )
+                )
+            ).scalars().first()
+            if product is not None:
+                product.current_stock = int(total or 0)
     except IntegrityError:
         # e.g. a backup with duplicate client_ids — nothing may half-restore.
         await db.rollback()
         raise BackupValidationError(
             "The backup contains duplicate client ids and cannot be restored safely."
+        )
+    except (BackupValidationError, RestoreRefused):
+        raise  # both subclass ValueError — let the specific refusal through
+    except (ValueError, TypeError) as e:
+        # A money/quantity field that is not a number ("12,50", "abc") used to
+        # escape as an unhandled ValueError -> 500. It is a malformed FILE.
+        await db.rollback()
+        raise BackupValidationError(
+            f"The backup contains a value that is not a valid number: {e}"
         )
     return {"restored": restored}
 

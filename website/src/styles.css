@@ -5,10 +5,36 @@
  * from the app's real tokens (frontend/src/theme/*) by src/theme.ts — nothing
  * is hard-coded here. Text styles are applied in App.tsx from the same
  * `type` scale the product uses, so headings/body match the app exactly.
+ *
+ * ── Mobile rules ────────────────────────────────────────────────────────────
+ * The site is read on a phone more often than on a laptop, and three things
+ * broke there (reported 2026-11, fixed below):
+ *
+ *   1. the header could not fit: logo + menu + theme + "Start free trial"
+ *      needed ~400px and a phone gives 294px, so the page scrolled sideways;
+ *   2. the three KPI tiles were fixed at three columns with "₦1,240,500" in a
+ *      ~50px cell, so the amount spilled out of the card;
+ *   3. headings were fixed sizes (h1 48px, h2 32px) — legible, but they ate the
+ *      first screen and pushed the buttons together.
+ *
+ * The rules below are ordered widest-first and are the ones to keep:
+ *   · nothing has a fixed pixel width that a 320px screen cannot satisfy;
+ *   · every multi-column grid collapses (1024 → 2, 860 → 1);
+ *   · grid children get `min-width: 0`, without which a long word sets the
+ *     track width and the whole row overflows;
+ *   · strings that cannot break (emails, phone numbers, ₦ amounts) get
+ *     `overflow-wrap: anywhere` instead of a wider container;
+ *   · buttons may wrap their label and are at least 44px tall for a thumb.
  */
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+/* Smooth scrolling is motion; users who ask for less should not get it. */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
 body {
   margin: 0;
   font-family: var(--font);
@@ -17,21 +43,42 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; text-decoration: none; }
+
+/* No image, embed or chart may be wider than the space it sits in. This is a
+   backstop, not the fix: the layout below is sized to fit without it. */
+img, svg, video, iframe { max-width: 100%; }
+
+/* A sticky header sits on top of the section you jumped to; without this the
+   heading you asked for lands underneath it. */
+section[id] { scroll-margin-top: 76px; }
+
+/* First focusable element on the page (WCAG 2.4.1). */
+.skip-link {
+  position: fixed; top: 8px; left: 8px; z-index: 200;
+  transform: translateY(-200%);
+  padding: 10px 16px; border-radius: var(--radius-md);
+  background: var(--primary); color: var(--on-primary);
+  font-size: 14px; font-weight: 600;
+}
+.skip-link:focus-visible { transform: translateY(0); outline: 2px solid var(--on-primary); outline-offset: 2px; }
 .container { width: min(1120px, 92vw); margin: 0 auto; }
 .muted { color: var(--on-surface-variant); }
 
-/* Buttons */
+/* Buttons.
+   `min-height` rather than `height`: a label that wraps on a narrow screen
+   must grow the button, not be clipped by it. */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  height: 44px; padding: 0 20px; border-radius: var(--radius-lg);
+  min-height: 44px; padding: 10px 20px; border-radius: var(--radius-lg);
   font-family: var(--font); font-size: 16px; font-weight: 600; cursor: pointer;
+  text-align: center;
   border: 1px solid transparent; transition: background .2s, box-shadow .2s, color .2s, border-color .2s;
 }
 .btn-primary { background: var(--primary); color: var(--on-primary); box-shadow: var(--shadow-brand-tile); }
 .btn-primary:hover { background: var(--primary-container); }
 .btn-ghost { background: var(--surface-lowest); color: var(--on-surface-variant); border-color: var(--outline-variant); }
 .btn-ghost:hover { color: var(--primary); border-color: var(--primary); }
-.btn-sm { height: 36px; padding: 0 16px; font-size: 14px; }
+.btn-sm { min-height: 36px; padding: 6px 16px; font-size: 14px; }
 
 /* Top bar */
 .topbar {
@@ -41,14 +88,28 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--border-subtle);
 }
 .topbar-inner { display: flex; align-items: center; gap: 24px; height: 64px; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; white-space: nowrap; }
 .logo-img {
   width: 32px; height: 32px; border-radius: var(--radius-md);
-  object-fit: cover; display: block;
+  object-fit: cover; display: block; flex: none;
 }
 .nav { display: flex; gap: 24px; margin-left: auto; }
-.nav a { color: var(--on-surface-variant); font-size: 14px; font-weight: 600; }
+.nav a { color: var(--on-surface-variant); font-size: 14px; font-weight: 600; white-space: nowrap; }
 .nav a:hover { color: var(--primary); }
+.nav-footer { margin-left: auto; }
+
+/* The trial CTA inside the mobile menu. Desktop keeps the header button, so
+   this one is switched on only in the panel (see the 560px block). */
+.nav-cta { display: none; }
+
+/* Mobile menu button. Hidden on desktop; below 860px the nav becomes a
+   dropdown panel instead of disappearing. */
+.nav-toggle {
+  display: none; margin-left: auto;
+  width: 40px; height: 40px; border-radius: var(--radius-md);
+  border: 1px solid var(--outline-variant); background: var(--surface-lowest);
+  color: var(--on-surface); font-size: 17px; cursor: pointer;
+}
 .theme-toggle {
   margin-left: 8px; width: 36px; height: 36px; border-radius: var(--radius-md);
   border: 1px solid var(--outline-variant); background: var(--surface-lowest);
@@ -57,28 +118,75 @@ a { color: inherit; text-decoration: none; }
 
 /* Hero */
 .hero { padding: 96px 0 72px; position: relative; overflow: hidden; }
+/* One entrance on the hero, and nothing else moving on load. */
+@keyframes coop-enter {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+[data-enter] { animation: coop-enter 620ms cubic-bezier(.16,1,.3,1) both; }
+[data-enter="hero-preview"] { animation-delay: 120ms; }
+@media (prefers-reduced-motion: reduce) {
+  [data-enter] { animation: none; }
+}
+
 .hero-glow {
   position: absolute; top: -140px; right: -120px; width: 460px; height: 460px;
   background: var(--primary-container); opacity: .18; filter: blur(96px); border-radius: 50%;
 }
 .hero-inner { position: relative; display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; }
+.hero-inner > * { min-width: 0; }
+
+/* Display headline. clamp() replaces the old fixed 48px/56px: at 320px it is
+   ~30px (three words a line, no overflow); at 900px it is the designed 48px. */
+.hero-title {
+  margin: 20px 0 16px;
+  font-size: clamp(30px, 6.4vw, 48px);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+/* Section headings: the 32/40 token at the top end, scaled down on phones. */
+.section-title {
+  margin: 12px 0;
+  font-size: clamp(23px, 4.4vw, 32px);
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.hero-title .grad,
+.section-title .grad { background: var(--ai-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .eyebrow {
   display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px;
+  max-width: 100%; flex-wrap: wrap;
   border-radius: var(--radius-full); background: var(--primary-fixed); color: var(--on-primary-fixed-variant);
 }
 .hero h1 { margin: 20px 0 16px; }
 .hero h1 .grad { background: var(--ai-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .hero .lede { font-size: 18px; line-height: 28px; color: var(--on-surface-variant); margin: 0 0 28px; }
-.hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+/* Same reasoning as .cta-actions: margins, not `gap`. The container carries a
+   matching negative margin so the buttons stay flush with the copy above them
+   instead of drifting 6px right. */
+.hero-cta { display: flex; flex-wrap: wrap; margin: -6px; }
+.hero-cta .btn { margin: 6px; max-width: 100%; }
 .hero-note { margin-top: 16px; font-size: 13px; color: var(--outline); }
 
 /* App preview card */
-.preview { background: var(--surface-lowest); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); box-shadow: var(--shadow-overlay); padding: 18px; }
+.preview { background: var(--surface-lowest); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); box-shadow: var(--shadow-overlay); padding: 18px; min-width: 0; }
 .preview-bar { display: flex; gap: 6px; margin-bottom: 14px; }
 .preview-bar span { width: 10px; height: 10px; border-radius: 50%; background: var(--surface-high); }
-.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.kpi { background: var(--surface-low); border-radius: var(--radius-lg); padding: 14px; }
-.kpi .k-value { font-size: 22px; font-weight: 700; margin-top: 6px; }
+
+/* Three tiles on a laptop; `minmax(0, 1fr)` is what stops "₦1,240,500" from
+   setting a 130px minimum and pushing the card wider than the screen. */
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--surface-low); border-radius: var(--radius-lg); padding: 14px; min-width: 0; }
+.kpi .k-value {
+  font-size: clamp(15px, 4.4vw, 22px);
+  font-weight: 700; margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
 .chart {
   margin-top: 14px; height: 120px; border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--primary-fixed), transparent);
@@ -95,53 +203,83 @@ section { padding: 72px 0; }
 .section-head { max-width: 640px; margin-bottom: 40px; }
 .section-head .caps { color: var(--primary); }
 .section-head h2 { margin: 12px 0; }
-.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.card { background: var(--surface-lowest); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 24px; transition: box-shadow .2s, transform .2s; }
+
+/* Every grid gets explicit `minmax(0, 1fr)`. A bare `1fr` has an automatic
+   minimum of `auto`, which is a long unbreakable word away from overflowing. */
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.card { background: var(--surface-lowest); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 24px; transition: box-shadow .2s, transform .2s; min-width: 0; }
 .card:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
-.card .icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--primary-fixed); color: var(--on-primary-fixed-variant); display: grid; place-items: center; font-size: 20px; margin-bottom: 14px; }
+.card .icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--primary-fixed); color: var(--on-primary-fixed-variant); display: grid; place-items: center; margin-bottom: 14px; }
 .card h3 { margin: 0 0 8px; }
-.card p { margin: 0; color: var(--on-surface-variant); }
+.card p { margin: 0; color: var(--on-surface-variant); overflow-wrap: anywhere; }
 .ai-band { background: var(--surface-low); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
 .ai-card { border-top: 3px solid transparent; border-image: linear-gradient(90deg, #5b5fef, #8a4cfc, #c0c1ff) 1; }
 
 /* Pricing */
-.plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
-.plan { position: relative; }
+.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.plan { position: relative; min-width: 0; }
 .plan.featured { border-color: var(--primary); box-shadow: var(--shadow-lift); }
 .plan .badge { position: absolute; top: -12px; right: 20px; background: var(--primary); color: #fff; padding: 4px 10px; border-radius: var(--radius-full); }
-.price { display: flex; align-items: baseline; gap: 6px; margin: 12px 0 4px; }
-.price .amount { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.price { display: flex; align-items: baseline; gap: 6px; margin: 12px 0 4px; flex-wrap: wrap; }
+.price .amount { font-size: clamp(26px, 7vw, 32px); font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .price .per { color: var(--outline); }
 .plan ul { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 10px; }
 .plan li { display: flex; gap: 10px; align-items: flex-start; color: var(--on-surface-variant); }
-.plan li .tick { color: var(--success); font-weight: 700; }
+.plan li .tick { color: var(--success); font-weight: 700; flex: none; }
 .plan li.off { opacity: .55; }
 .plan li.off .tick { color: var(--outline); }
 .plan .btn { width: 100%; }
+.billing-note { margin: 20px 0 0; }
 
 /* CTA + footer */
 .cta { background: var(--ai-gradient); color: #fff; border-radius: var(--radius-xl); padding: 48px; text-align: center; box-shadow: var(--shadow-overlay); }
 .cta h2 { margin: 0 0 12px; }
-.cta .btn { background: #fff; color: var(--primary); }
+
+/* The CTA's two buttons. They used to be inline links separated by a 12px
+   left margin, which is not a gap: once the line ran out of room the second
+   one wrapped and sat flush on the first, and because `.cta .btn` painted both
+   of them white there was nothing to tell them apart. `gap` survives wrapping;
+   a margin does not. */
+.cta-actions { display: flex; flex-wrap: wrap; justify-content: center; }
+/* Spacing here is a margin, deliberately, and NOT `gap`.
+   This site is read on mid-range Android phones: older Chrome WebView, Opera
+   Mini and the Facebook/Instagram in-app browsers are all below the version
+   that shipped flex `gap` (Chrome 84 / Safari 14.1). On those, `gap` is
+   silently dropped and the two buttons stack flush against each other with no
+   space at all — which is exactly the bug reported twice. A margin is honoured
+   by every browser that can draw a flex container. Symmetric so it still
+   centres correctly, 6px a side = 12px between the two. */
+.cta-actions .btn { margin: 6px; min-width: 0; max-width: 100%; }
+.cta .btn { background: #fff; color: var(--primary); border-color: #fff; }
+.cta .btn:hover { background: #fff; color: var(--primary); border-color: #fff; box-shadow: 0 8px 20px rgb(0 0 0 / .18); }
+/* The secondary keeps the gradient showing through so the pair reads as
+   "do this" and "or this", not as two identical white slabs. */
+.cta .btn.cta-btn-secondary {
+  background: transparent; color: #fff;
+  border-color: rgb(255 255 255 / .65);
+}
+.cta .btn.cta-btn-secondary:hover {
+  background: rgb(255 255 255 / .14); color: #fff; border-color: #fff;
+  box-shadow: none;
+}
 footer { border-top: 1px solid var(--border-subtle); padding: 40px 0; color: var(--on-surface-variant); }
 .foot { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: center; }
-
-@media (max-width: 860px) {
-  .hero-inner, .grid-3, .grid-2, .plans { grid-template-columns: 1fr; }
-  .nav { display: none; }
-  .cta { padding: 32px 20px; }
-}
+.foot p { overflow-wrap: anywhere; }
 
 /* Product tour */
-.tour-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.tour-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .tour-card { padding: 16px; }
 .tour-card h3 { margin: 14px 0 6px; }
 .shot {
   position: relative; width: 100%; aspect-ratio: 16 / 10; border-radius: var(--radius-md);
   overflow: hidden; background: var(--surface-low); border: 1px solid var(--border-subtle);
-  cursor: pointer;
 }
+.shot-button {
+  display: block; padding: 0; cursor: pointer; font: inherit;
+  -webkit-appearance: none; appearance: none;
+}
+.shot-button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .shot-media { width: 100%; height: 100%; object-fit: cover; display: block; }
 .shot-placeholder {
   position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px;
@@ -163,18 +301,109 @@ footer { border-top: 1px solid var(--border-subtle); padding: 40px 0; color: var
   position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px;
   background: color-mix(in srgb, var(--surface-lowest) 80%, transparent);
   color: var(--on-surface-variant); border-top: 1px solid var(--border-subtle);
+  overflow-wrap: anywhere;
 }
 .video-hint code { background: var(--surface-container); padding: 1px 5px; border-radius: var(--radius-sm); }
 
 /* Contact */
-.contact-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; max-width: 720px; }
+.contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; max-width: 720px; }
+.contact-item { min-width: 0; }
 .contact-item .icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--primary-fixed); color: var(--on-primary-fixed-variant); display: grid; place-items: center; font-size: 20px; margin-bottom: 14px; }
-.contact-link { color: var(--primary); font-weight: 600; }
+/* An email address and a phone number have no spaces to break at; without this
+   they set the card's minimum width and pull the section off-screen. */
+.contact-link { color: var(--primary); font-weight: 600; overflow-wrap: anywhere; display: inline-block; max-width: 100%; }
 .contact-link:hover { text-decoration: underline; }
 .contact-item code { background: var(--surface-container); padding: 1px 5px; border-radius: var(--radius-sm); }
 
+/* ── 1024px: three columns is one too many ───────────────────────────────── */
+@media (max-width: 1024px) {
+  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── 860px: one column, and the nav becomes a real menu ──────────────────── */
 @media (max-width: 860px) {
-  .tour-grid, .contact-grid { grid-template-columns: 1fr; }
+  .hero { padding: 64px 0 48px; }
+  .hero-inner, .grid-3, .grid-2, .plans, .tour-grid, .contact-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero-inner { gap: 32px; }
+  .section-head { margin-bottom: 28px; }
+
+  /* The nav used to be display:none here, which left a phone with no way to
+     reach Pricing, FAQ or Download. It is a real disclosure menu now. */
+  .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  .nav {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; gap: 0; margin: 0; padding: 8px 0 12px;
+    background: var(--surface-lowest);
+    border-bottom: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-lift);
+  }
+  .nav.nav-open { display: flex; }
+  .nav a { padding: 12px 24px; font-size: 15px; white-space: normal; }
+  /* Anchored to .topbar (sticky, so positioned), not to the inner container:
+     the panel is full-bleed instead of 92vw wide with a 4vw gutter. */
+  .topbar-inner { position: static; }
+  .topbar { position: sticky; }
+  /* Footer links are not the menu: they stay visible and wrap. */
+  .nav-footer { display: flex; position: static; flex-direction: row; flex-wrap: wrap;
+    gap: 16px; margin-left: 0; padding: 0; background: none; border: 0; box-shadow: none; }
+  .nav-footer a { padding: 0; }
+}
+
+/* ── 640px: the "phone" layout proper ────────────────────────────────────── */
+@media (max-width: 640px) {
+  section { padding: 48px 0; }
+  .container { width: min(1120px, calc(100% - 32px)); }  /* 16px gutters, not 4vw */
+  .topbar-inner { height: 60px; gap: 12px; }
+  .hero { padding: 48px 0 40px; }
+  .hero .lede { font-size: 17px; line-height: 26px; margin-bottom: 24px; }
+  .section-head { margin-bottom: 24px; }
+  .card { padding: 20px; }
+  .cta { padding: 32px 20px; }
+  /* Below 640px "Get started free" + "Download the app" cannot share a line
+     (they need ~332px of a 294px screen), so they stack full-width. */
+  .cta-actions { flex-direction: column; align-items: stretch; }
+  .cta-actions .btn { width: 100%; margin: 5px 0; }  /* 10px between, stacked */
+  .price .amount { font-size: 30px; }
+  footer { padding: 32px 0; }
+  .foot { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .foot .nav-footer { gap: 10px 16px; }
+
+  /* Two buttons side by side leave a sliver of text each on a 320px screen,
+     which is what "the buttons are too close" was. Below this width they are
+     full-width and stacked, with a real 10px between them. */
+  .hero-cta { flex-direction: column; align-items: stretch; margin: 0; }
+  .hero-cta .btn { width: 100%; margin: 5px 0; }  /* 10px between, stacked */
+}
+
+/* ── 560px: the header drops the trial button ────────────────────────────── */
+@media (max-width: 560px) {
+  /* logo (~90) + menu (40) + theme (36) + CTA (~154) + gaps = ~400px in a
+     294px space. The CTA moves into the menu panel and the hero instead of
+     squeezing everything else. */
+  .topbar .btn-sm { display: none; }
+  .topbar-inner { gap: 8px; }
+  .theme-toggle { margin-left: 0; }
+  .logo { font-size: 17px; gap: 8px; }
+  .logo-img { width: 28px; height: 28px; }
+
+  .nav-cta {
+    display: flex; width: auto; margin: 8px 24px 4px; padding: 14px 20px;
+    background: var(--primary); color: var(--on-primary) !important;
+    border-radius: var(--radius-lg); justify-content: center; text-align: center;
+    font-size: 16px; font-weight: 600;
+  }
+  /* Thumb-sized targets: 40px was under the 44px that a finger reliably hits. */
+  .nav-toggle { width: 44px; height: 44px; }
+  .theme-toggle { width: 40px; height: 40px; }
+  .nav-cta:hover { color: var(--on-primary) !important; background: var(--primary-container); }
+}
+
+/* ── 460px: the KPI tiles go to two columns ──────────────────────────────── */
+@media (max-width: 460px) {
+  /* Three tiles in a 258px card leaves ~50px of text per tile; "₦1,240,500"
+     needs ~83px even at the clamped size. Two columns leave ~95px. */
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .preview { padding: 14px; }
 }
 
 /* Loader (equalizer bars) — reusable in-app; the boot loader in index.html

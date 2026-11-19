@@ -73,7 +73,7 @@ const EmailDeliveryCard: React.FC = () => {
     >
       {messageCtx}
       {role !== null && role !== 'owner' && role !== 'manager' ? (
-        <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           Only the owner or a manager can trigger an email summary.
         </Typography.Text>
       ) : (
@@ -123,7 +123,7 @@ const NotificationsSection: React.FC = () => {
             <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
               <div>
                 <Typography.Text strong>{row.title}</Typography.Text>
-                <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12.5 }}>
+                <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
                   {row.blurb}
                 </Typography.Text>
               </div>

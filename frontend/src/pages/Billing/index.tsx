@@ -62,9 +62,9 @@ const BillingPage: React.FC = () => {
 
   const stat = (label: string, value: React.ReactNode, sub?: string) => (
     <div key={label}>
-      <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline, marginBottom: 4 }}>{label}</div>
+      <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginBottom: 4 }}>{label}</div>
       <div style={{ ...type.sectionHeading, fontSize: 20, color: colors.onSurface, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      {sub && <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, marginTop: 2 }}>{sub}</div>}
+      {sub && <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 2 }}>{sub}</div>}
     </div>
   );
 
@@ -258,10 +258,10 @@ const BillingPage: React.FC = () => {
                   <div style={{ ...type.sectionHeading, fontSize: 24, color: colors.onSurface, fontVariantNumeric: 'tabular-nums' }}>
                     {price.amount}
                     {plan.priceMonthly != null && plan.priceMonthly > 0 && (
-                      <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}> /mo</span>
+                      <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}> /mo</span>
                     )}
                   </div>
-                  <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>{price.note}</div>
+                  <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>{price.note}</div>
                 </div>
               }
             >
@@ -297,7 +297,7 @@ const BillingPage: React.FC = () => {
                     />
                   </div>
                 )}
-                <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, marginTop: 8 }}>
+                <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 8 }}>
                   Refreshes {summary.period.start} – {summary.period.end} · usage is metered by Co-op, not this device
                 </div>
               </div>
@@ -330,7 +330,7 @@ const BillingPage: React.FC = () => {
                 {trial?.active ? (
                   /* A started trial cannot be stopped: it runs to the end and
                      the only way to keep the paid features is to subscribe. */
-                  <span style={{ ...type.bodyCompact, color: colors.outline }}>
+                  <span style={{ ...type.bodyCompact, color: colors.onSurfaceMuted }}>
                     Trial runs to {new Date(trial.ends_at ?? '').toLocaleDateString()} — subscribe to continue.
                   </span>
                 ) : (
@@ -388,7 +388,7 @@ const BillingPage: React.FC = () => {
                     <span style={{ fontWeight: 700, color: colors.onSurface, fontVariantNumeric: 'tabular-nums' }}>{localUsage.conversations}</span>
                   </div>
                 </div>
-                <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>
+                <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>
                   Requests, tokens and credits are metered by the Co-op backend — the same ledger
                   that enforces your plan. Device activity is shown for context only.
                 </div>
@@ -407,7 +407,7 @@ const BillingPage: React.FC = () => {
               <div style={{ textAlign: 'center', padding: '18px 8px', ...type.bodyCompact, color: colors.onSurfaceVariant }}>
                 <FileTextOutlined style={{ fontSize: 26, color: colors.outline, marginBottom: 10, display: 'inline-block' }} />
                 <div style={{ marginBottom: 4 }}>No invoices yet</div>
-                <div style={{ fontSize: 12.5 }}>
+                <div style={{ fontSize: 12 }}>
                   Billing invoices will appear here once a payment provider connects. AI-generated
                   order invoices are available from each order's detail page.
                 </div>
@@ -442,7 +442,7 @@ const BillingPage: React.FC = () => {
                       <strong style={{ color: colors.onSurface }}>Paystack</strong>
                       <span style={{ color: colors.outline }}>· charges in {paymentCurrency}</span>
                     </div>
-                    <div style={{ fontSize: 12.5, color: colors.outline, marginTop: 6 }}>
+                    <div style={{ fontSize: 12, color: colors.outline, marginTop: 6 }}>
                       Card, bank transfer and USSD at checkout. Co-op only sees the confirmed
                       result — card details never touch this app.
                     </div>
@@ -450,11 +450,11 @@ const BillingPage: React.FC = () => {
 
                   {/* Charge history — the ledger the backend keeps */}
                   <div style={{ marginTop: 14 }}>
-                    <div style={{ ...type.labelCaps, color: colors.outline, marginBottom: 8 }}>
+                    <div style={{ ...type.labelCaps, color: colors.onSurfaceMuted, marginBottom: 8 }}>
                       Payment history
                     </div>
                     {payments.length === 0 ? (
-                      <div style={{ ...type.bodyCompact, color: colors.outline }}>
+                      <div style={{ ...type.bodyCompact, color: colors.onSurfaceMuted }}>
                         No payments yet.
                       </div>
                     ) : (
@@ -521,7 +521,7 @@ const BillingPage: React.FC = () => {
                   }}
                 >
                   No payment method on file.
-                  <div style={{ fontSize: 12.5, color: colors.outline, marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: colors.outline, marginTop: 4 }}>
                     Payment connects when a provider is added — until then, nothing is charged.
                   </div>
                 </div>

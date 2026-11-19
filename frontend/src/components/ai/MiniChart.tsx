@@ -1,7 +1,8 @@
 import React from 'react';
 import type { ApexOptions } from 'apexcharts';
-import Chart from '../dashboard/chart';
+import Chart from '../dashboard/LazyChart';
 import { useCoopTheme } from '../../theme-provider';
+import { getCurrency } from '../../services/currency';
 
 export interface MiniChartProps {
   labels: string[];
@@ -37,7 +38,7 @@ const MiniChart: React.FC<MiniChartProps> = ({ labels, data, height = 160, money
         ? {
             y: {
               formatter: (v: number) =>
-                v.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }),
+                v.toLocaleString(undefined, { style: 'currency', currency: getCurrency(), maximumFractionDigits: 0 }),
             },
           }
         : {}),

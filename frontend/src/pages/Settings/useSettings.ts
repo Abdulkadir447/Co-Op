@@ -15,10 +15,16 @@ export interface BusinessSettings {
   address: string | null;
   phone: string | null;
   tax_id: string | null;
+  /** Company/LLC registration number — printed on the invoice. */
+  registration_number: string | null;
   website: string | null;
   timezone: string | null;
   /** Ask Zeno answer style (concise | standard | detailed). */
   ai_response_style: string;
+  /** Tax presentation (0021) — exclusive: added on top of the line subtotal. */
+  tax_enabled: boolean;
+  tax_rate: number;
+  tax_label: string;
   created_at: string;
   updated_at: string | null;
 }
@@ -34,10 +40,13 @@ export const AI_RESPONSE_STYLE_OPTIONS: { value: string; label: string; blurb: s
 ];
 
 /** Currency whitelist — mirrors the backend (includes NGN). */
-export const CURRENCY_OPTIONS = [
-  'USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD', 'JPY', 'CNY',
-  'ZAR', 'GHS', 'KES', 'EGY', 'INR', 'AED', 'CHF',
-];
+/**
+ * One currency. Money is stored as integer kobo (backend/money.py), so the
+ * minor unit is fixed at 2 by the storage format; offering JPY (0 dp) or KWD
+ * (3 dp) would silently mis-scale every amount. The server rejects anything
+ * else with a 422, so this list is the honest one to show.
+ */
+export const CURRENCY_OPTIONS = ['NGN'];
 
 /** Curated timezone list — mirrors the backend. */
 export const TIMEZONE_OPTIONS = [

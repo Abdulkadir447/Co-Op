@@ -132,7 +132,7 @@ const BackupRestoreSection: React.FC = () => {
           <Typography.Text strong style={{ display: 'block', marginBottom: 6 }}>
             <CloudDownloadOutlined /> Cloud backup
           </Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             A JSON snapshot of your products, customers, orders and stock ledger — downloaded as a
             file you keep.
           </Typography.Text>
@@ -173,7 +173,7 @@ const BackupRestoreSection: React.FC = () => {
           </Typography.Text>
           {desktopBackup ? (
             <>
-              <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 A copy of this device's offline database (your local data plus its sync queue).
               </Typography.Text>
               <div style={{ marginTop: 10 }}>
@@ -197,7 +197,7 @@ const BackupRestoreSection: React.FC = () => {
               </Typography.Text>
             </>
           ) : (
-            <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               Local database backup is available in the desktop app. In the browser, use the cloud
               backup above.
             </Typography.Text>

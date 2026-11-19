@@ -59,7 +59,7 @@ const TopProductsCard: React.FC<{ products: TopProduct[] }> = ({ products }) => 
                 >
                   {p.product_name}
                 </div>
-                <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, marginTop: 2 }}>
+                <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 2 }}>
                   {formatCurrency(p.total_revenue)}
                 </div>
               </div>

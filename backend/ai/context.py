@@ -11,6 +11,7 @@ same ground truth the rest of Co-op uses — a single source of truth.
 """
 from __future__ import annotations
 
+from ..money import CURRENCY
 import datetime as _dt
 from typing import Any, Optional
 
@@ -28,7 +29,7 @@ def _as_date(x, tz) -> Optional[_dt.date]:
 
 
 async def build_context(
-    db, business_id: int, business_name: str = "", currency: str = "USD"
+    db, business_id: int, business_name: str = "", currency: str = CURRENCY
 ) -> dict[str, Any]:
     """Assemble the verified context for one business. Read-only."""
     business = (await db.execute(
@@ -57,9 +58,9 @@ async def build_context(
     ]
 
     # --- Revenue: this month / last month / trailing 30 days ----------------
-    async def _rev(a: _dt.date, b: _dt.date) -> tuple[float, int]:
+    async def _rev(a: _dt.date, b: _dt.date):
         row = (await db.execute(
-            select(func.coalesce(func.sum(Order.total_amount), 0.0), func.count(Order.id))
+            select(func.coalesce(func.sum(Order.total_amount), 0), func.count(Order.id))
             .where(*order_scope,
                    Order.order_date >= _dt.datetime.combine(a, _dt.time.min),
                    Order.order_date < _dt.datetime.combine(b, _dt.time.min))
@@ -71,8 +72,9 @@ async def build_context(
     d30_rev, d30_orders = await _rev(last_30, first_next)
     prev30_rev, prev30_orders = await _rev(last_30 - _dt.timedelta(days=30), last_30)
 
-    def _pct(cur: float, prev: float) -> Optional[float]:
-        return round((cur - prev) / prev * 100, 1) if prev else None
+    def _pct(cur, prev) -> Optional[float]:
+        # A ratio, so a float is right; money never becomes one.
+        return round(float((cur - prev) / prev * 100), 1) if prev else None
 
     # --- Top products (trailing 30 days) ------------------------------------
     top_rows = (await db.execute(
@@ -117,7 +119,7 @@ async def build_context(
 
     # Inactive: ordered before, nothing in 30+ days, ranked by lifetime value.
     cust_last: dict[int, _dt.date] = {}
-    cust_ltv: dict[int, float] = {}
+    cust_ltv: dict[int, object] = {}
     for o in (await db.execute(select(Order).where(*order_scope))).scalars():
         if o.customer_id is None or not o.order_date:
             continue
@@ -127,7 +129,7 @@ async def build_context(
         prev = cust_last.get(o.customer_id)
         if prev is None or od > prev:
             cust_last[o.customer_id] = od
-        cust_ltv[o.customer_id] = cust_ltv.get(o.customer_id, 0.0) + (o.total_amount or 0)
+        cust_ltv[o.customer_id] = cust_ltv.get(o.customer_id, 0) + (o.total_amount or 0)
     cust_by_id = {c.id: c for c in customers}
     inactive = []
     for cid, last in cust_last.items():
@@ -136,7 +138,7 @@ async def build_context(
             c = cust_by_id.get(cid)
             if c is not None:
                 inactive.append({"name": c.full_name, "days_since_order": days,
-                                 "lifetime_value": round(cust_ltv.get(cid, 0.0), 2)})
+                                 "lifetime_value": round(cust_ltv.get(cid, 0), 2)})
     inactive.sort(key=lambda r: -r["lifetime_value"])
     inactive = inactive[:5]
 
@@ -145,18 +147,20 @@ async def build_context(
         select(
             func.coalesce(
                 func.sum(
-                    (OrderItem.unit_price - func.coalesce(Product.cost_price, 0.0))
+                    (OrderItem.unit_price - func.coalesce(Product.cost_price, 0))
                     * OrderItem.quantity
                 ),
-                0.0,
+                0,
             ),
-            func.coalesce(func.sum(OrderItem.unit_price * OrderItem.quantity), 0.0),
+            func.coalesce(func.sum(OrderItem.unit_price * OrderItem.quantity), 0),
         )
         .join(Order, Order.id == OrderItem.order_id)
         .join(Product, Product.id == OrderItem.product_id)
         .where(*order_scope, Order.order_date >= _dt.datetime.combine(last_30, _dt.time.min))
     )).one()
-    blended_margin = round(margin_row[0] / margin_row[1] * 100, 1) if margin_row[1] else None
+    blended_margin = (
+        round(float(margin_row[0] / margin_row[1] * 100), 1) if margin_row[1] else None
+    )
 
     # --- Recent orders --------------------------------------------------------
     recent_rows = (await db.execute(
@@ -183,7 +187,7 @@ async def build_context(
     history = briefing.get("history", {})
 
     return {
-        "business": {"name": business_name or "Your business", "currency": currency or "USD"},
+        "business": {"name": business_name or "Your business", "currency": currency or CURRENCY},
         "as_of": today.isoformat(),
         "periods": {
             "this_month": {"revenue": round(this_rev, 2), "orders": this_orders},

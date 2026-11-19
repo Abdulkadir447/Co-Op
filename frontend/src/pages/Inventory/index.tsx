@@ -37,6 +37,7 @@ import {
   CoopTable,
 } from '../../components/ui';
 import PageHeader from '../../components/layout/PageHeader';
+import { describeError } from '../../lib/describeError';
 
 /** One stat card for the KPI row (UXDS 11.5, Stitch dashboard pattern). */
 const StatCard: React.FC<{
@@ -92,7 +93,7 @@ const StatCard: React.FC<{
         {value}
       </div>
       {sub && (
-        <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>{sub}</div>
+        <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>{sub}</div>
       )}
     </div>
   </div>
@@ -123,7 +124,7 @@ const MovementHistory: React.FC<{ productId: number }> = ({ productId }) => {
     );
   if (!movements) return <CoopLoading height={48} />;
   if (movements.length === 0)
-    return <div style={{ ...type.bodyCompact, color: colors.outline }}>No stock movements recorded yet.</div>;
+    return <div style={{ ...type.bodyCompact, color: colors.onSurfaceMuted }}>No stock movements recorded yet.</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -132,7 +133,7 @@ const MovementHistory: React.FC<{ productId: number }> = ({ productId }) => {
           <span
             style={{
               fontWeight: 700,
-              color: m.change >= 0 ? colors.success : colors.error,
+              color: m.change >= 0 ? colors.successText : colors.errorText,
               fontVariantNumeric: 'tabular-nums',
               minWidth: 44,
             }}
@@ -141,14 +142,14 @@ const MovementHistory: React.FC<{ productId: number }> = ({ productId }) => {
           </span>
           <CoopBadge variant="neutral">{MOVEMENT_LABELS[m.reason] ?? m.reason}</CoopBadge>
           {m.order_id != null && (
-            <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>
+            <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>
               Order #ORD-{String(m.order_id).padStart(4, '0')}
             </span>
           )}
           {m.note && (
-            <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>“{m.note}”</span>
+            <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>“{m.note}”</span>
           )}
-          <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>
+          <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>
             {dayjs(m.created_at).format('MMM D, HH:mm')}
           </span>
         </div>
@@ -189,7 +190,7 @@ const InventoryPage: React.FC = () => {
       setAdjusting(null);
       reload();
     } catch (e) {
-      messageApi.error(e instanceof Error ? e.message : 'Adjustment failed');
+      messageApi.error(describeError(e, 'adjust', 'stock adjustment'));
     } finally {
       setSubmitting(false);
     }
@@ -273,13 +274,13 @@ const InventoryPage: React.FC = () => {
       render: (_: unknown, p) => {
         const status = stockStatusOf(p.current_stock, p.reorder_level);
         const countColor =
-          status === 'out' ? colors.error : status === 'low' ? colors.warning : isDark ? colors.primaryContainer : colors.primary;
+          status === 'out' ? colors.errorText : status === 'low' ? colors.warningText : isDark ? colors.primaryContainer : colors.primary;
         return (
           <div>
             <div style={{ fontWeight: 700, color: countColor, fontVariantNumeric: 'tabular-nums' }}>
               {p.current_stock}
             </div>
-            <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, marginTop: 2 }}>
+            <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 2 }}>
               Reorder: {p.reorder_level}
             </div>
           </div>

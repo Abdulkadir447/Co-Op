@@ -30,6 +30,7 @@ import { CoopErrorState, CoopModal, CoopTable } from '../../components/ui';
 import CustomerFormModal from './CustomerFormModal';
 import { Customer, CustomerFormValues } from './useCustomers';
 import { KEY_ACCOUNT_THRESHOLD } from './useCustomerStats';
+import { describeError } from '../../lib/describeError';
 
 /**
  * Customer Profile (Stitch coop_customer_details_qa_polished) — the
@@ -110,7 +111,7 @@ const CustomerProfilePage: React.FC = () => {
       setEditOpen(false);
       void load();
     } catch (e) {
-      messageApi.error(e instanceof Error ? e.message : 'Update failed');
+      messageApi.error(describeError(e, 'update', 'customer'));
     } finally {
       setSubmitting(false);
     }
@@ -124,7 +125,7 @@ const CustomerProfilePage: React.FC = () => {
       messageApi.success('Customer deleted');
       navigate('/customers');
     } catch (e) {
-      messageApi.error(e instanceof Error ? e.message : 'Delete failed');
+      messageApi.error(describeError(e, 'delete', 'customer'));
     } finally {
       setDeleteBusy(false);
     }
@@ -144,7 +145,7 @@ const CustomerProfilePage: React.FC = () => {
             background: 'transparent',
             color: colors.primary,
             fontWeight: 600,
-            fontSize: 13.5,
+            fontSize: 14,
             cursor: 'pointer',
             padding: 0,
           }}
@@ -369,7 +370,7 @@ const CustomerProfilePage: React.FC = () => {
                     background: 'transparent',
                     color: colors.primary,
                     fontWeight: 600,
-                    fontSize: 13.5,
+                    fontSize: 14,
                     cursor: 'pointer',
                     padding: '4px 6px',
                     borderRadius: radius.md,
@@ -503,7 +504,7 @@ const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string }
         {icon}
       </span>
       <div style={{ position: 'relative' }}>
-        <div style={{ ...type.bodyCompact, fontSize: 13.5, color: colors.onSurfaceVariant, marginBottom: 6 }}>{label}</div>
+        <div style={{ ...type.bodyCompact, fontSize: 14, color: colors.onSurfaceVariant, marginBottom: 6 }}>{label}</div>
         <div style={{ ...type.sectionHeading, fontSize: 26, color: colors.onSurface, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       </div>
     </div>

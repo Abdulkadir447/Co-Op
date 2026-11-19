@@ -8,14 +8,28 @@ replaces the removed v1 `orm_mode`).
 
 from __future__ import annotations
 
+from .money import CURRENCY
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, PlainSerializer
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Money on the wire
+# ---------------------------------------------------------------------------
+# In: a JSON number is parsed into Decimal via str(), so 19.99 is exactly
+# 19.99. Out: the same field serialises back to a JSON number (not a string),
+# so the UI's types and arithmetic are unchanged. The exactness lives in the
+# database and the arithmetic (backend/money.py), never in a float.
+MoneyValue = Annotated[
+    Decimal, PlainSerializer(lambda v: float(v), return_type=float, when_used="json")
+]
+
+
 # Product schemas
 # ---------------------------------------------------------------------------
 
@@ -24,8 +38,10 @@ class ProductBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Product name")
     description: Optional[str] = Field(None, max_length=1000)
     category: Optional[str] = Field(None, max_length=100)
-    unit_price: float = Field(..., gt=0, description="Price must be greater than 0")
-    cost_price: Optional[float] = Field(None, ge=0, description="Cost price, if applicable")
+    # Money is Decimal (backend/money.py). Pydantic parses the JSON number via
+    # str(), so 19.99 arrives as exactly 19.99 — never as the nearest double.
+    unit_price: MoneyValue = Field(..., gt=0, description="Price must be greater than 0")
+    cost_price: Optional[MoneyValue] = Field(None, ge=0, description="Cost price, if applicable")
     current_stock: int = Field(default=0, ge=0, description="Current inventory level")
     reorder_level: int = Field(default=5, ge=0, description="Stock level that triggers reorder")
 
@@ -40,8 +56,8 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = Field(None, max_length=1000)
     category: Optional[str] = Field(None, max_length=100)
-    unit_price: Optional[float] = Field(None, gt=0)
-    cost_price: Optional[float] = Field(None, ge=0)
+    unit_price: Optional[MoneyValue] = Field(None, gt=0)
+    cost_price: Optional[MoneyValue] = Field(None, ge=0)
     reorder_level: Optional[int] = Field(None, ge=0)
     # NOTE (Task 8): `current_stock` is deliberately NOT editable here.
     # After creation, stock changes only via POST /products/{id}/adjust,
@@ -128,6 +144,55 @@ class InventorySummary(BaseModel):
 # Customer schemas
 # ---------------------------------------------------------------------------
 
+# --- Branches (D1) ----------------------------------------------------------
+class BranchCreate(BaseModel):
+    """A new location. `code` is what staff say out loud, so it is short."""
+
+    code: str = Field(..., min_length=2, max_length=20, pattern="^[A-Za-z0-9_-]+$")
+    name: str = Field(..., min_length=1, max_length=255)
+    address: Optional[str] = Field(None, max_length=500)
+    timezone: Optional[str] = Field(None, max_length=64)
+
+
+class BranchOut(BaseModel):
+    id: int
+    code: str
+    name: str
+    address: Optional[str] = None
+    timezone: Optional[str] = None
+    is_default: bool
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DeviceEnrol(BaseModel):
+    """A client-generated device identity.
+
+    ``device_key`` is a UUID the app creates on first run, before it can reach
+    the server. Re-enrolling the same key is a conflict, not a second device:
+    the row is the machine.
+    """
+
+    device_key: str = Field(..., min_length=8, max_length=64, pattern="^[A-Za-z0-9_-]+$")
+    name: str = Field(..., min_length=1, max_length=255)
+    branch_id: Optional[int] = None
+    public_key: Optional[str] = Field(None, max_length=4000)
+
+
+class DeviceOut(BaseModel):
+    id: int
+    device_key: str
+    name: str
+    branch_id: int
+    enrolled_at: Optional[datetime] = None
+    last_seen_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
+    has_public_key: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CustomerBase(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=255)
     email: EmailStr = Field(..., max_length=255)
@@ -190,7 +255,7 @@ class OrderStatus(str, Enum):
 class OrderItemBase(BaseModel):
     product_id: int
     quantity: int = Field(..., gt=0)
-    unit_price: float = Field(..., gt=0)
+    unit_price: MoneyValue = Field(..., gt=0)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -239,12 +304,84 @@ class OrderOut(BaseModel):
     # (Task 12 / M4). The frontend renders the status control from this instead
     # of maintaining its own copy of the rules.
     allowed_transitions: List[OrderStatus] = []
-    total_amount: float
+    total_amount: float          # NET subtotal (excludes tax)
+    # Tax, snapshotted on the order when it was raised (0021). None = tax was
+    # off for this order, so grand_total == total_amount for legacy rows.
+    tax_rate: Optional[float] = None
+    tax_amount: float = 0.0
+    grand_total: float = 0.0
+    # Receivables (0020): what came in, what is still owed. Computed from the
+    # payment ledger on every read — never stored, so it cannot drift.
+    amount_paid: float = 0.0
+    balance_due: float = 0.0
+    payment_status: str = "unpaid"  # unpaid | partial | paid | overpaid
     order_date: datetime
     created_at: datetime
     items: List[OrderItemOut]
+    # The saved invoice number for this order, when one exists (0023). A tax
+    # invoice must show a number from a sequential series, not an order
+    # reference — the print view uses this when it is present.
+    invoice_number: Optional[str] = None
+
+
+class OrderPaymentCreate(BaseModel):
+    """One payment received against an order."""
+
+    amount: MoneyValue = Field(..., gt=0)
+    method: Optional[str] = "cash"  # cash | transfer | card | pos | other
+    reference: Optional[str] = Field(None, max_length=120)
+    note: Optional[str] = Field(None, max_length=500)
+
+
+class OrderPaymentOut(BaseModel):
+    id: int
+    order_id: int
+    amount: float
+    method: str
+    reference: Optional[str] = None
+    note: Optional[str] = None
+    received_at: Optional[datetime] = None
+    created_by: Optional[str] = None
+
+
+class OrderPaymentsResponse(BaseModel):
+    """The payment ledger of one order plus its balance."""
+
+    order_id: int
+    items: List[OrderPaymentOut]
+    amount_paid: float
+    balance_due: float
+    payment_status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ReceivableRow(BaseModel):
+    """One unpaid/part-paid order in the receivables list."""
+
+    order_id: int
+    customer_id: int
+    customer_name: Optional[str] = None
+    order_date: Optional[datetime] = None
+    status: str
+    subtotal: float
+    tax_amount: float
+    total: float          # what the customer owes in full (net + tax)
+    amount_paid: float
+    balance_due: float
+    payment_status: str
+    age_days: int         # days since the order was placed
+
+
+class ReceivablesResponse(BaseModel):
+    """Outstanding money across the tenant, oldest first."""
+
+    items: List[ReceivableRow]
+    total_outstanding: float
+    total_collected: float
+    count: int
+    page: int
+    limit: int
 
 
 # ---------------------------------------------------------------------------
@@ -312,12 +449,13 @@ class CategoryValue(BaseModel):
 # Settings schemas (Task 9 — Company Settings, UXDS 15.6)
 # ---------------------------------------------------------------------------
 
-# Explicit currency whitelist — garbage codes would corrupt money formatting
-# app-wide. Includes NGN (primary market) plus common trading currencies.
-ALLOWED_CURRENCIES = {
-    "USD", "EUR", "GBP", "NGN", "CAD", "AUD", "JPY", "CNY",
-    "ZAR", "GHS", "KES", "EGY", "INR", "AED", "CHF",
-}
+# The only currency this edition writes. Money is stored as integer kobo
+# (backend/money.py), so the exponent is fixed at 2 by the storage format, not
+# by a preference: JPY has no minor unit and KWD has three, and either would be
+# silently mis-scaled by a hundred or a thousand. The database enforces the same
+# rule (ck_businesses_currency_ngn), so this is a clear error message in front of
+# a constraint that cannot be bypassed.
+ALLOWED_CURRENCIES = {CURRENCY}
 
 # Curated timezone list (UXDS 15.6 Time Zone field).
 ALLOWED_TIMEZONES = {
@@ -347,9 +485,15 @@ class BusinessSettingsUpdate(BaseModel):
     address: Optional[str] = Field(None, max_length=500)
     phone: Optional[str] = Field(None, max_length=20)
     tax_id: Optional[str] = Field(None, max_length=100)
+    # Company/LLC registration number — printed on the invoice.
+    registration_number: Optional[str] = Field(None, max_length=60)
     website: Optional[str] = Field(None, max_length=255)
     timezone: Optional[str] = Field(None, max_length=64)
     ai_response_style: Optional[str] = Field(None, max_length=20)
+    # Tax presentation (0021). Rate is a percentage: 8.25 means 8.25%.
+    tax_enabled: Optional[bool] = None
+    tax_rate: Optional[float] = Field(None, ge=0, le=100)
+    tax_label: Optional[str] = Field(None, min_length=1, max_length=20)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -364,6 +508,7 @@ class BusinessSettingsOut(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     tax_id: Optional[str] = None
+    registration_number: Optional[str] = None
     website: Optional[str] = None
     timezone: Optional[str] = None
     # Set only by POST /business/logo (a Storage upload), never by PATCH —
@@ -371,6 +516,9 @@ class BusinessSettingsOut(BaseModel):
     # logo at any external host.
     logo_url: Optional[str] = None
     ai_response_style: str = "standard"
+    tax_enabled: bool = False
+    tax_rate: float = 0.0
+    tax_label: str = "Tax"
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -383,7 +531,7 @@ class AuthMeResponse(BaseModel):
     user_id: str
     business_id: Optional[int] = None  # None while a pending invitation awaits
     business_name: str = ""
-    currency: str = "USD"
+    currency: str = CURRENCY
     role: str = "owner"  # owner | manager | sales | inventory | accountant | viewer
     email: Optional[str] = None
     pending_invitation: Optional["TeamInviteOut"] = None

@@ -113,6 +113,45 @@ Provisional by design: payment provider (nothing is charged yet), and the
 Settings "coming soon" sections. See `docs/PRODUCT_READINESS.md` for the
 full status.
 
+## How the pieces fit (read this before asking "why do I need a backend?")
+
+Co-op has **three** independent services, and none of them can do another's job:
+
+| Layer | Service | Owns | Never does |
+|---|---|---|---|
+| **Identity** | **Clerk** | sign-in, sessions, MFA, password reset. Issues the session token | touch business data — the backend only calls Clerk to *verify* a token (`backend/clerk_auth.py`); there is no Clerk API call for orders/products anywhere |
+| **Data** | **Supabase** | the Postgres database (+ Storage for logos). Holds the 25 tables, 22 RLS policies, migrations | run application logic — it has no Python runtime, and its REST layer (PostgREST) cannot execute the stock ledger, order-state machine, tax snapshotting or report builders |
+| **Application** | **FastAPI** (`backend/`) | the business rules: stock movements, order transitions, invoices, tax, receivables, reports, CSV/XLSX/PDF export, rate limits, audit | store data of its own — every row lives in Supabase Postgres |
+
+So the split is exactly: **Clerk = who you are, Supabase = where the data lives,
+FastAPI = what the rules are.** All three are needed, and the third one is the
+app itself.
+
+Concretely, with Supabase connected but the API stopped:
+
+```
+GET /              -> 200   the UI loads
+GET /api/...       -> 502   every data call fails (vite proxy: ECONNREFUSED :8000)
+```
+
+`VITE_API_URL` decides where `/api` goes: unset → the dev proxy hits
+`localhost:8000` (run the backend locally); set to a deployed URL → the local
+frontend talks to a backend you deployed once, and you never start uvicorn
+again.
+
+If you would rather not run the API by hand at all, the whole stack runs as
+containers with one command — `podman-compose up -d --build` (or
+`docker compose up -d --build`), then http://localhost:3000. See
+`docs/RUN_LOCAL.md` §4b. uvicorn is started by the backend image, not by you.
+
+> **Why not let the browser talk to Supabase directly?** Two hard blockers:
+> (1) a browser cannot speak the Postgres wire protocol, and (2) the RLS
+> policies key off `current_setting('app.business_id')`, a value the *backend*
+> injects per request (`backend/rls.py`) — PostgREST never sets it, so reading
+> these tables through Supabase's REST API returns nothing. Supabase-as-a-whole-
+> backend is a real architecture for TypeScript apps using `supabase-js`; this
+> app is a Python service and would need a full rewrite to get there.
+
 ## Repository layout
 
 ```
@@ -131,13 +170,84 @@ electron/   Optional Electron desktop wrapper
 Documents/  Product documentation (PRD, TRD, BSD, AFD, IPD, UXDS chapters)
 ```
 
+## Temporary placeholders (read before showing the site to anyone)
+
+The marketing site is wired and deployable, but three things in it are
+**deliberately fake** and must be replaced before launch. They are fake in a
+way that *cannot* be mistaken for real: the domain uses `.example`, which
+RFC 2606 reserves so it can never be registered or resolve, and the phone
+numbers are not routable. Nothing here points at a real stranger's inbox.
+
+| What | Value shipped now | Where | Replace with | Effect of leaving it |
+| --- | --- | --- | --- | --- |
+| Site URL (canonical, `og:url`, `og:image`) | `https://coop.example` | `website/index.html` (5 tags) and `SITE.url` in `website/src/App.tsx` | The real https domain | WhatsApp previews still work (the image renders) but its link points nowhere |
+| Support email | `hello@coop.example` | `CONTACT.email` in `website/src/App.tsx` | A monitored inbox | Mail bounces |
+| Phone / WhatsApp | `+234 800 000 0000` / `2348000000000` | `CONTACT.phone`, `CONTACT.whatsapp` | A real number | The WhatsApp link opens an empty chat with nobody |
+
+**One more decision that is not mine to make final: the price level.** The plans
+are now priced in Naira — **Starter ₦25,000/mo, Professional ₦75,000/mo, 20% off
+annual (₦240,000 and ₦720,000 a year)**. Those numbers were chosen as a
+defensible starting point for Nigerian retail chains (below the effective Naira
+cost of the accounting software they would otherwise buy, above the free tools);
+they are a **business decision, not a technical one**, and changing them is two
+edits, never more:
+
+- `frontend/src/billing/plans.ts` — `priceMonthly` (what the customer reads)
+- `config/<env>.json` — `paystack.prices_kobo` (what the card is charged, in
+  kobo: Naira × 100)
+
+The reasoning and the unit economics are in `docs/BUSINESS_PLAN.md` §5. Nothing
+is charged until a Paystack secret key is set, so this commits you to nothing
+today.
+
+While these values are in place the site says so out loud: the contact cards
+carry a "Not live yet" note and the footer carries "Preview build — the public
+address in this page's share links is a placeholder until launch." Both
+appear automatically while the placeholder values are present, so replacing
+the values above is the only edit needed — there is no flag to remember to
+remove.
+
+Two further assets are still missing on purpose: the product tour needs real
+screenshots (drop 1600×1000 PNGs into `website/src/assets/screenshots/`, named
+`dashboard`, `products`, `inventory`, `orders`, `customers`, `reports`,
+`ai`), and the founders section needs either `website/src/assets/videos/founders.mp4`
+or a `FOUNDERS_EMBED` URL. Sections whose assets are absent are not rendered.
+
+### Deploying the site to Vercel
+
+The website is a standalone Vite app in `website/`, so it deploys without any
+configuration once the project is connected:
+
+1. **Add New → Project → import `Abdulkadir447/Co-Op`.**
+2. Set **Root Directory** to `website`. (Leave the framework as Vite.)
+3. Deploy. `website/vercel.json` sets the build (`npm run build`), the output
+   (`dist`), clean URLs and a small header set; no environment variables are
+   needed.
+
+**Check the production branch.** A Vercel project defaults to the repository's
+default branch (`master`). While the work lives on a PR branch, a project
+pointing at `master` will build old code — that is exactly what the first
+deploy did (it built `master@088b3c8`, whose `website/` had no workspace
+membership, and failed with `tsc: command not found`). Set **Settings → Git →
+Production Branch** to the branch you want live, or merge the PR.
+
+`website` is a member of the pnpm workspace, so one `pnpm install` at the
+repository root installs the site's dependencies as well — which is what the
+Vercel build relies on. Custom domains live under **Settings → Domains**.
+
+> This has not been run end to end yet: the Vercel token available to the agent
+> is read-only, so `Add project` and `Add domain` are refused. The steps above
+> are what the repository is configured for, not a claim that a deployment
+> already exists. Once a deployment does, copy its address into the placeholder
+> table below.
+
 ## Prerequisites
 
 - Node.js **>= 22**, Python **3.11+**
 - A Clerk application (publishable key for the frontend, Frontend API host
   for the backend)
 - A Supabase/Postgres database
-- (Optional) an OpenAI API key for the real AI assistant — without it,
+- (Optional) an `OPENROUTER_API_KEY` for the real AI assistant — without it,
   Ask Zeno gracefully falls back to the deterministic data engine
 
 ## Environment variables
@@ -147,7 +257,7 @@ Copy `.env.example` to `.env` and fill in real values. The important ones:
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `VITE_CLERK_PUBLISHABLE_KEY` | frontend | Clerk publishable key (baked at build/dev time) |
-| `DATABASE_URL` (or `SUPABASE_DB_URL`) | backend (prod + dev) | Supabase/Postgres connection string |
+| `DATABASE_URL` (or `SUPABASE_DB_URL`) | backend (prod + dev) | Supabase/Postgres **connection string** (`postgresql://postgres.<ref>:…@aws-0-<region>.pooler.supabase.com:5432/postgres`). **Not** the `https://<ref>.supabase.co` project URL — that is `SUPABASE_URL`, and the app rejects it with an explanation |
 | `CLERK_FRONTEND_API` | backend (prod) | Clerk Frontend API host used to verify session tokens |
 | `CLERK_ALLOWED_ORIGINS` | optional | Comma-separated `azp` allow-list |
 | `CORS_ORIGINS` | required in prod | Comma-separated CORS allow-list. Development/testing default to `*`; **production refuses to start** if neither this nor `cors.origins` in `config/production.json` is set |
@@ -179,15 +289,18 @@ python3 -m venv .venv
 DATABASE_URL=postgresql://... .venv/bin/uvicorn backend.main:app --reload
 ```
 
-Frontend (dev server, proxies `/api` to `localhost:8000`):
+Frontend (dev server, proxies `/api` to `localhost:8000`) — **pnpm**, the
+package manager this repo pins (`pnpm-lock.yaml`; `npm` would create a second
+lockfile and a different tree):
 
 ```bash
-cd frontend
-npm install
-npm run dev
+pnpm install        # once, from the repo root (installs the workspace)
+pnpm dev:all        # API on :8000 + UI on :3000, one command, labelled logs
+pnpm dev            # UI only - every /api call then 502s until you run `pnpm dev:api`
+pnpm doctor         # something is broken: names the cause, incl. a stale API
 ```
 
-Desktop wrapper (optional): `npm run start` from the repo root.
+Desktop wrapper (optional): `pnpm dev:desktop` from the repo root.
 
 Packaged desktop builds (electron-builder, produces AppImage / NSIS / DMG
 per platform).
@@ -209,7 +322,7 @@ Locally, if you would rather build on your own machine:
 
 ```bash
 cd electron
-npm install
+npm ci                                          # npm on purpose here — electron/ ships package-lock.json
 VITE_API_URL=https://<your-api> npm run dist   # `npm run pack` for an unpacked build
 ```
 
@@ -248,6 +361,19 @@ Auth        /auth/me  /business/settings  /healthcheck
 
 ## Database migrations (Supabase/Postgres)
 
+**If every screen is failing with a 500 or "Internal server error", run this
+first** — it is the answer to that symptom about 90% of the time:
+
+```bash
+python scripts/check_db.py     # 0 = ready, 1 = schema behind, 2 = unreachable
+```
+
+It reports whether the database is reachable, which tables and columns the
+code expects but the database does not have, and what to run. The backend now
+does the same check at startup (it logs the diagnosis) and at
+`GET /healthcheck`, which returns 503 with `database: "schema_behind"` or
+`database: "unreachable"` instead of a bare "healthy".
+
 Migrations live in `backend/alembic/` (baseline → import provenance →
 `source_order_ref` → `ai_usage` → `subscriptions`) and are applied with
 Alembic.
@@ -283,6 +409,16 @@ pnpm --filter ./frontend build
 cd electron && npm test
 ```
 
+On this commit the gates print: backend **501 passed, 6 skipped**; frontend
+**26 pass** plus a clean type check, lint and build; Electron **93 tests, 91
+pass, 0 skipped on Windows** (2 skipped on Linux/macOS, where the
+Windows-filesystem group cannot run).
+
+Windows PowerShell does not accept `&&` — run one command per line and use
+`.venv\Scripts\python` instead of `.venv/bin/python`. `docs/RUN_LOCAL.md` §6
+has the exact PowerShell block, and §4 has a two-terminal quickstart for
+running the app itself.
+
 The suite includes a **contract test** that scans every frontend API call
 and asserts a matching backend route exists — the guard that makes a
 frontend/backend endpoint mismatch impossible. Set `TEST_DATABASE_URL` to a
@@ -302,6 +438,24 @@ preview → map → validate → commit pipeline to assert exactly that.
 Product documentation (PRD, TRD, BSD, AFD, IPD, UXDS) lives in
 `Documents/`; engineering docs (branch protection, ADRs, coding standards)
 in `docs/`; current readiness status in `docs/PRODUCT_READINESS.md`.
+
+Business and fundraising docs:
+
+- `docs/BUSINESS_PLAN.md` — the zero-capital plan, USD pricing, unit economics.
+- `docs/YC_APPLICATION.md` — an honest read on whether YC would fund this, plus
+  the application written out with every number wired to the product.
+- `docs/PRODUCT_MARKET_FIT_AUDIT.md` — every feature checked against how it is
+  done in the wild, with sources.
+
+To demo the product with data in it (three-minute demo, screen recording):
+
+```bash
+python scripts/seed_demo.py --email you@example.com
+```
+
+Then open **Admin console → Fundraising** for the five numbers an investor or
+accelerator asks for (signups, activation, retention, MRR, AI usage), each with
+its definition printed beside it.
 
 ## Licence
 

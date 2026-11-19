@@ -85,7 +85,7 @@ ops/infra · ➖ not code (business/legal/marketing).
 
 | Item | Status |
 |---|---|
-| React site, pricing in **dollars**, brand "CO OP", weave logo (no letters) | ✅ |
+| React site, pricing in **Naira**, brand "Co-op", "C that holds the shop" mark (see `brand/BRAND.md`) | ✅ |
 | App-download CTA, founders-video slot, app-page visuals, configurable contact email | ✅ |
 | OG/Twitter meta | ➖ Intentionally removed per product decision. |
 | Domain + deploy | 🚧 Operator. |

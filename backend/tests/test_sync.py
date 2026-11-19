@@ -644,3 +644,111 @@ async def test_conflict_check_is_tenant_isolated(session_factory):
         assert r2["applied"] == 1, "a different business may use the same email"
         assert r2["conflicts"] == []
         await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Tenant isolation of the sync path (audit finding: _resolve_client_id was
+# unscoped, so a client_id from another tenant resolved — and every caller
+# below trusted it).
+# ---------------------------------------------------------------------------
+
+async def test_a_client_id_from_another_tenant_does_not_resolve(session_factory):
+    """Tenant A's client_id must be invisible to tenant B's push.
+
+    Before the fix the lookup was global, so B's `update` found A's row, then
+    loaded and overwrote it while B's own scoping checks passed.
+    """
+    async with session_factory() as db:
+        a, b = 801, 802
+        await sync.apply_push(db, a, [_cust("SHARED-CID", name="Alice", email="a@x.com")])
+        before = (
+            await db.execute(select(Customer).where(Customer.business_id == a))
+        ).scalars().first()
+
+        r = await sync.apply_push(db, b, [
+            {"entity": "customer", "client_id": "SHARED-CID", "operation": "update",
+             "payload": {"full_name": "Mallory"}},
+        ])
+        assert r["applied"] == 0
+        assert r["conflicts"] and r["conflicts"][0]["reason"] == "not_found"
+
+        await db.refresh(before)
+        assert before.full_name == "Alice", "the other tenant's row is untouched"
+        assert await _count(db, Customer, b) == 0
+        await db.commit()
+
+
+async def test_a_cross_tenant_reference_does_not_resolve(session_factory):
+    """An order cannot point at another tenant's customer by client_id."""
+    async with session_factory() as db:
+        a, b = 803, 804
+        await sync.apply_push(db, a, [_cust("CUST-A", email="a@x.com")])
+        r = await sync.apply_push(db, b, [
+            {"entity": "order", "client_id": "ORD-B", "operation": "create",
+             "payload": {"customer_client_id": "CUST-A", "status": "pending",
+                         "total_amount": 10, "order_date": "2026-08-01T00:00:00"}},
+        ])
+        assert r["applied"] == 0
+        assert r["conflicts"][0]["reason"] == "not_found"
+        assert await _count(db, Order, b) == 0
+        await db.commit()
+
+
+async def test_an_offline_customer_without_an_email_still_renders(api, session_factory):
+    """The placeholder must be an address the response schema accepts.
+
+    `@coop.local` is a reserved name and pydantic's EmailStr rejects it, so a
+    customer synced without an email made GET /customers fail validation for
+    the whole tenant.
+    """
+    me = (await api.client.get("/auth/me")).json()
+    async with session_factory() as db:
+        r = await sync.apply_push(db, me["business_id"], [
+            {"entity": "customer", "client_id": "NOEMAIL1", "operation": "create",
+             "payload": {"full_name": "Walk-in"}},
+        ])
+        assert r["applied"] == 1, r
+        await db.commit()
+
+    listing = await api.client.get("/customers")
+    assert listing.status_code == 200, listing.text
+    assert listing.json()["items"][0]["email"].endswith("@customers.example.com")
+
+
+async def test_an_invalid_email_becomes_a_conflict_not_a_poisoned_row(session_factory):
+    async with session_factory() as db:
+        biz = 805
+        r = await sync.apply_push(db, biz, [_cust("BADMAIL", email="not-an-email")])
+        assert r["applied"] == 0
+        assert r["conflicts"][0]["reason"] == "invalid_payload"
+        assert await _count(db, Customer, biz) == 0, "the bad row never lands"
+
+        # An update is refused the same way, and leaves the good value intact.
+        await sync.apply_push(db, biz, [_cust("GOODMAIL", email="ok@x.com")])
+        r2 = await sync.apply_push(db, biz, [
+            {"entity": "customer", "client_id": "GOODMAIL", "operation": "update",
+             "payload": {"email": "still-not-an-email"}},
+        ])
+        assert r2["conflicts"][0]["reason"] == "invalid_payload"
+        row = (
+            await db.execute(select(Customer).where(Customer.client_id == "GOODMAIL"))
+        ).scalars().first()
+        await db.refresh(row)
+        assert row.email == "ok@x.com"
+        await db.commit()
+
+
+async def test_a_malformed_number_fails_one_op_not_the_batch(session_factory):
+    """`int("abc")` used to raise past the handler and 500 the whole push."""
+    async with session_factory() as db:
+        biz = 806
+        r = await sync.apply_push(db, biz, [
+            _cust("C1", email="c1@x.com"),
+            _prod("P1"),
+            _move("M1", "P1", change="abc"),
+        ])
+        assert await _count(db, Customer, biz) == 1, "the good op still applied"
+        assert await _count(db, Product, biz) == 1
+        assert r["conflicts"] and r["conflicts"][0]["reason"] == "invalid_payload"
+        assert "number" in r["conflicts"][0]["error"]
+        await db.commit()

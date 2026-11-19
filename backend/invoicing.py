@@ -21,6 +21,8 @@ payments phase (a gateway decision) and is not here.
 """
 from __future__ import annotations
 
+from . import money
+from .money import CURRENCY
 import csv
 import datetime as dt
 import io
@@ -109,6 +111,7 @@ async def create_for_order(
     for attempt in range(_MAX_RETRIES):
         row = Invoice(
             business_id=business.id,
+            branch_id=order.branch_id,   # a document follows its sale
             order_id=order.id,
             number=_number(seq + attempt),
             issue_date=issued,
@@ -190,10 +193,17 @@ async def _load(
 
 
 def to_dict(row: Invoice, order: Optional[Order], customer: Optional[Customer],
-            currency: str = "USD") -> dict[str, Any]:
+            currency: str = CURRENCY) -> dict[str, Any]:
+    from .receivables import balance_for
+
     status = (order.status.value if order and hasattr(order.status, "value") else
               (order.status if order else None))
-    return {
+    # Receivables (0020): an invoice says what was charged; the payment ledger
+    # says what came in. Both are shown so "sent" never implies "paid".
+    balance = balance_for(order) if order is not None else None
+    # An invoice is a display document; the response body carries naira as a
+    # JSON number (backend/money.py) while the arithmetic above stayed exact.
+    return money.jsonable({
         "id": row.id,
         "number": row.number,
         "status": row.status,
@@ -201,12 +211,22 @@ def to_dict(row: Invoice, order: Optional[Order], customer: Optional[Customer],
         "due_date": row.due_date.isoformat() if row.due_date else None,
         "notes": row.notes,
         "currency": currency,
-        "total": float(order.total_amount) if order else 0.0,
+        # "total" is what the customer pays: net subtotal + tax (0021), so an
+        # invoice can never understate what is owed.
+        # Money stays Decimal all the way to the response encoder
+        # (backend/money.py); nothing here converts it to a float.
+        "subtotal": money.as_money(order.total_amount) if order else money.ZERO,
+        "tax_rate": (order.tax_rate if order else None),
+        "tax_amount": money.as_money(order.tax_amount) if order else money.ZERO,
+        "total": money.as_money(order.grand_total) if order else money.ZERO,
+        "amount_paid": balance.paid if balance else money.ZERO,
+        "balance_due": balance.balance if balance else money.ZERO,
+        "payment_status": balance.status if balance else "unpaid",
         "order": {
             "id": order.id,
             "status": status,
             "order_date": order.order_date.isoformat() if order and order.order_date else None,
-            "total_amount": float(order.total_amount) if order else 0.0,
+            "total_amount": money.as_money(order.total_amount) if order else money.ZERO,
         } if order else None,
         "customer": {
             "id": customer.id,
@@ -214,7 +234,7 @@ def to_dict(row: Invoice, order: Optional[Order], customer: Optional[Customer],
             "email": customer.email,
         } if customer else None,
         "created_at": row.created_at.isoformat() if row.created_at else None,
-    }
+    })
 
 
 async def list_invoices(
@@ -259,7 +279,10 @@ async def list_invoices(
     orders = await _load(db, business, rows)
     return {
         "items": [
-            to_dict(r, *(orders.get(r.order_id, (None, None))), currency=business.currency or "USD")
+            to_dict(
+                r, *(orders.get(r.order_id, (None, None))),
+                currency=business.currency or CURRENCY,
+            )
             for r in rows
         ],
         "total": int(total),
@@ -272,7 +295,7 @@ async def detail(db, business: Business, invoice_id: int) -> dict[str, Any]:
     row = await get_invoice(db, business, invoice_id)
     orders = await _load(db, business, [row])
     order, customer = orders.get(row.order_id, (None, None))
-    return to_dict(row, order, customer, currency=business.currency or "USD")
+    return to_dict(row, order, customer, currency=business.currency or CURRENCY)
 
 
 def render_csv(business: Business, items: list[dict[str, Any]]) -> bytes:
@@ -281,7 +304,8 @@ def render_csv(business: Business, items: list[dict[str, Any]]) -> bytes:
     writer = csv.writer(buf)
     writer.writerow([
         "Invoice number", "Status", "Issue date", "Due date", "Order",
-        "Customer", "Email", "Total", "Currency",
+        "Customer", "Email", "Subtotal", "Tax", "Total", "Paid", "Balance",
+        "Payment status", "Currency",
     ])
     for it in items:
         writer.writerow([
@@ -293,7 +317,12 @@ def render_csv(business: Business, items: list[dict[str, Any]]) -> bytes:
             # Customer names are user input: keep them text, never a formula.
             csv_safe(it["customer"]["full_name"]) if it["customer"] else "",
             csv_safe(it["customer"]["email"] or "") if it["customer"] else "",
+            f"{it.get('subtotal', it['total']):.2f}",
+            f"{it.get('tax_amount', 0.0):.2f}",
             f"{it['total']:.2f}",
+            f"{it.get('amount_paid', 0.0):.2f}",
+            f"{it.get('balance_due', 0.0):.2f}",
+            it.get("payment_status", "unpaid"),
             it["currency"],
         ])
     return buf.getvalue().encode("utf-8")

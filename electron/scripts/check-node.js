@@ -1,13 +1,22 @@
 #!/usr/bin/env node
 /**
- * Fails `npm ci` early, with a readable message, when the running Node has no
- * prebuilt `better-sqlite3` binary.
+ * Explains, in readable words, why the running Node cannot install
+ * `better-sqlite3` from a prebuilt binary.
  *
- * Without this, `npm ci` in electron/ dies deep inside node-gyp with
- * "Could not find any Visual Studio installation to use" — which reads like a
- * missing compiler problem but is really an ABI problem. better-sqlite3 only
- * publishes prebuilds for a fixed set of NODE_MODULE_VERSIONs; on anything
- * else it tries to compile, and that needs the full MSVC toolchain.
+ * Without this, the install dies deep inside node-gyp with "Could not find any
+ * Visual Studio installation to use" — which reads like a missing compiler
+ * problem but is really an ABI problem. better-sqlite3 only publishes
+ * prebuilds for a fixed set of NODE_MODULE_VERSIONs; on anything else it tries
+ * to compile, and that needs the full MSVC toolchain.
+ *
+ * IMPORTANT — this script cannot be the primary gate. npm runs a root
+ * `preinstall` *after* the dependency tree is installed, so on Node 24
+ * better-sqlite3's own build script fails before this line is ever reached
+ * (verified against npm 10 and 11). The gate that actually stops it is
+ * `engine-strict=true` in electron/.npmrc, which makes npm refuse on Node 24
+ * before it downloads anything, because electron/package.json's engines field
+ * is `>=18 <24`. This script then runs on `npm test` / `npm start`, where its
+ * long-form advice is the useful part.
  *
  * The allowed ABIs below are the win32/linux/darwin x64 prebuilds published on
  * https://github.com/Wiselibs/better-sqlite3/releases for the version pinned in
@@ -25,7 +34,10 @@ const PREBUILT_ABIS = {
 const abi = Number(process.versions.modules);
 const major = Number(process.versions.node.split('.')[0]);
 
-if (PREBUILT_ABIS[abi]) {
+// engines (>=18 <24) and the ABI table must BOTH allow this Node. Node 24 is
+// ABI 137: not in the table, and outside engines — it is the case that used to
+// reach node-gyp and produce a wall of Visual Studio errors.
+if (PREBUILT_ABIS[abi] && major >= 18 && major < 24) {
   process.exit(0);
 }
 

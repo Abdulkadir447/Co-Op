@@ -30,7 +30,7 @@ const ReportKpis: React.FC<{ kpis: ReportKpi[]; currency?: string }> = ({ kpis, 
           deltaTone = chg === 0 ? 'neutral' : improving ? 'good' : 'bad';
         }
         const deltaColor =
-          deltaTone === 'good' ? colors.success : deltaTone === 'bad' ? colors.error : colors.outline;
+          deltaTone === 'good' ? colors.successText : deltaTone === 'bad' ? colors.errorText : colors.onSurfaceMuted;
 
         return (
           <div

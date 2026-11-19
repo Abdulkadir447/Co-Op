@@ -156,7 +156,7 @@ const ExportMenu: React.FC<{ reportKey: string; filters: ReportFilterState; data
               padding: 6,
             }}
           >
-            <div style={{ padding: '6px 10px 8px', ...type.bodyCompact, fontSize: 11.5, color: colors.outline }}>
+            <div style={{ padding: '6px 10px 8px', ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>
               {local ? 'CSV from the data on screen (offline)' : 'Exports the current filters'}
             </div>
             {OPTIONS.map((o) => {

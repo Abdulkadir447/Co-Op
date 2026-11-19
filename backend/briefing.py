@@ -21,6 +21,7 @@ from typing import Any, Optional
 
 from sqlalchemy import select
 
+from . import money as money_mod
 from . import timezones as tz_mod
 from .models import Business, Customer, Order, OrderItem, Product
 
@@ -44,12 +45,13 @@ def _as_date(x, tz):
     return x
 
 
-def _money(v: float) -> str:
-    return f"${v:,.0f}" if abs(v - round(v)) < 0.05 else f"${v:,.2f}"
+def _money(v) -> str:
+    """Naira with the same rule the UI uses: whole when round, kobo when not."""
+    return money_mod.fmt_compact(v)
 
 
-def _pct(v: float) -> str:
-    return f"{v:+.1f}%" if v < 0 else f"{v:.1f}%"
+def _pct(v) -> str:
+    return f"{float(v):+.1f}%" if v < 0 else f"{float(v):.1f}%"
 
 
 async def build_briefing(db, business_id: int) -> dict[str, Any]:
@@ -116,7 +118,7 @@ async def build_briefing(db, business_id: int) -> dict[str, Any]:
                 "orders": 0,
                 "customers": 0,
                 "products": 0,
-                "total_revenue": 0.0,
+                "total_revenue": 0,
                 "imported": latest_import is not None,
                 "latest_import": latest_import,
             },
@@ -126,33 +128,33 @@ async def build_briefing(db, business_id: int) -> dict[str, Any]:
     # ------------------------------------------------------------------
     # Monthly revenue (last 6 calendar months, including current)
     # ------------------------------------------------------------------
-    monthly: dict[_dt.date, float] = {}
+    monthly: dict[_dt.date, object] = {}
     month_orders: dict[_dt.date, int] = {}
     for o in orders:
         od = _as_date(o.order_date, tz)
         if not od:
             continue
         m = _dt.date(od.year, od.month, 1)
-        monthly[m] = monthly.get(m, 0.0) + o.total_amount
+        monthly[m] = monthly.get(m, 0) + o.total_amount
         month_orders[m] = month_orders.get(m, 0) + 1
 
     cur_month = _dt.date(today.year, today.month, 1)
     last_month = _dt.date(cur_month.year, cur_month.month, 1) - _dt.timedelta(days=1)
     last_month = _dt.date(last_month.year, last_month.month, 1)
-    rev_this = monthly.get(cur_month, 0.0)
-    rev_last = monthly.get(last_month, 0.0)
+    rev_this = monthly.get(cur_month, 0)
+    rev_last = monthly.get(last_month, 0)
 
     # ------------------------------------------------------------------
     # Products: revenue by product, concentration, margin
     # ------------------------------------------------------------------
-    prod_revenue: dict[int, float] = {}
+    prod_revenue: dict[int, object] = {}
     prod_units: dict[int, int] = {}
-    margin_total = 0.0
-    margin_revenue = 0.0
+    margin_total = 0
+    margin_revenue = 0
     items_with_cost = 0
     for it in items:
         p = prod_by_id.get(it.product_id)
-        prod_revenue[it.product_id] = prod_revenue.get(it.product_id, 0.0) + it.total_price
+        prod_revenue[it.product_id] = prod_revenue.get(it.product_id, 0) + it.total_price
         prod_units[it.product_id] = prod_units.get(it.product_id, 0) + it.quantity
         if p is not None and p.cost_price is not None:
             margin_total += (it.unit_price - p.cost_price) * it.quantity
@@ -182,13 +184,13 @@ async def build_briefing(db, business_id: int) -> dict[str, Any]:
     # ------------------------------------------------------------------
     # Customers: VIPs + inactivity
     # ------------------------------------------------------------------
-    cust_revenue: dict[int, float] = {}
+    cust_revenue: dict[int, object] = {}
     cust_last: dict[int, _dt.date] = {}
     cust_units: dict[int, dict[int, int]] = {}
     for o in orders:
         if o.customer_id is None:
             continue
-        cust_revenue[o.customer_id] = cust_revenue.get(o.customer_id, 0.0) + o.total_amount
+        cust_revenue[o.customer_id] = cust_revenue.get(o.customer_id, 0) + o.total_amount
         od = _as_date(o.order_date, tz)
         if od:
             prev = cust_last.get(o.customer_id)
@@ -222,7 +224,7 @@ async def build_briefing(db, business_id: int) -> dict[str, Any]:
         if days >= 30:
             c = cust_by_id.get(cid)
             if c is not None:
-                inactive.append((cid, days, cust_revenue.get(cid, 0.0)))
+                inactive.append((cid, days, cust_revenue.get(cid, 0)))
     inactive.sort(key=lambda t: -t[2])
     inactive_top = [
         {

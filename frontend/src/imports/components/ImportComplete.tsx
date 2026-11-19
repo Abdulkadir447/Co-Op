@@ -93,7 +93,7 @@ const ImportComplete: React.FC<ImportCompleteProps> = ({ result, onRestart }) =>
               {result.warnings.map((w) => (
                 <div
                   key={w}
-                  style={{ display: 'flex', gap: 8, ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}
+                  style={{ display: 'flex', gap: 8, ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}
                 >
                   <ExclamationCircleFilled style={{ color: colors.warning, marginTop: 2 }} />
                   {w}
@@ -124,7 +124,7 @@ const ImportComplete: React.FC<ImportCompleteProps> = ({ result, onRestart }) =>
                   borderRadius: radius.md,
                   background: 'rgba(186,26,26,0.06)',
                   ...type.bodyCompact,
-                  fontSize: 12.5,
+                  fontSize: 12,
                 }}
               >
                 <span style={{ color: colors.error, fontWeight: 700 }}>Row {e.row}</span>

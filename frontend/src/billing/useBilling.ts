@@ -395,6 +395,8 @@ export function useBilling() {
   // True when the backend has a payment provider wired up (Paystack).
   const paymentConnected = summary?.payment_connected ?? payment?.enabled ?? false;
   /** Interval the toggle maps to when buying: the pricing screen's own state. */
+  // Naira is the only currency this edition charges; the label is only
+  // used before /billing/summary answers.
   const paymentCurrency = payment?.currency ?? 'NGN';
 
   return {

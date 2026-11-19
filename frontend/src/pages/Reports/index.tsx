@@ -65,7 +65,7 @@ const ReportsPage: React.FC = () => {
               background: key === k ? colors.primary : colors.surfaceContainerLowest,
               color: key === k ? colors.onPrimary : colors.onSurfaceVariant,
               fontWeight: 600,
-              fontSize: 13.5,
+              fontSize: 14,
               cursor: 'pointer',
               fontFamily: 'inherit',
               transition: 'background-color 150ms',
@@ -76,7 +76,7 @@ const ReportsPage: React.FC = () => {
         ))}
       </div>
 
-      <div style={{ ...type.bodyCompact, color: colors.outline, marginBottom: spacing.md }}>
+      <div style={{ ...type.bodyCompact, color: colors.onSurfaceMuted, marginBottom: spacing.md }}>
         {reportMeta.blurb}
       </div>
 
@@ -131,7 +131,7 @@ const ReportsPage: React.FC = () => {
               }}
             >
               {data.notes.map((n) => (
-                <div key={n} style={{ display: 'flex', gap: 8, ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+                <div key={n} style={{ display: 'flex', gap: 8, ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
                   <InfoCircleFilled style={{ color: colors.outline, marginTop: 2, flexShrink: 0 }} />
                   {n}
                 </div>
@@ -139,7 +139,7 @@ const ReportsPage: React.FC = () => {
             </div>
           )}
 
-          <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, textAlign: 'right' }}>
+          <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, textAlign: 'right' }}>
             {data.period_label} · verified by Co-op · generated {data.generated_at.replace('T', ' ')}
           </div>
         </div>

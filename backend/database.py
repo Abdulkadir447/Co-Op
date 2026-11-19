@@ -36,12 +36,30 @@ def resolve_database_url() -> str:
     return _resolve_database_url()
 
 
+#: A single statement may not hold a connection forever. Long reports are
+#: bounded work; a query that runs for minutes is a bug or a runaway client, and
+#: in both cases the pool should get the connection back.
+STATEMENT_TIMEOUT_MS = 30_000
+
+
+def _engine_kwargs(url: str) -> dict:
+    """Driver-specific engine options."""
+    kwargs: dict = {"echo": False}
+    if url.startswith("postgresql"):
+        kwargs["pool_pre_ping"] = True
+        kwargs["connect_args"] = {
+            "server_settings": {"statement_timeout": str(STATEMENT_TIMEOUT_MS)}
+        }
+    return kwargs
+
+
 def get_engine() -> AsyncEngine:
     """Return the shared async engine, creating it on first call."""
     global _engine
     if _engine is None:
         # echo=False: enable only for debugging; never log sensitive data.
-        _engine = create_async_engine(resolve_database_url(), echo=False)
+        url = resolve_database_url()
+        _engine = create_async_engine(url, **_engine_kwargs(url))
     return _engine
 
 

@@ -10,6 +10,7 @@ import pytest
 
 from backend.ai import service as ai_service
 from backend.ai.providers.openrouter import ProviderError, ProviderResult
+from backend import branches as branches_mod
 from backend.models import Business, Customer, Order, OrderItem, OrderStatus, Product
 
 
@@ -261,19 +262,23 @@ async def test_context_builder_verified_numbers(session_factory):
 
     bid = None
     async with session_factory() as db:
-        b = Business(name="Test Co", owner_id="owner-1", currency="USD")
+        b = Business(name="Test Co", owner_id="owner-1")
         db.add(b)
         await db.flush()
+        br = (await branches_mod.default_branch(db, b.id)).id
         prod = Product(business_id=b.id, name="Gadget", sku="G-1",
                        unit_price=10.0, cost_price=4.0, current_stock=2, reorder_level=5)
         cust = Customer(business_id=b.id, full_name="Grace", email="g@example.com")
         db.add_all([prod, cust])
         await db.flush()
-        order = Order(business_id=b.id, customer_id=cust.id, status=OrderStatus.delivered,
-                      total_amount=30.0, order_date=dt.datetime.now())
+        order = Order(
+            business_id=b.id, branch_id=br, customer_id=cust.id,
+            status=OrderStatus.delivered, total_amount=30.0,
+            order_date=dt.datetime.now(),
+        )
         db.add(order)
         await db.flush()
-        db.add(OrderItem(business_id=b.id, order_id=order.id, product_id=prod.id,
+        db.add(OrderItem(business_id=b.id, branch_id=br, order_id=order.id, product_id=prod.id,
                          quantity=3, unit_price=10.0, total_price=30.0))
         await db.commit()
         bid = b.id
@@ -281,7 +286,7 @@ async def test_context_builder_verified_numbers(session_factory):
     async with session_factory() as db:
         ctx = await build_context(db, bid)
 
-    assert ctx["business"]["currency"] == "USD"
+    assert ctx["business"]["currency"] == "NGN"
     assert ctx["periods"]["this_month"]["revenue"] == 30.0
     assert ctx["periods"]["this_month"]["orders"] == 1
     assert ctx["top_products_30d"][0]["name"] == "Gadget"

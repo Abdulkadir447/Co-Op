@@ -14,9 +14,11 @@ inside this repository.
 | Dashboard — KPIs, revenue charts, inventory summary, customer growth, daily sales | `/dashboard/{summary,revenue/today,revenue/month,timeseries,by-category,growth,low-stock,top-products,briefing}` | ✅ |
 | Orders — create, lifecycle/status, search, history | `/orders` CRUD + `/orders/{id}/status` + `OrdersPage`, `CreateOrderPage`, `OrderDetailsPage` | ✅ |
 | Invoices — generation, export, PDF | `/invoices` CRUD + `/invoices/export` + `exports/renderers.render_pdf` | ✅ |
+| Receivables — record payments, balances, "who owes me" | `/orders/{id}/payments` (POST/GET/DELETE) + `/receivables` + Receivables page | ✅ (0020) |
+| Tax / VAT on orders and invoices | `businesses.tax_*` + `orders.tax_rate/tax_amount`, exclusive, rate snapshotted per order | ✅ (0021) |
 | Inventory — products, categories, low-stock, valuation, movements | `/products` CRUD, `/products/{id}/adjust`, `/products/{id}/movements`, `/inventory/summary` | ✅ |
 | Customers — contacts, purchase history, spending | `/customers` CRUD + `/customers/{id}` + `CustomerProfilePage` | ✅ |
-| AI Assistant — chat, reports, explain, forecast, invoice help | `/ai/chat` (gated on `OPENAI_API_KEY`), `/ai/forecast`, `/ai/usage`, `/ai/history` | ✅ (needs key) |
+| AI Assistant — chat, reports, explain, forecast, invoice help | `/ai/chat` (gated on `OPENROUTER_API_KEY`), `/ai/forecast`, `/ai/usage`, `/ai/history` | ✅ (needs key) |
 | Import — preview/map/validate/commit, rollback | `/imports/*` + `ImportPage` | ✅ |
 | Sync / offline-first | `/sync/push`, `/sync/pull`, electron `sync-store`, SQLite cache | ✅ |
 | Notifications — daily summary | `/notifications/daily-summary`, `/notifications/summary/send`, `NotificationsPopover` | ✅ |
@@ -35,8 +37,9 @@ payroll, accounting ledger, public API, plugins) are correctly absent.
 
 ## Automated gates (last run)
 
-- Backend: `pytest` → **310 passed, 3 skipped** (skips = the live-Paystack and
-  Postgres-RLS tests, which need egress/Postgres).
+- Backend: `pytest` → **413 passed, 6 skipped** (2026-10-24; skips = the
+  live-Paystack and Postgres-gated RLS/concurrency tests, which need
+egress and a real Postgres).
 - Electron: `node --test` → **80 tests, 78 pass, 0 fail, 2 skip** (live sync).
 - Frontend: `tsc --noEmit`, `eslint`, `vitest` (22), `vite build` — clean.
 - UI audit (`audit-ui-wiring.mjs --strict`): 0 wiring problems.
@@ -53,19 +56,30 @@ payroll, accounting ledger, public API, plugins) are correctly absent.
    has no cipher. Closing this needs SQLCipher (a native library + a DB-rekey
    migration) and cannot be built or verified in this sandbox — do it where the
    SQLCipher toolchain is available.
-2. **Supabase RLS is written but unrun.** Migration `0014_rls` + `rls.py` exist,
-   but must be applied to the real Postgres; there is no Postgres in this
-   sandbox. RLS is intentionally not FORCED, so it only constrains non-owner
-   roles — apply and verify on the real DB.
+2. **Supabase RLS — applied, functional test still unrun.** Migration `0014_rls`
+   + `rls.py` exist **and are now applied to the live Supabase project**
+   (19 policies, one per tenant table — see
+   `docs/SUPABASE_PROVISIONING.md`). RLS is intentionally not FORCED, so it
+   only constrains non-owner roles. The *functional* isolation test still
+   skips without `TEST_DATABASE_URL`; run it once against staging.
 3. **Real-DB migrations 0012–0014 are untested against Postgres.** They run on
    SQLite in tests only; execute + smoke on Postgres before deploy.
-4. **Payments not live-verified.** `paystack.shop` is not the documented Paystack
-   domain and the plan→page mapping is assumed. Live smoke = run
+4. **Payments not live-verified.** The hosted-page assumption is gone: the code
+   now calls `https://api.paystack.co/transaction/{initialize,verify}` and the
+   webhook is HMAC-SHA512-checked (`backend/paystack.py`,
+   `backend/tests/test_paystack.py`, 37 tests). What has *never* happened is a
+   real charge. Live smoke = run
    `PAYSTACK_SECRET_KEY=sk_test_… COOP_PAYSTACK_LIVE=1 pytest
    backend/tests/test_paystack_live.py` where egress exists (this sandbox has
    none). Set the real secret key and point the webhook at `POST /webhooks/paystack`.
-5. **Clerk operator config:** enable MFA/2FA (17, 26), session lifetime (25),
-   password policy + recovery (24, 27), rate limiting (19, 49, 57).
+5. **Clerk operator config:** password policy + recovery (24, 27), rate
+   limiting (19, 49, 57) and allowed origins are free-plan settings — do them
+   now. **MFA/2FA (17, 26) and session lifetime (25) require Clerk Pro
+   ($25/mo)**: on the free Hobby plan sessions are fixed at 7 days and MFA is
+   unavailable. That 7-day cap is also why offline use cannot outlast a
+   session today. See `docs/GO_LIVE_COSTS.md` for the full free/paid split —
+   the only unavoidable cash before a public launch is a Windows
+   code-signing certificate.
 6. **CI is blocked:** `.github/workflows/ci.yml` cannot be pushed until the
    GitHub App gets **Workflows** write permission.
 

@@ -36,11 +36,13 @@ const CoopBadge: React.FC<CoopBadgeProps> = ({
   const { colors, isDark } = useCoopTheme();
   const a = TINT_ALPHA[isDark ? 'dark' : 'light'];
 
+  // Text uses the darker *Text variants: at 12px on a 10% tint the base hues
+  // measure 2.1–3.1:1 and fail WCAG 1.4.3. Dots/icons keep the vivid hue.
   const fg =
-    variant === 'success' ? colors.success
-    : variant === 'warning' ? colors.warning
-    : variant === 'critical' ? colors.error
-    : variant === 'info' ? colors.info
+    variant === 'success' ? colors.successText
+    : variant === 'warning' ? colors.warningText
+    : variant === 'critical' ? colors.errorText
+    : variant === 'info' ? colors.infoText
     : variant === 'primary' ? colors.onPrimaryFixedVariant
     : colors.onSurfaceVariant;
 

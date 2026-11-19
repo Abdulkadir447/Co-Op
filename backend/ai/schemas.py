@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
+from .. import money
 from .prompts import ALLOWED_KINDS, ALLOWED_PERIODS, ALLOWED_SOURCES
 
 
@@ -39,6 +40,14 @@ class AiAction(BaseModel):
     type: str  # validated against the registry in actions.py
     parameters: dict[str, Any] = Field(default_factory=dict)
 
+    @field_serializer("parameters")
+    def _money_as_number(self, value: dict[str, Any]) -> dict[str, Any]:
+        # Pydantic serialises a Decimal as a STRING. The wire carries naira as
+        # a JSON number everywhere else (backend/money.py), and the draft card
+        # posts this price straight back to /orders — a string there would be a
+        # silent type change, not a formatting preference.
+        return money.jsonable(value)
+
 
 class AiChatResponse(BaseModel):
     type: Literal["answer", "clarify"] = "answer"
@@ -49,6 +58,23 @@ class AiChatResponse(BaseModel):
     follow_ups: list[str] = Field(default_factory=list)
     links: list[AiLink] = Field(default_factory=list)
     actions: list[AiAction] = Field(default_factory=list)
+    # Internal, never returned to the client: habits the model noticed this turn
+    # ("prefers figures in thousands"). They go to the lesson ledger, where two
+    # independent mentions are required before one may shape an answer.
+    preferences: list[str] = Field(default_factory=list)
+
+    @field_validator("preferences", mode="before")
+    @classmethod
+    def _trim_preferences(cls, v: Any) -> list[str]:
+        if not isinstance(v, list):
+            return []
+        out: list[str] = []
+        for item in v:
+            if isinstance(item, str) and item.strip():
+                out.append(item.strip()[:200])
+            if len(out) >= 2:
+                break
+        return out
 
     @field_validator("kind")
     @classmethod

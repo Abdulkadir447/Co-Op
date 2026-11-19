@@ -466,7 +466,7 @@ test('briefing: verbatim prose, severities, ordering', () => {
   assert.strictEqual(top.title, '“Chair” drives 100% of your historic revenue');
   assert.match(top.body, /and it is currently low on stock\./);
   const margin = bf.insights.find((i) => i.id === 'margin')!;
-  assert.match(margin.title, /^Blended margin is 10% \(\$80 profit\)$/);
+  assert.match(margin.title, /^Blended margin is 10% \(\u20a680 profit\)$/);
   assert.strictEqual(margin.severity, 'warning', 'under 25% -> warning');
   const vip = bf.insights.find((i) => i.id === 'inactive-vip')!;
   assert.strictEqual(vip.title, "Grace hasn't ordered in 40 days");
@@ -486,8 +486,11 @@ test('briefing: empty business -> ready false, no insights', () => {
 // ---------------------------------------------------------------------------
 
 test('money + date formatters match the server', () => {
-  assert.strictEqual(money(1234), '$1,234');
-  assert.strictEqual(money(1234.5), '$1,234.50');
+  // Naira, not dollars: the server's money.fmt_compact prints the cedi-style
+  // prefix and this port must agree with it, because the offline briefing and
+  // the online dashboard describe the same number.
+  assert.strictEqual(money(1234), '\u20a61,234');
+  assert.strictEqual(money(1234.5), '\u20a61,234.50');
   assert.strictEqual(fmtDay('2026-08-03'), 'Aug 3', '%-d is not zero-padded');
 });
 

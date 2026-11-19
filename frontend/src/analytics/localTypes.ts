@@ -8,6 +8,7 @@
  * same inputs, same outputs, so the screen shows identical numbers online
  * and offline.
  */
+import { formatMoneyCompact } from '../services/currency';
 
 export interface LBusiness {
   id: number;
@@ -145,14 +146,16 @@ export function fmtDayYear(day: string): string {
 }
 
 /**
- * The briefing engine's money formatter (backend/briefing.py _money):
- * `$1,234` when the value is effectively an integer, else `$1,234.56`.
- * (The server hard-codes `$`; the local port mirrors it verbatim.)
+ * The briefing engine's money formatter — `₦1,234` when the value is whole,
+ * `₦1,234.56` when it is not.
+ *
+ * This used to hard-code `$` and say it was mirroring the server, which was
+ * true once; the server moved to Naira and this did not, so the offline
+ * briefing printed dollars next to a dashboard printing Naira. It now shares
+ * the app's single formatter (`services/currency`), so it cannot drift again.
  */
 export function money(v: number): string {
-  return Math.abs(v - Math.round(v)) < 0.05
-    ? `$${Math.round(v).toLocaleString('en-US')}`
-    : `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatMoneyCompact(v);
 }
 
 /** Percentage like the server's _pct: '5.0%' / '-5.0%' (negative keeps its sign). */

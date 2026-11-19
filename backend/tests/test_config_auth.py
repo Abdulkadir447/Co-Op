@@ -81,3 +81,45 @@ async def test_e2e_test_auth_seam_forbidden_in_production(clean_env, monkeypatch
     creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="anything")
     with pytest.raises(RuntimeError, match="forbidden in production"):
         await clerk_auth.verify_clerk_token(creds)
+
+
+# --- DATABASE_URL validation -------------------------------------------------
+# A URL that is not a connection string used to reach SQLAlchemy and fail as
+# "Can't load plugin: sqlalchemy.dialects:https" — naming neither the variable
+# nor the fix. This is the exact value that produced it.
+
+
+@pytest.mark.parametrize(
+    "bad, ref",
+    [
+        ("https://clowtikdlkyjxopksash.supabase.co", "clowtikdlkyjxopksash"),
+        ("http://example.com/db", "example"),
+    ],
+)
+def test_web_address_is_rejected_with_the_right_variable(bad, ref, clean_env, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", bad)
+    with pytest.raises(RuntimeError) as caught:
+        config.database_url()
+    message = str(caught.value)
+    assert "SUPABASE_URL" in message, message  # where the value actually belongs
+    assert "postgresql://" in message  # the shape that works
+    # The example is built from the ref in the bad URL, so it is copy-adaptable
+    # rather than a generic placeholder.
+    assert f"postgres.{ref}:" in message, message
+
+
+def test_url_without_a_scheme_is_rejected(clean_env, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "db.example.com:5432/coop")
+    with pytest.raises(RuntimeError, match="no scheme"):
+        config.database_url()
+
+
+def test_unknown_scheme_is_rejected(clean_env, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "mysql://u:p@host/db")
+    with pytest.raises(RuntimeError, match="unknown scheme"):
+        config.database_url()
+
+
+def test_a_real_connection_string_passes_validation(clean_env, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@aws-0-eu-central-1.pooler.supabase.com:5432/postgres")
+    assert config.database_url().startswith("postgresql+asyncpg://u:p@")
