@@ -10,6 +10,9 @@ name: CI
 #                imports `backend.*`. `cd backend && pytest tests/` cannot
 #                work.
 #   frontend   — eslint + tsc + the local-analytics port tests + a build.
+#   website    — the marketing site's build + a static mobile-layout audit
+#                (no browser: it checks the CSS properties that broke on a
+#                phone, not how it looks).
 #   desktop    — the Electron data-layer/sync/backup suite, ON WINDOWS: the
 #                desktop build ships to Windows, and electron/test/windows.test.js
 #                has a group that only runs on a real Windows filesystem. The
@@ -103,6 +106,34 @@ jobs:
         env:
           VITE_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
         run: pnpm --filter ./frontend build
+
+  website:
+    name: Website build + mobile layout audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d  # v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The site imports the app's design tokens, so this also proves the
+      # `frontend/src` boundary that .vercelignore has to keep uploaded.
+      - name: Build (tsc + vite)
+        run: pnpm --filter ./website build
+
+      # Static audit of the CSS/JSX: grids that cannot collapse, fixed heading
+      # sizes, a header wider than a 320px screen. No browser needed.
+      - name: Mobile layout audit
+        run: pnpm --filter ./website test
 
   desktop:
     name: Desktop data layer (Windows)

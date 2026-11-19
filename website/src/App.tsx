@@ -240,6 +240,12 @@ function TopBar({ mode, onToggle }: { mode: Mode; onToggle: () => void }) {
           <a href={DOWNLOAD_URL} target="_blank" rel="noreferrer">
             Download
           </a>
+          {/* Shown only inside the mobile panel (see .nav-cta in styles.css):
+              below 560px the header's trial button is hidden so the logo, menu
+              and theme toggle can fit on one 320px line. */}
+          <a className="nav-cta" href={TRIAL_HREF}>
+            Start 10-day free trial
+          </a>
         </nav>
 
         <button
@@ -270,7 +276,10 @@ function Hero() {
           <span className="eyebrow" style={caps}>
             Offline-first · Built for Nigerian retail
           </span>
-          <h1 style={{ ...t.pageTitle, fontSize: 48, lineHeight: '56px' }}>
+          {/* Sized by .hero-title (clamp 30→48px). It used to be a fixed 48px,
+              which on a 320px screen took four lines and pushed the buttons up
+              against the copy. */}
+          <h1 className="hero-title">
             Run your whole business from <span className="grad">one calm place</span>
           </h1>
           <p className="lede">
@@ -362,7 +371,7 @@ function Features() {
           <span className="caps" style={caps}>
             Everything in v1
           </span>
-          <h2 style={t.pageTitle}>Five systems, one workspace</h2>
+          <h2 className="section-title">Five systems, one workspace</h2>
           <p className="muted" style={t.bodyDefault}>
             Built for owners with little time and no patience for enterprise software.
           </p>
@@ -406,7 +415,7 @@ function AiBand() {
           <span className="caps" style={caps}>
             The defining feature
           </span>
-          <h2 style={t.pageTitle}>Meet Zeno, an assistant that knows your business</h2>
+          <h2 className="section-title">Meet Zeno, an assistant that knows your business</h2>
         </div>
         <div className="grid-3">
           {AI.map((a) => (
@@ -487,7 +496,7 @@ function ProductTour() {
           <span className="caps" style={caps}>
             Product tour
           </span>
-          <h2 style={t.pageTitle}>See every page</h2>
+          <h2 className="section-title">See every page</h2>
         </div>
         <div className="tour-grid">
           {TOUR.map((p) => (
@@ -545,7 +554,7 @@ function Pricing() {
           <span className="caps" style={caps}>
             Pricing
           </span>
-          <h2 style={t.pageTitle}>Simple plans that scale with you</h2>
+          <h2 className="section-title">Simple plans that scale with you</h2>
           <p className="muted" style={t.bodyDefault}>
             Every paid plan starts with a 10-day free trial. No card needed to begin — you only
             pay if you decide to keep using Co-op.
@@ -608,7 +617,7 @@ function Faq() {
           <span className="caps" style={caps}>
             FAQ
           </span>
-          <h2 style={t.pageTitle}>Good to know</h2>
+          <h2 className="section-title">Good to know</h2>
         </div>
         <div className="grid-2">
           {FAQ.map((f) => (
@@ -632,7 +641,7 @@ function FoundersVideo() {
           <span className="caps" style={caps}>
             From the founders
           </span>
-          <h2 style={t.pageTitle}>Why we built Co-op</h2>
+          <h2 className="section-title">Why we built Co-op</h2>
         </div>
         <div className="video-frame">
           {FOUNDERS_EMBED ? (
@@ -667,7 +676,7 @@ function Contact() {
           <span className="caps" style={caps}>
             Contact
           </span>
-          <h2 style={t.pageTitle}>Talk to a human</h2>
+          <h2 className="section-title">Talk to a human</h2>
           <p className="muted" style={t.bodyDefault}>
             Questions about plans, onboarding or moving your data across? Reach us any time.
           </p>
@@ -733,7 +742,7 @@ function Cta() {
     <section>
       <div className="container">
         <div className="cta">
-          <h2 style={t.pageTitle}>Start your 10-day free trial</h2>
+          <h2 className="section-title">Start your 10-day free trial</h2>
           <p style={{ ...t.bodyDefault, opacity: 0.92, margin: '0 0 24px' }}>
             Install it in minutes. No card needed to start.
           </p>
