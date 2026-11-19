@@ -149,7 +149,7 @@ test('buttons grow with a wrapped label instead of clipping it', () => {
   // The two hero buttons stack, with a real gap, instead of sitting shoulder
   // to shoulder with a sliver of text each.
   assert.match(mediaBlock(640), /\.hero-cta\s*\{[^}]*flex-direction:\s*column/);
-  assert.match(mediaBlock(640), /\.hero-cta\s*\{[^}]*gap:\s*10px/);
+  assert.match(mediaBlock(640), /\.hero-cta \.btn\s*\{[^}]*margin:\s*5px 0/);
 });
 
 test('the CTA pair cannot land on top of each other', () => {
@@ -158,21 +158,39 @@ test('the CTA pair cannot land on top of each other', () => {
   const cta = app
     .slice(app.indexOf('function Cta()'), app.indexOf('function Footer()'))
     .replace(/\{\/\*[\s\S]*?\*\/\}/g, ''); // the comment explaining the old bug names it
-  assert.doesNotMatch(cta, /marginLeft/, 'CTA buttons must be spaced by flex gap, not a margin');
+  assert.doesNotMatch(cta, /marginLeft/, 'CTA buttons must be spaced by the layout, not an inline margin');
   assert.match(cta, /<div className="cta-actions">/);
 
   const actions = css.match(/\.cta-actions\s*\{[^}]*\}/s)?.[0] ?? '';
   assert.match(actions, /display:\s*flex/);
   assert.match(actions, /flex-wrap:\s*wrap/, 'they must be allowed to wrap, not overflow');
-  assert.match(actions, /gap:\s*12px/, 'wrapped buttons need a real gap between them');
 
   // Stacked and full width on a phone, where the pair needs ~332px of 294px.
-  assert.match(mediaBlock(640), /\.cta-actions\s*\{[^}]*flex-direction:\s*column/);
-  assert.match(mediaBlock(640), /\.cta-actions \.btn\s*\{[^}]*width:\s*100%/);
+  const mobile = mediaBlock(640);
+  assert.match(mobile, /\.cta-actions\s*\{[^}]*flex-direction:\s*column/);
+  assert.match(mobile, /\.cta-actions \.btn\s*\{[^}]*width:\s*100%/);
 
   // And they must look like different actions: the secondary keeps the
   // gradient behind it instead of inheriting the primary's white fill.
   assert.match(css, /\.cta \.btn\.cta-btn-secondary\s*\{[^}]*background:\s*transparent/s);
+});
+
+test('button rows do not rely on flex `gap` for their spacing', () => {
+  // Old Android WebView, Opera Mini and older iOS Safari do not implement
+  // `gap` on flex containers: it is dropped silently and the buttons stack
+  // flush against each other. That is the bug reported as "no space between
+  // them vertically", so the spacing is a margin, which every browser honours.
+  for (const cls of ['cta-actions', 'hero-cta']) {
+    const rule = css.match(new RegExp(`\\.${cls}\\s*\\{[^}]*\\}`, 's'))?.[0] ?? '';
+    assert.ok(rule, `.${cls} must exist`);
+    assert.doesNotMatch(rule, /(^|[;{\s])gap:/, `.${cls} must not use gap for spacing`);
+
+    const child = css.match(new RegExp(`\\.${cls} \\.btn\\s*\\{[^}]*\\}`, 's'))?.[0] ?? '';
+    assert.match(child, /margin:/, `.${cls} .btn needs a margin between buttons`);
+
+    const stacked = mediaBlock(640).match(new RegExp(`\\.${cls} \\.btn\\s*\\{[^}]*\\}`, 's'))?.[0] ?? '';
+    assert.match(stacked, /margin:\s*5px 0/, `.${cls} .btn needs a 10px vertical gap when stacked`);
+  }
 });
 
 test('mobile gutters and section rhythm are tightened, not inherited from desktop', () => {

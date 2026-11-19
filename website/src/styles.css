@@ -165,7 +165,11 @@ section[id] { scroll-margin-top: 76px; }
 .hero h1 { margin: 20px 0 16px; }
 .hero h1 .grad { background: var(--ai-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .hero .lede { font-size: 18px; line-height: 28px; color: var(--on-surface-variant); margin: 0 0 28px; }
-.hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+/* Same reasoning as .cta-actions: margins, not `gap`. The container carries a
+   matching negative margin so the buttons stay flush with the copy above them
+   instead of drifting 6px right. */
+.hero-cta { display: flex; flex-wrap: wrap; margin: -6px; }
+.hero-cta .btn { margin: 6px; max-width: 100%; }
 .hero-note { margin-top: 16px; font-size: 13px; color: var(--outline); }
 
 /* App preview card */
@@ -237,8 +241,16 @@ section { padding: 72px 0; }
    one wrapped and sat flush on the first, and because `.cta .btn` painted both
    of them white there was nothing to tell them apart. `gap` survives wrapping;
    a margin does not. */
-.cta-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-.cta-actions .btn { min-width: 0; max-width: 100%; }
+.cta-actions { display: flex; flex-wrap: wrap; justify-content: center; }
+/* Spacing here is a margin, deliberately, and NOT `gap`.
+   This site is read on mid-range Android phones: older Chrome WebView, Opera
+   Mini and the Facebook/Instagram in-app browsers are all below the version
+   that shipped flex `gap` (Chrome 84 / Safari 14.1). On those, `gap` is
+   silently dropped and the two buttons stack flush against each other with no
+   space at all — which is exactly the bug reported twice. A margin is honoured
+   by every browser that can draw a flex container. Symmetric so it still
+   centres correctly, 6px a side = 12px between the two. */
+.cta-actions .btn { margin: 6px; min-width: 0; max-width: 100%; }
 .cta .btn { background: #fff; color: var(--primary); border-color: #fff; }
 .cta .btn:hover { background: #fff; color: var(--primary); border-color: #fff; box-shadow: 0 8px 20px rgb(0 0 0 / .18); }
 /* The secondary keeps the gradient showing through so the pair reads as
@@ -349,18 +361,18 @@ footer { border-top: 1px solid var(--border-subtle); padding: 40px 0; color: var
   .cta { padding: 32px 20px; }
   /* Below 640px "Get started free" + "Download the app" cannot share a line
      (they need ~332px of a 294px screen), so they stack full-width. */
-  .cta-actions { flex-direction: column; align-items: stretch; gap: 10px; }
-  .cta-actions .btn { width: 100%; }
+  .cta-actions { flex-direction: column; align-items: stretch; }
+  .cta-actions .btn { width: 100%; margin: 5px 0; }  /* 10px between, stacked */
   .price .amount { font-size: 30px; }
   footer { padding: 32px 0; }
   .foot { flex-direction: column; align-items: flex-start; gap: 16px; }
-  .foot .nav-footer { row-gap: 10px; }
+  .foot .nav-footer { gap: 10px 16px; }
 
   /* Two buttons side by side leave a sliver of text each on a 320px screen,
      which is what "the buttons are too close" was. Below this width they are
      full-width and stacked, with a real 10px between them. */
-  .hero-cta { flex-direction: column; align-items: stretch; gap: 10px; }
-  .hero-cta .btn { width: 100%; }
+  .hero-cta { flex-direction: column; align-items: stretch; margin: 0; }
+  .hero-cta .btn { width: 100%; margin: 5px 0; }  /* 10px between, stacked */
 }
 
 /* ── 560px: the header drops the trial button ────────────────────────────── */
