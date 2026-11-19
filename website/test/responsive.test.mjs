@@ -152,6 +152,29 @@ test('buttons grow with a wrapped label instead of clipping it', () => {
   assert.match(mediaBlock(640), /\.hero-cta\s*\{[^}]*gap:\s*10px/);
 });
 
+test('the CTA pair cannot land on top of each other', () => {
+  // They used to be inline links with `marginLeft: 12` — a margin that only
+  // exists on the left cannot separate two buttons once the second wraps.
+  const cta = app
+    .slice(app.indexOf('function Cta()'), app.indexOf('function Footer()'))
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, ''); // the comment explaining the old bug names it
+  assert.doesNotMatch(cta, /marginLeft/, 'CTA buttons must be spaced by flex gap, not a margin');
+  assert.match(cta, /<div className="cta-actions">/);
+
+  const actions = css.match(/\.cta-actions\s*\{[^}]*\}/s)?.[0] ?? '';
+  assert.match(actions, /display:\s*flex/);
+  assert.match(actions, /flex-wrap:\s*wrap/, 'they must be allowed to wrap, not overflow');
+  assert.match(actions, /gap:\s*12px/, 'wrapped buttons need a real gap between them');
+
+  // Stacked and full width on a phone, where the pair needs ~332px of 294px.
+  assert.match(mediaBlock(640), /\.cta-actions\s*\{[^}]*flex-direction:\s*column/);
+  assert.match(mediaBlock(640), /\.cta-actions \.btn\s*\{[^}]*width:\s*100%/);
+
+  // And they must look like different actions: the secondary keeps the
+  // gradient behind it instead of inheriting the primary's white fill.
+  assert.match(css, /\.cta \.btn\.cta-btn-secondary\s*\{[^}]*background:\s*transparent/s);
+});
+
 test('mobile gutters and section rhythm are tightened, not inherited from desktop', () => {
   assert.match(mediaBlock(640), /section\s*\{\s*padding:\s*48px 0/);
   assert.match(mediaBlock(640), /\.container\s*\{[^}]*calc\(100% - 32px\)/);

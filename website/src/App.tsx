@@ -746,18 +746,20 @@ function Cta() {
           <p style={{ ...t.bodyDefault, opacity: 0.92, margin: '0 0 24px' }}>
             Install it in minutes. No card needed to start.
           </p>
-          <a className="btn" href={TRIAL_HREF}>
-            Get started free
-          </a>
-          <a
-            className="btn btn-ghost"
-            href={DOWNLOAD_URL}
-            target="_blank"
-            rel="noreferrer"
-            style={{ marginLeft: 12 }}
-          >
-            Download the app
-          </a>
+          {/* The two buttons were inline links with a `marginLeft: 12` between
+              them. On a phone they cannot both fit, so the second wrapped onto
+              the next line and sat flush against the first — with both painted
+              white, that reads as one button with two labels overlapping. They
+              are a flex row now: side by side when there is room, stacked with
+              a real gap when there is not. */}
+          <div className="cta-actions">
+            <a className="btn cta-btn-primary" href={TRIAL_HREF}>
+              Get started free
+            </a>
+            <a className="btn btn-ghost cta-btn-secondary" href={DOWNLOAD_URL} target="_blank" rel="noreferrer">
+              Download the app
+            </a>
+          </div>
         </div>
       </div>
     </section>

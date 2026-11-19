@@ -231,7 +231,26 @@ section { padding: 72px 0; }
 /* CTA + footer */
 .cta { background: var(--ai-gradient); color: #fff; border-radius: var(--radius-xl); padding: 48px; text-align: center; box-shadow: var(--shadow-overlay); }
 .cta h2 { margin: 0 0 12px; }
-.cta .btn { background: #fff; color: var(--primary); }
+
+/* The CTA's two buttons. They used to be inline links separated by a 12px
+   left margin, which is not a gap: once the line ran out of room the second
+   one wrapped and sat flush on the first, and because `.cta .btn` painted both
+   of them white there was nothing to tell them apart. `gap` survives wrapping;
+   a margin does not. */
+.cta-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.cta-actions .btn { min-width: 0; max-width: 100%; }
+.cta .btn { background: #fff; color: var(--primary); border-color: #fff; }
+.cta .btn:hover { background: #fff; color: var(--primary); border-color: #fff; box-shadow: 0 8px 20px rgb(0 0 0 / .18); }
+/* The secondary keeps the gradient showing through so the pair reads as
+   "do this" and "or this", not as two identical white slabs. */
+.cta .btn.cta-btn-secondary {
+  background: transparent; color: #fff;
+  border-color: rgb(255 255 255 / .65);
+}
+.cta .btn.cta-btn-secondary:hover {
+  background: rgb(255 255 255 / .14); color: #fff; border-color: #fff;
+  box-shadow: none;
+}
 footer { border-top: 1px solid var(--border-subtle); padding: 40px 0; color: var(--on-surface-variant); }
 .foot { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: center; }
 .foot p { overflow-wrap: anywhere; }
@@ -328,6 +347,10 @@ footer { border-top: 1px solid var(--border-subtle); padding: 40px 0; color: var
   .section-head { margin-bottom: 24px; }
   .card { padding: 20px; }
   .cta { padding: 32px 20px; }
+  /* Below 640px "Get started free" + "Download the app" cannot share a line
+     (they need ~332px of a 294px screen), so they stack full-width. */
+  .cta-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+  .cta-actions .btn { width: 100%; }
   .price .amount { font-size: 30px; }
   footer { padding: 32px 0; }
   .foot { flex-direction: column; align-items: flex-start; gap: 16px; }
