@@ -23,6 +23,8 @@ export type EventName =
   | 'pricing_toggle'
   | 'plan_select'
   | 'signup_start'
+  | 'trial_form_invalid'
+  | 'lead_capture_failed'
   | 'download_click'
   | 'demo_book'
   | 'lead_capture'
@@ -42,7 +44,10 @@ export interface TrackedEvent {
 const buffer: TrackedEvent[] = [];
 
 function endpoint(): string {
-  return import.meta.env.VITE_ANALYTICS_URL ?? '';
+  // `?? {}` because the prerender bundles this as CJS, where `import.meta` is
+  // undefined; in the browser Vite inlines the object and this never trips.
+  const env = (import.meta.env ?? {}) as Record<string, string | undefined>;
+  return env.VITE_ANALYTICS_URL ?? '';
 }
 
 /** Fire-and-forget. Never throws: analytics must not break a sale. */

@@ -29,6 +29,12 @@ export interface RouteMeta {
   nav?: string;
   /** Show in the footer under "Product" / "Company" / "Legal". */
   footer?: 'Product' | 'Company' | 'Legal';
+  /**
+   * This path renders another route's page. It stays reachable (old links keep
+   * working) but points its canonical at the real one, so search engines index
+   * one URL rather than two copies of the same page.
+   */
+  aliasOf?: string;
 }
 
 export const ROUTES: RouteMeta[] = [
@@ -56,11 +62,20 @@ export const ROUTES: RouteMeta[] = [
     footer: 'Product',
   },
   {
+    path: '/trial',
+    title: 'Start your 10-day free trial | Co-op',
+    description:
+      'Four details, then the installer: no card, no demo build, nothing to cancel. Tell us where to reach you if the install goes wrong and download Co-op in the same minute.',
+    // Deliberately not in the nav: the header holds one CTA, and this is it.
+  },
+  {
     path: '/signup',
     title: 'Start your 10-day free trial | Co-op',
     description:
       'Download Co-op and start a 10-day trial. No card needed, your data stays yours, and nothing is deleted if you decide not to continue.',
-    // Deliberately not in the nav: the header holds one CTA, and this is it.
+    // Kept as an alias: links to /signup were shared before /trial existed.
+    // It renders the same page as /trial, and says so in a canonical tag.
+    aliasOf: '/trial',
   },
   {
     path: '/case-study',

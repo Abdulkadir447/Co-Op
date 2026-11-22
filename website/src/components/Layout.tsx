@@ -9,7 +9,7 @@
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NAV_ROUTES, ROUTES, useRouter } from '../router';
-import { CONTACT, TRIAL_HREF, CONTACT_IS_PLACEHOLDER, PRODUCT } from '../site';
+import { CONTACT, TRIAL_HREF, CONTACT_IS_PLACEHOLDER, PRODUCT, whatsappHref } from '../site';
 import { track } from '../analytics';
 import { applyTheme, initialMode } from '../theme';
 
@@ -72,6 +72,7 @@ export function TrialCta({
 export function TopBar({ mode, onToggle }: { mode: 'light' | 'dark'; onToggle: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { path } = useRouter();
+  const waHref = whatsappHref();
 
   // Close the mobile panel whenever the route changes — otherwise it stays
   // open over the page you just navigated to.
@@ -115,6 +116,17 @@ export function TopBar({ mode, onToggle }: { mode: 'light' | 'dark'; onToggle: (
               {r.nav}
             </Link>
           ))}
+          {waHref && (
+            <a
+              className="nav-wa"
+              href={waHref}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => track('contact_click', 'mobile-menu', 'whatsapp')}
+            >
+              WhatsApp us
+            </a>
+          )}
           <a className="nav-cta" href={TRIAL_HREF} onClick={() => track('cta_click', 'mobile-menu', 'Start free trial')}>
             Start free trial
           </a>
@@ -129,6 +141,23 @@ export function TopBar({ mode, onToggle }: { mode: 'light' | 'dark'; onToggle: (
         >
           <span aria-hidden="true">{mode === 'dark' ? '☀' : '◐'}</span>
         </button>
+
+        {/* WhatsApp sits beside the CTA, as a ghost button: in this market it
+            is the channel people actually use to ask a question before buying,
+            and leaving it off the header meant the only path was a mailto the
+            visitor had to find on another page. Rendered only when the number
+            is real — an empty link is worse than no link. */}
+        {waHref && (
+          <a
+            className="btn btn-ghost btn-sm header-wa"
+            href={waHref}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => track('contact_click', 'header', 'whatsapp')}
+          >
+            <span aria-hidden="true">💬</span> WhatsApp
+          </a>
+        )}
 
         <a
           className="btn btn-primary btn-sm header-cta"

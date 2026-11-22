@@ -13,7 +13,7 @@
  */
 import { useEffect, useState } from 'react';
 import { PLAN_CATALOG, FREE_PLAN, displayPrice, type Plan } from '../../../frontend/src/billing/plans';
-import { TRIAL_HREF, CONTACT } from '../site';
+import { TRIAL_HREF, CONTACT, whatsappHref } from '../site';
 import { PRICING_FAQ } from '../faq';
 import { STARTER, listPrice } from '../prices';
 import { track } from '../analytics';
@@ -69,6 +69,7 @@ function PlanCard({ plan, annual }: { plan: Plan; annual: boolean }) {
 
 
 export default function Pricing() {
+  const waHref = whatsappHref('Hi — I have a question about whether Co-op suits my shop.');
   // Default to annual: it is the cheaper option and the one that reflects a
   // year of use, which is how a shop actually runs.
   const [annual, setAnnual] = useState(true);
@@ -121,6 +122,24 @@ export default function Pricing() {
           free plan ({FREE_PLAN.features.length} core features, 25 AI credits) exists for anyone testing
           one screen at a time. <Link to="/terms">Billing terms</Link>.
         </p>
+
+        {/* The question that stops a purchase is usually not answerable by a
+            page — "will this work for my kind of shop?". WhatsApp is where
+            that gets answered, and it is one tap from the prices. */}
+        {waHref && (
+          <p className="pricing-wa">
+            <a
+              className="btn btn-ghost"
+              href={waHref}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => track('contact_click', 'pricing', 'whatsapp')}
+            >
+              <span aria-hidden="true">💬</span> Ask about your shop on WhatsApp
+            </a>
+            <span className="small muted">A person answers, usually the same working day.</span>
+          </p>
+        )}
       </Section>
 
       <Section tone="band">

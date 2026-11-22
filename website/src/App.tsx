@@ -17,7 +17,7 @@ import { TopBar, Footer, useTheme } from './components/Layout';
 import Home from './pages/Home';
 import Pricing from './pages/Pricing';
 import Features from './pages/Features';
-import Signup from './pages/Signup';
+import Trial from './pages/Trial';
 import CaseStudy from './pages/CaseStudy';
 import Security from './pages/Security';
 import About from './pages/About';
@@ -29,7 +29,9 @@ const PAGES: Record<string, React.ComponentType> = {
   '/': Home,
   '/pricing': Pricing,
   '/features': Features,
-  '/signup': Signup,
+  '/trial': Trial,
+  // /signup keeps working, but the form lives at /trial now.
+  '/signup': Trial,
   '/case-study': CaseStudy,
   '/security': Security,
   '/about': About,

@@ -53,6 +53,22 @@ export const CONTACT = {
   address: '',
 };
 
+/**
+ * A wa.me link with a pre-filled message.
+ *
+ * One function because the number appears in four places (header, pricing,
+ * contact, trial) and a second hand-rolled `wa.me` string is how one of them
+ * ends up pointing at a number nobody reads.
+ *
+ * Returns '' when the number is the placeholder: an empty href is better than a
+ * link to a stranger's phone.
+ */
+export function whatsappHref(message = 'Hi — I have a question about Co-op'): string {
+  const digits = CONTACT.whatsapp.replace(/[^0-9]/g, '');
+  if (!digits || CONTACT_IS_PLACEHOLDER) return '';
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
 export const CONTACT_IS_PLACEHOLDER =
   CONTACT.email.endsWith('.example') || CONTACT.whatsapp.startsWith('234800');
 
@@ -71,10 +87,51 @@ export const REPO_URL = 'https://github.com/Abdulkadir447/Co-Op';
  */
 export const SIGNUP_URL = '';
 
-export const TRIAL_HREF = SIGNUP_URL || DOWNLOAD_URL;
+/**
+ * Where every trial CTA points.
+ *
+ * Changed on purpose: this used to be the GitHub releases page. A shop owner in
+ * Kano does not know what GitHub is, and — the expensive part — that route
+ * captured nothing. Nobody to email when a version ships, no way to tell which
+ * channel produced a trial, no idea how many people start a download and stop.
+ *
+ * `/trial` asks four questions, then hands over the installer. GitHub stays as
+ * the build artefact mirror, one line further down the page, for anyone who
+ * wants it.
+ */
+export const TRIAL_PATH = '/trial';
+export const TRIAL_HREF = SIGNUP_URL || TRIAL_PATH;
 
 /** Public status page. Empty = the page explains the situation instead. */
 export const STATUS_URL = '';
+
+/**
+ * Where the trial form writes a lead.
+ *
+ * Supabase, with the **publishable** key: the marketing site has no Clerk
+ * session, so the row is inserted by `anon`. That role has INSERT and nothing
+ * else on `trial_leads` — no SELECT — which is what stops one visitor reading
+ * another's email or phone number. See
+ * supabase/migrations/20261122000000_trial_leads.sql.
+ *
+ * These two values are public by design (they ship in the bundle, like any
+ * Supabase anon key). The secret key lives only in Vercel's env and never
+ * reaches the site.
+ */
+/**
+ * `import.meta.env` is replaced by Vite in the browser build, but the
+ * prerender bundles these modules as CJS — where `import.meta` is undefined and
+ * reading through it throws at build time. Vite also inlines the object, so
+ * `?? {}` is dead code in the browser and load-bearing in Node.
+ */
+const ENV = (import.meta.env ?? {}) as Record<string, string | undefined>;
+
+export const SUPABASE_URL = ENV.VITE_SUPABASE_URL ?? 'https://clowtikdlkyjxopksash.supabase.co';
+export const SUPABASE_PUBLISHABLE_KEY =
+  ENV.VITE_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_KNeLhGBB5taEFdoGSsnUPg_0UkKAPv1';
+
+/** True when the trial form can actually store a lead. */
+export const LEAD_CAPTURE_ENABLED = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
 
 /**
  * Analytics. Empty until a real endpoint is configured, so the site does not

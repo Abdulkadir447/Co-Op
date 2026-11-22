@@ -49,7 +49,9 @@ export function applyHead(route: RouteMeta) {
 
   document.title = route.title;
   upsertMeta('meta[name="description"]', { name: 'description', content: route.description });
-  upsertLink('canonical', abs(route.path));
+  // An alias (e.g. /signup → /trial) canonicalises to the real path, so the
+  // two URLs are not indexed as duplicate content.
+  upsertLink('canonical', abs(route.aliasOf ?? route.path));
 
   upsertMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' });
   upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: PRODUCT.name });

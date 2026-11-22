@@ -71,7 +71,10 @@ function jsonLd(blocks) {
 }
 
 function headFor(route, siteUrl, data = []) {
-  const url = `${siteUrl}${route.path === '/' ? '/' : route.path}`;
+  // An alias route (e.g. /signup → /trial) keeps its own file so old links
+  // work, but its canonical and og:url point at the real page.
+  const canonicalPath = route.aliasOf ?? route.path;
+  const url = `${siteUrl}${canonicalPath === '/' ? '/' : canonicalPath}`;
   return [
     `<title>${esc(route.title)}</title>`,
     `<meta name="description" content="${esc(route.description)}" />`,
@@ -151,7 +154,7 @@ async function main() {
   // sitemap.xml — every real page, with the placeholder host until a real one
   // is configured. Generated, so it cannot go stale.
   const today = new Date().toISOString().slice(0, 10);
-  const urls = ROUTES.map(
+  const urls = ROUTES.filter((r) => !r.aliasOf).map(
     (r) => `  <url>\n    <loc>${siteUrl}${r.path === '/' ? '/' : r.path}</loc>\n    <lastmod>${today}</lastmod>\n  </url>`,
   ).join('\n');
   writeFileSync(

@@ -108,11 +108,18 @@ test('the header fits a 320px screen once the trial button moves into the menu',
     `header needs ${Math.round(smallTotal)}px of ${availableAt320}px at 320px wide`,
   );
 
-  // And the thing that was hidden must still be reachable.
-  assert.match(mediaBlock(560), /\.header-cta\s*\{\s*display:\s*none/);
+  // And the things that were hidden must still be reachable.
+  const narrowBlock = mediaBlock(560);
+  assert.match(narrowBlock, /\.header-cta[^{]*\{[^}]*display:\s*none/);
+  assert.match(narrowBlock, /\.header-wa[^{]*\{[^}]*display:\s*none/, 'the WhatsApp button leaves the bar too');
   assert.match(css, /\.nav-cta\s*\{\s*display:\s*none/); // desktop default
-  assert.match(mediaBlock(560), /\.nav-cta\s*\{[^}]*display:\s*flex/, 'menu must carry the CTA');
+  assert.match(narrowBlock, /\.nav-cta\s*\{[^}]*display:\s*flex/, 'menu must carry the CTA');
   assert.match(app, /className="nav-cta"[^>]*href=\{TRIAL_HREF\}/, 'the menu CTA targets the trial');
+
+  // Hiding the header WhatsApp button is only safe because the menu carries a
+  // replacement — otherwise a phone user loses the one contact route.
+  assert.match(app, /className="nav-wa"/, 'menu must carry the WhatsApp entry');
+  assert.match(app, /whatsappHref\(\)/, 'the WhatsApp entry must be gated on a real number');
 });
 
 test('the KPI tiles drop to two columns before the Naira amount overflows', () => {

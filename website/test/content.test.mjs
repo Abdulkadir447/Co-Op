@@ -159,7 +159,14 @@ test('every route has a unique title and description', () => {
   const titles = [...router.matchAll(/title: '([^']+)'/g)].map((m) => m[1]);
   const descriptions = [...router.matchAll(/description:\s*\n?\s*'([^']+)'/g)].map((m) => m[1]);
   assert.strictEqual(titles.length, descriptions.length, 'every route needs both a title and a description');
-  assert.strictEqual(new Set(titles).size, titles.length, 'duplicate <title> across routes');
+
+  // A title may repeat only where a route is declared an alias of another —
+  // that is what an alias is. Anything else is two pages competing for the
+  // same search result.
+  const aliased = [...router.matchAll(/aliasOf: '([^']+)'/g)].map((m) => m[1]);
+  assert.deepEqual(aliased, ['/trial'], 'only /signup → /trial is an alias');
+  const duplicates = titles.filter((t, i) => titles.indexOf(t) !== i);
+  assert.deepEqual(duplicates, ['Start your 10-day free trial | Co-op'], `duplicate titles: ${duplicates}`);
   for (const d of descriptions) {
     assert.ok(d.length >= 60 && d.length <= 320, `description length ${d.length} is out of range: ${d}`);
   }
@@ -234,7 +241,7 @@ test('the events the brief asks for are all instrumented', () => {
   // And actually fired, not just declared.
   assert.match(read('src/pages/Pricing.tsx'), /track\('pricing_view'/);
   assert.match(read('src/pages/Pricing.tsx'), /track\('pricing_toggle'/);
-  assert.match(read('src/pages/Signup.tsx'), /track\('signup_start'/);
+  assert.match(read('src/pages/Trial.tsx'), /track\('signup_start'/);
 });
 
 /* ── Objection handling ──────────────────────────────────────────────────── */

@@ -42,6 +42,11 @@ const FEATURES = [
     body: '“Why was last week slow?” gets an answer built from your records — never invented, never from someone else’s shop.',
     to: '/features',
   },
+  {
+    title: 'Books that close themselves',
+    body: 'Takings by payment type, gross margin, VAT owed, receivables by age — the end-of-day totals a notebook makes you add up twice, on one screen.',
+    to: '/features',
+  },
 ];
 
 const BEFORE_AFTER = [
@@ -63,9 +68,9 @@ export default function Home() {
               Close your books in <span className="grad">20 minutes</span>, not 3 hours.
             </h1>
             <p className="lede">
-              Co-op replaces the notebook, the WhatsApp thread and the calculator with one
-              {' '}{PRODUCT.platform.toLowerCase()} app: stock, orders, customers and invoices — priced in
-              Naira, working when the network does not.
+              Co-op replaces the notebook, the WhatsApp thread and the calculator with one{' '}
+              {PRODUCT.platform.toLowerCase()} app: stock, orders, customers and invoices — priced
+              in Naira, working when the network does not.
             </p>
             <div className="hero-cta">
               <a

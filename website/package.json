@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build && node scripts/prerender.mjs",
     "preview": "vite preview",
-    "test": "node --test test/responsive.test.mjs test/design-parity.test.mjs test/content.test.mjs test/contrast.test.mjs"
+    "test": "node --test test/responsive.test.mjs test/design-parity.test.mjs test/content.test.mjs test/contrast.test.mjs test/trial.test.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -133,8 +133,8 @@ export function ProofFacts() {
         <span>free, no card</span>
       </li>
       <li>
-        <strong>Nowhere</strong>
-        <span>your data goes without you</span>
+        <strong>On your PC</strong>
+        <span>your data stays put, synced</span>
       </li>
       <li>
         <strong>₦25,000</strong>
