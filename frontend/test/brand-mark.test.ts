@@ -34,7 +34,9 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 const svg = read('brand/coop-mark.svg');
 const mono = read('brand/coop-mark-mono.svg');
 const appMark = read('frontend/src/components/brand/CoopLogo.tsx');
-const siteMark = read('website/src/App.tsx');
+// The mark moved out of App.tsx when the site gained a layout component;
+// resolve it rather than hard-coding the file it happened to live in.
+const siteMark = read('website/src/components/Layout.tsx');
 const siteHtml = read('website/index.html');
 
 // The two numbers that define the mark.

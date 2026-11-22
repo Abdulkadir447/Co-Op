@@ -18,13 +18,23 @@
  */
 import test from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, '..', 'src', 'styles.css'), 'utf8');
-const app = readFileSync(join(here, '..', 'src', 'App.tsx'), 'utf8');
+const SRC = join(here, '..', 'src');
+/** Every page + the shared layout, concatenated — two of the old assertions
+ *  were about markup that now lives in components/pages, not App.tsx. */
+const app = [
+  'App.tsx',
+  'components/Layout.tsx',
+  'components/blocks.tsx',
+  ...readdirSync(join(SRC, 'pages')).map((f) => `pages/${f}`),
+]
+  .map((f) => readFileSync(join(SRC, f), 'utf8'))
+  .join('\n');
 
 /** The body of a `@media (max-width: Npx) { ... }` block, brace-matched. */
 function mediaBlock(px) {
@@ -48,7 +58,7 @@ const gridTemplates = [...css.matchAll(/grid-template-columns:\s*([^;]+);/g)].ma
 
 test('the page cannot be pushed sideways by an unbreakable string', () => {
   assert.match(css, /img,\s*svg,\s*video,\s*iframe\s*\{\s*max-width:\s*100%;/);
-  for (const selector of ['.contact-link', '.k-value', '.card p', '.video-hint']) {
+  for (const selector of ['.contact-link', '.k-value', '.card p', '.lead-done']) {
     const block = new RegExp(`\\${selector}\\s*\\{[^}]*overflow-wrap:\\s*anywhere`, 's');
     assert.match(css, block, `${selector} needs overflow-wrap: anywhere`);
   }
@@ -59,7 +69,7 @@ test('no grid track can be sized by a long word', () => {
   // word then sets the track and the row overflows. `minmax(0, 1fr)` cannot.
   for (const template of gridTemplates) {
     // Strip the safe form first, then look for any surviving bare track.
-    const stripped = template.replace(/minmax\(0,\s*1fr\)/g, '');
+    const stripped = template.replace(/minmax\(0,[^)]+\)/g, '');
     assert.doesNotMatch(
       stripped,
       /\b1fr\b/,
@@ -81,11 +91,11 @@ test('the header fits a 320px screen once the trial button moves into the menu',
 
   // ≤560px: logo, menu button, theme toggle. The CTA is display:none.
   const small = {
-    logoImage: 28,
+    logoImage: 24,
     logoText: textWidth('Co-op', 17, CHAR_BOLD),
     logoGap: 8,
-    menu: 40,
-    theme: 36,
+    menu: 44,
+    theme: 38,
     gaps: 8 * 2, // .topbar-inner gap between the three items
   };
   const smallTotal =
@@ -99,14 +109,14 @@ test('the header fits a 320px screen once the trial button moves into the menu',
   );
 
   // And the thing that was hidden must still be reachable.
-  assert.match(mediaBlock(560), /\.topbar \.btn-sm\s*\{\s*display:\s*none/);
+  assert.match(mediaBlock(560), /\.header-cta\s*\{\s*display:\s*none/);
   assert.match(css, /\.nav-cta\s*\{\s*display:\s*none/); // desktop default
   assert.match(mediaBlock(560), /\.nav-cta\s*\{[^}]*display:\s*flex/, 'menu must carry the CTA');
-  assert.match(app, /className="nav-cta"[\s\S]{0,80}TRIAL_HREF/, 'the menu CTA targets the trial');
+  assert.match(app, /className="nav-cta"[^>]*href=\{TRIAL_HREF\}/, 'the menu CTA targets the trial');
 });
 
 test('the KPI tiles drop to two columns before the Naira amount overflows', () => {
-  assert.match(mediaBlock(460), /\.kpis\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(mediaBlock(560), /\.kpis\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
 
   // ₦1,240,500 at the clamped size inside a two-column tile on a 320px screen:
   // container 288 - card padding (14*2) = 260; two tracks minus one 12px gap
@@ -125,21 +135,21 @@ test('display headings scale instead of being fixed for desktop', () => {
   // No inline font size anywhere in the JSX: an inline style beats the media
   // queries, which is how the h1 stayed 48px on a phone.
   assert.doesNotMatch(app, /fontSize:\s*\d/);
-  assert.match(app, /<h1 className="hero-title">/);
+  assert.match(app, /className="hero-title"/);
   assert.doesNotMatch(app, /<h1 style=/);
 });
 
 test('every multi-column grid collapses on a narrow screen', () => {
   const oneColumn = /grid-template-columns:\s*minmax\(0,\s*1fr\)/;
-  for (const px of [860]) {
+  for (const px of [900]) {
     const block = mediaBlock(px);
-    for (const cls of ['.hero-inner', '.grid-3', '.grid-2', '.plans', '.tour-grid', '.contact-grid']) {
+    for (const cls of ['.hero-inner', '.signup', '.plans', '.lead', '.job']) {
       const rule = new RegExp(`\\${cls}[^{]*\\{[^}]*grid-template-columns`, 's');
       assert.match(block, rule, `${cls} must collapse at ${px}px`);
     }
     assert.match(block, oneColumn);
   }
-  assert.match(mediaBlock(1024), /\.grid-3\s*\{[^}]*repeat\(2,/);
+  assert.match(mediaBlock(1024), /\.grid-3[^{]*\{[^}]*repeat\(2,/);
 });
 
 test('buttons grow with a wrapped label instead of clipping it', () => {
@@ -148,25 +158,26 @@ test('buttons grow with a wrapped label instead of clipping it', () => {
   assert.doesNotMatch(btn, /(^|[^-])height:\s*\d+px/, '.btn must not have a fixed height');
   // The two hero buttons stack, with a real gap, instead of sitting shoulder
   // to shoulder with a sliver of text each.
-  assert.match(mediaBlock(640), /\.hero-cta\s*\{[^}]*flex-direction:\s*column/);
-  assert.match(mediaBlock(640), /\.hero-cta \.btn\s*\{[^}]*margin:\s*5px 0/);
+  assert.match(mediaBlock(720), /\.hero-cta\s*\{[^}]*flex-direction:\s*column/);
+  assert.match(mediaBlock(720), /\.hero-cta \.btn\s*\{[^}]*margin:\s*5px 0/);
 });
 
 test('the CTA pair cannot land on top of each other', () => {
   // They used to be inline links with `marginLeft: 12` — a margin that only
   // exists on the left cannot separate two buttons once the second wraps.
-  const cta = app
-    .slice(app.indexOf('function Cta()'), app.indexOf('function Footer()'))
-    .replace(/\{\/\*[\s\S]*?\*\/\}/g, ''); // the comment explaining the old bug names it
+  const layout = readFileSync(join(here, '..', 'src', 'components', 'Layout.tsx'), 'utf8');
+  const cta = layout
+    .slice(layout.indexOf('export function CtaBand'), layout.indexOf('export function useTheme'))
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
   assert.doesNotMatch(cta, /marginLeft/, 'CTA buttons must be spaced by the layout, not an inline margin');
-  assert.match(cta, /<div className="cta-actions">/);
+  assert.match(cta, /className="cta-actions/);
 
   const actions = css.match(/\.cta-actions\s*\{[^}]*\}/s)?.[0] ?? '';
   assert.match(actions, /display:\s*flex/);
   assert.match(actions, /flex-wrap:\s*wrap/, 'they must be allowed to wrap, not overflow');
 
   // Stacked and full width on a phone, where the pair needs ~332px of 294px.
-  const mobile = mediaBlock(640);
+  const mobile = mediaBlock(720);
   assert.match(mobile, /\.cta-actions\s*\{[^}]*flex-direction:\s*column/);
   assert.match(mobile, /\.cta-actions \.btn\s*\{[^}]*width:\s*100%/);
 
@@ -188,16 +199,16 @@ test('button rows do not rely on flex `gap` for their spacing', () => {
     const child = css.match(new RegExp(`\\.${cls} \\.btn\\s*\\{[^}]*\\}`, 's'))?.[0] ?? '';
     assert.match(child, /margin:/, `.${cls} .btn needs a margin between buttons`);
 
-    const stacked = mediaBlock(640).match(new RegExp(`\\.${cls} \\.btn\\s*\\{[^}]*\\}`, 's'))?.[0] ?? '';
+    const stacked = mediaBlock(720).match(new RegExp(`\\.${cls} \\.btn\\s*\\{[^}]*\\}`, 's'))?.[0] ?? '';
     assert.match(stacked, /margin:\s*5px 0/, `.${cls} .btn needs a 10px vertical gap when stacked`);
   }
 });
 
 test('mobile gutters and section rhythm are tightened, not inherited from desktop', () => {
-  assert.match(mediaBlock(640), /section\s*\{\s*padding:\s*48px 0/);
-  assert.match(mediaBlock(640), /\.container\s*\{[^}]*calc\(100% - 32px\)/);
+  assert.match(mediaBlock(720), /section\s*\{\s*padding:\s*52px 0/);
+  assert.match(mediaBlock(720), /\.container[^{]*\{[^}]*calc\(100% - 32px\)/);
 });
 
 test('jumping to a section does not hide its heading under the sticky header', () => {
-  assert.match(css, /section\[id\]\s*\{\s*scroll-margin-top:/);
+  assert.match(css, /(section)?\[id\]\s*\{\s*scroll-margin-top:/);
 });

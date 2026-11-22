@@ -1,427 +1,599 @@
 /*
- * Co-op website — layout & components.
+ * Co-op website — layout, components, responsive rules.
  *
- * Colours, radii, shadows and the typeface are injected onto :root at runtime
- * from the app's real tokens (frontend/src/theme/*) by src/theme.ts — nothing
- * is hard-coded here. Text styles are applied in App.tsx from the same
- * `type` scale the product uses, so headings/body match the app exactly.
+ * Structure:
+ *   1. reset + base
+ *   2. type scale (clamp — nothing fixed that a 320px screen cannot satisfy)
+ *   3. buttons
+ *   4. header / nav
+ *   5. footer
+ *   6. content blocks (hero, cards, plans, faq, forms, prose)
+ *   7. utility
+ *   8. breakpoints, widest first
  *
- * ── Mobile rules ────────────────────────────────────────────────────────────
- * The site is read on a phone more often than on a laptop, and three things
- * broke there (reported 2026-11, fixed below):
- *
- *   1. the header could not fit: logo + menu + theme + "Start free trial"
- *      needed ~400px and a phone gives 294px, so the page scrolled sideways;
- *   2. the three KPI tiles were fixed at three columns with "₦1,240,500" in a
- *      ~50px cell, so the amount spilled out of the card;
- *   3. headings were fixed sizes (h1 48px, h2 32px) — legible, but they ate the
- *      first screen and pushed the buttons together.
- *
- * The rules below are ordered widest-first and are the ones to keep:
- *   · nothing has a fixed pixel width that a 320px screen cannot satisfy;
+ * Mobile rules that are not negotiable (each one was a reported bug):
+ *   · no fixed width a 320px screen cannot satisfy;
  *   · every multi-column grid collapses (1024 → 2, 860 → 1);
- *   · grid children get `min-width: 0`, without which a long word sets the
- *     track width and the whole row overflows;
- *   · strings that cannot break (emails, phone numbers, ₦ amounts) get
- *     `overflow-wrap: anywhere` instead of a wider container;
- *   · buttons may wrap their label and are at least 44px tall for a thumb.
+ *   · grid children get `min-width: 0`, or a long word sets the track width;
+ *   · unbreakable strings (emails, ₦ amounts) get `overflow-wrap: anywhere`;
+ *   · button rows are spaced with margin, NOT flex `gap` — `gap` is silently
+ *     dropped on older Android WebView / Opera Mini / older iOS, which leaves
+ *     buttons flush against each other with no space at all;
+ *   · buttons are 44px tall so a thumb can hit them.
  */
+
+/* ── 1. Reset + base ─────────────────────────────────────────────────────── */
 
 * { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; }
 
-/* Smooth scrolling is motion; users who ask for less should not get it. */
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
 }
+
 body {
   margin: 0;
   font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.55;
   background: var(--surface);
   color: var(--on-surface);
   -webkit-font-smoothing: antialiased;
 }
+
 a { color: inherit; text-decoration: none; }
-
-/* No image, embed or chart may be wider than the space it sits in. This is a
-   backstop, not the fix: the layout below is sized to fit without it. */
+a:hover { color: var(--primary); }
 img, svg, video, iframe { max-width: 100%; }
+h1, h2, h3, h4 { line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.015em; }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 14px; padding-left: 20px; }
+code { background: var(--surface-container); padding: 1px 5px; border-radius: var(--radius-sm); font-size: 0.92em; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
 
-/* A sticky header sits on top of the section you jumped to; without this the
-   heading you asked for lands underneath it. */
-section[id] { scroll-margin-top: 76px; }
+/* A sticky header sits on top of the section you jumped to. */
+[id] { scroll-margin-top: 84px; }
 
-/* First focusable element on the page (WCAG 2.4.1). */
+/* First focusable element (WCAG 2.4.1). */
 .skip-link {
   position: fixed; top: 8px; left: 8px; z-index: 200;
   transform: translateY(-200%);
-  padding: 10px 16px; border-radius: var(--radius-md);
+  padding: 10px 16px; border-radius: var(--radius-lg);
   background: var(--primary); color: var(--on-primary);
   font-size: 14px; font-weight: 600;
 }
-.skip-link:focus-visible { transform: translateY(0); outline: 2px solid var(--on-primary); outline-offset: 2px; }
-.container { width: min(1120px, 92vw); margin: 0 auto; }
-.muted { color: var(--on-surface-variant); }
+.skip-link:focus-visible { transform: translateY(0); }
 
-/* Buttons.
-   `min-height` rather than `height`: a label that wraps on a narrow screen
-   must grow the button, not be clipped by it. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ── 2. Type scale ───────────────────────────────────────────────────────── */
+
+.container { width: min(1120px, 92vw); margin: 0 auto; }
+.container-narrow { width: min(760px, 92vw); margin: 0 auto; }
+
+.hero-title {
+  margin: 18px 0 14px;
+  font-size: clamp(30px, 6.4vw, 52px);
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.hero-title-sm {
+  margin: 10px 0 14px;
+  font-size: clamp(26px, 5vw, 38px);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.section-title {
+  /* Also used as an <h1> (the lead heading of each inner page), so it must not
+     inherit the h1 default margins or its 2em size. */
+  margin: 10px 0 12px;
+  font-size: clamp(23px, 4.4vw, 34px);
+  line-height: 1.18;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.hero-title .grad {
+  background: var(--ai-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.lede { font-size: clamp(16px, 2.2vw, 18px); line-height: 1.6; color: var(--on-surface-variant); }
+.lede-sm { font-size: 16px; line-height: 1.6; max-width: 62ch; }
+.muted { color: var(--on-surface-variant); }
+.small { font-size: 13.5px; line-height: 1.55; }
+.center { text-align: center; }
+
+.caps,
+.eyebrow-text {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.eyebrow-text { color: var(--primary); display: block; margin-bottom: 6px; }
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; max-width: 100%; flex-wrap: wrap;
+  border-radius: var(--radius-full);
+  background: var(--primary-fixed);
+  color: var(--on-primary-fixed-variant);
+  font-size: 11.5px;
+}
+
+/* ── 3. Buttons ──────────────────────────────────────────────────────────── */
+
+/* `min-height`, not `height`: a label that wraps must grow the button. */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 44px; padding: 10px 20px; border-radius: var(--radius-lg);
-  font-family: var(--font); font-size: 16px; font-weight: 600; cursor: pointer;
-  text-align: center;
-  border: 1px solid transparent; transition: background .2s, box-shadow .2s, color .2s, border-color .2s;
+  min-height: 44px; padding: 10px 22px;
+  border-radius: var(--radius-lg);
+  font-family: var(--font); font-size: 15.5px; font-weight: 600;
+  text-align: center; cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .18s, box-shadow .18s, color .18s, border-color .18s, transform .18s;
 }
-.btn-primary { background: var(--primary); color: var(--on-primary); box-shadow: var(--shadow-brand-tile); }
-.btn-primary:hover { background: var(--primary-container); }
-.btn-ghost { background: var(--surface-lowest); color: var(--on-surface-variant); border-color: var(--outline-variant); }
+.btn-primary { background: var(--primary-fill); color: var(--on-primary); box-shadow: var(--shadow-brand-tile); }
+.btn-primary:hover { background: var(--primary-fill-hover); }
+.btn-ghost { background: var(--surface-lowest); color: var(--on-surface); border-color: var(--outline-variant); }
 .btn-ghost:hover { color: var(--primary); border-color: var(--primary); }
-.btn-sm { min-height: 36px; padding: 6px 16px; font-size: 14px; }
+.btn-sm { min-height: 36px; padding: 6px 14px; font-size: 14px; }
+.btn-lg { min-height: 50px; padding: 13px 26px; font-size: 16.5px; }
 
-/* Top bar */
+/* ── 4. Header ───────────────────────────────────────────────────────────── */
+
 .topbar {
   position: sticky; top: 0; z-index: 50;
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border-subtle);
 }
-.topbar-inner { display: flex; align-items: center; gap: 24px; height: 64px; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; white-space: nowrap; }
-.logo-img {
-  width: 32px; height: 32px; border-radius: var(--radius-md);
-  object-fit: cover; display: block; flex: none;
-}
-.nav { display: flex; gap: 24px; margin-left: auto; }
-.nav a { color: var(--on-surface-variant); font-size: 14px; font-weight: 600; white-space: nowrap; }
-.nav a:hover { color: var(--primary); }
-.nav-footer { margin-left: auto; }
+.topbar-inner { display: flex; align-items: center; gap: 20px; height: 68px; }
 
-/* The trial CTA inside the mobile menu. Desktop keeps the header button, so
-   this one is switched on only in the panel (see the 560px block). */
+.logo {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-weight: 700; font-size: 19px; letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.logo:hover { color: var(--on-surface); }
+
+.nav { display: flex; gap: 4px; margin-left: auto; align-items: center; }
+.nav a {
+  color: var(--on-surface-variant); font-size: 14.5px; font-weight: 600;
+  padding: 8px 10px; border-radius: var(--radius-md); white-space: nowrap;
+}
+.nav a:hover { color: var(--primary); background: var(--surface-low); }
+.nav a.nav-active { color: var(--primary); background: var(--surface-low); }
+
+/* The trial CTA inside the mobile panel. Desktop has the header button, so
+   this is switched on only below 560px. */
 .nav-cta { display: none; }
 
-/* Mobile menu button. Hidden on desktop; below 860px the nav becomes a
-   dropdown panel instead of disappearing. */
 .nav-toggle {
   display: none; margin-left: auto;
-  width: 40px; height: 40px; border-radius: var(--radius-md);
-  border: 1px solid var(--outline-variant); background: var(--surface-lowest);
+  width: 44px; height: 44px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-lowest);
   color: var(--on-surface); font-size: 17px; cursor: pointer;
 }
 .theme-toggle {
-  margin-left: 8px; width: 36px; height: 36px; border-radius: var(--radius-md);
-  border: 1px solid var(--outline-variant); background: var(--surface-lowest);
-  cursor: pointer; color: var(--on-surface-variant); font-size: 16px;
+  margin-left: 4px;
+  width: 38px; height: 38px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-lowest);
+  color: var(--on-surface-variant); font-size: 15px; cursor: pointer;
 }
+.theme-toggle:hover { color: var(--primary); border-color: var(--primary); }
+.header-cta { margin-left: 8px; }
+
+/* ── 5. Footer ───────────────────────────────────────────────────────────── */
+
+.site-foot { border-top: 1px solid var(--border-subtle); padding: 48px 0 28px; background: var(--surface-low); }
+.foot-grid {
+  display: grid;
+  grid-template-columns: 1.6fr repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}
+.foot-brand p { margin: 12px 0 0; max-width: 34ch; }
+.foot-head {
+  /* Was an <h3>; a footer list label is not a heading in the page outline. */
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--on-surface-variant); margin: 0 0 10px;
+}
+.foot-links { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.foot-links a { color: var(--on-surface-variant); font-size: 14.5px; }
+.foot-links a:hover { color: var(--primary); }
+.foot-bottom {
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  border-top: 1px solid var(--border-subtle); margin-top: 32px; padding-top: 18px;
+}
+.foot-bottom p { margin: 0; }
+
+/* ── 6. Blocks ───────────────────────────────────────────────────────────── */
+
+section { padding: 72px 0; }
+section.band { background: var(--surface-low); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+.page-head { padding-top: 56px; }
+
+.section-head { max-width: 720px; margin-bottom: 32px; }
+.section-head.center { margin: 0 auto 36px; text-align: center; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+
+.card {
+  background: var(--surface-lowest);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  min-width: 0;
+  transition: box-shadow .2s, border-color .2s, transform .2s;
+}
+.card h3, .card-title, .plan-name { font-size: 18px; }
+.plan-name { font-weight: 700; margin: 0 0 6px; color: var(--on-surface); }
+/* Headings that keep the h3 appearance while being the correct level in the
+   outline (a card directly under the page's h1 is an h2). */
+.card-title { margin: 0 0 6px; font-weight: 700; color: var(--on-surface); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.card p { overflow-wrap: anywhere; }
+.card p:last-child { margin-bottom: 0; }
+.card-link { color: var(--primary); font-weight: 600; font-size: 14.5px; display: inline-block; margin-top: 8px; }
+
+.feature-card:hover { box-shadow: var(--shadow-lift); border-color: var(--outline-variant); transform: translateY(-2px); }
+.feature-card p { color: var(--on-surface-variant); }
 
 /* Hero */
-.hero { padding: 96px 0 72px; position: relative; overflow: hidden; }
-/* One entrance on the hero, and nothing else moving on load. */
-@keyframes coop-enter {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-[data-enter] { animation: coop-enter 620ms cubic-bezier(.16,1,.3,1) both; }
-[data-enter="hero-preview"] { animation-delay: 120ms; }
-@media (prefers-reduced-motion: reduce) {
-  [data-enter] { animation: none; }
-}
-
+.hero { padding: 72px 0 64px; position: relative; overflow: hidden; }
 .hero-glow {
-  position: absolute; top: -140px; right: -120px; width: 460px; height: 460px;
-  background: var(--primary-container); opacity: .18; filter: blur(96px); border-radius: 50%;
+  position: absolute; top: -160px; right: -140px; width: 480px; height: 480px;
+  background: var(--primary-container); opacity: .16; filter: blur(100px); border-radius: 50%;
 }
-.hero-inner { position: relative; display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; }
+.hero-inner { position: relative; display: grid; grid-template-columns: 1.02fr .98fr; gap: 48px; align-items: center; }
 .hero-inner > * { min-width: 0; }
+.hero-cta { display: flex; flex-wrap: wrap; margin: -6px; margin-top: 18px; }
+.hero-cta .btn { margin: 6px; }
+.hero-note { margin: 16px 0 0; font-size: 13.5px; color: var(--on-surface-variant); }
 
-/* Display headline. clamp() replaces the old fixed 48px/56px: at 320px it is
-   ~30px (three words a line, no overflow); at 900px it is the designed 48px. */
-.hero-title {
-  margin: 20px 0 16px;
-  font-size: clamp(30px, 6.4vw, 48px);
-  line-height: 1.12;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-/* Section headings: the 32/40 token at the top end, scaled down on phones. */
-.section-title {
-  margin: 12px 0;
-  font-size: clamp(23px, 4.4vw, 32px);
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-.hero-title .grad,
-.section-title .grad { background: var(--ai-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.eyebrow {
-  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px;
-  max-width: 100%; flex-wrap: wrap;
-  border-radius: var(--radius-full); background: var(--primary-fixed); color: var(--on-primary-fixed-variant);
-}
-.hero h1 { margin: 20px 0 16px; }
-.hero h1 .grad { background: var(--ai-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.hero .lede { font-size: 18px; line-height: 28px; color: var(--on-surface-variant); margin: 0 0 28px; }
-/* Same reasoning as .cta-actions: margins, not `gap`. The container carries a
-   matching negative margin so the buttons stay flush with the copy above them
-   instead of drifting 6px right. */
-.hero-cta { display: flex; flex-wrap: wrap; margin: -6px; }
-.hero-cta .btn { margin: 6px; max-width: 100%; }
-.hero-note { margin-top: 16px; font-size: 13px; color: var(--outline); }
+@keyframes coop-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+[data-enter] { animation: coop-enter .6s cubic-bezier(.16,1,.3,1) both; }
+[data-enter="hero-preview"] { animation-delay: .1s; }
+@media (prefers-reduced-motion: reduce) { [data-enter] { animation: none; } }
 
-/* App preview card */
-.preview { background: var(--surface-lowest); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); box-shadow: var(--shadow-overlay); padding: 18px; min-width: 0; }
-.preview-bar { display: flex; gap: 6px; margin-bottom: 14px; }
-.preview-bar span { width: 10px; height: 10px; border-radius: 50%; background: var(--surface-high); }
+/* Proof facts — three checkable numbers instead of a logo wall */
+.facts { list-style: none; padding: 0; margin: 26px 0 0; display: flex; flex-wrap: wrap; gap: 24px; }
+.facts li { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.facts strong { font-size: 17px; }
+.facts span { font-size: 12.5px; color: var(--on-surface-variant); max-width: 18ch; }
 
-/* Three tiles on a laptop; `minmax(0, 1fr)` is what stops "₦1,240,500" from
-   setting a 130px minimum and pushing the card wider than the screen. */
-.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.kpi { background: var(--surface-low); border-radius: var(--radius-lg); padding: 14px; min-width: 0; }
-.kpi .k-value {
-  font-size: clamp(15px, 4.4vw, 22px);
-  font-weight: 700; margin-top: 6px;
+/* Before / after */
+.before-after { display: grid; gap: 2px; border-radius: var(--radius-xl); overflow: hidden; border: 1px solid var(--border-subtle); }
+.ba-head, .ba-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ba-head { background: var(--surface-container); }
+.ba-head span { padding: 12px 20px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--on-surface-variant); }
+.ba-row { background: var(--surface-lowest); border-top: 1px solid var(--border-subtle); }
+.ba-row p { margin: 0; padding: 18px 20px; font-size: 15px; }
+.ba-before { color: var(--on-surface-variant); background: var(--surface-low); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--outline) 60%, transparent); }
+.ba-after { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; }
+.tick { color: var(--success-text); font-weight: 700; flex: none; }
+
+/* Honest proof */
+.proof-honest {
+  border: 1px dashed var(--outline-variant);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  background: var(--surface-lowest);
+  max-width: 760px;
+}
+.proof-honest strong { display: block; margin-bottom: 8px; }
+.proof-honest p { margin: 0; color: var(--on-surface-variant); }
+.proof-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.quote blockquote { margin: 0 0 16px; font-size: 16.5px; line-height: 1.55; }
+.quote figcaption { display: flex; gap: 12px; align-items: center; font-size: 14px; }
+.quote-metric { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 10px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; }
+.avatar-initials { display: grid; place-items: center; background: var(--primary-fixed); color: var(--on-primary-fixed-variant); font-weight: 700; font-size: 14px; }
+.avatar-lg { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; }
+.logo-wall { display: flex; flex-wrap: wrap; gap: 32px; align-items: center; opacity: .8; }
+
+/* Product preview (the "screenshot" above the fold) */
+.preview {
+  background: var(--surface-lowest);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-overlay);
+  padding: 16px;
+  min-width: 0;
+}
+.preview-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 14px; }
+.preview-bar span { width: 9px; height: 9px; border-radius: 50%; background: var(--surface-high); flex: none; }
+.preview-title { width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; margin-left: 8px; font-size: 11.5px; color: var(--on-surface-variant); letter-spacing: .02em; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.kpi { background: var(--surface-low); border-radius: var(--radius-lg); padding: 12px; min-width: 0; }
+.kpi .caps { color: var(--on-surface-variant); font-size: 10.5px; letter-spacing: .06em; }
+.k-value {
+  font-size: clamp(15px, 3.6vw, 21px);
+  font-weight: 700; margin: 5px 0 3px;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+.k-delta { font-size: 10.5px; }
+.k-delta.up { color: var(--success-text); }
+.k-delta.warn { color: var(--warning-text); }
 .chart {
-  margin-top: 14px; height: 120px; border-radius: var(--radius-lg);
+  margin-top: 10px; height: 96px; border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--primary-fixed), transparent);
   border: 1px solid var(--border-subtle); position: relative; overflow: hidden;
 }
 .chart::after {
-  content: ''; position: absolute; inset: auto 0 0 0; height: 70%;
-  background: var(--ai-gradient); opacity: .25;
-  clip-path: polygon(0 70%, 15% 55%, 30% 62%, 45% 35%, 60% 45%, 75% 20%, 100% 30%, 100% 100%, 0 100%);
+  content: ''; position: absolute; inset: auto 0 0 0; height: 72%;
+  background: var(--ai-gradient); opacity: .28;
+  clip-path: polygon(0 72%, 14% 54%, 28% 62%, 42% 34%, 58% 46%, 74% 18%, 100% 30%, 100% 100%, 0 100%);
 }
+.preview-rows { margin-top: 10px; display: grid; gap: 1px; }
+.preview-rows div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; font-size: 12.5px; background: var(--surface-low); }
+.preview-rows div:first-child { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.preview-rows div:last-child { border-radius: 0 0 var(--radius-md) var(--radius-md); }
 
-/* Sections */
-section { padding: 72px 0; }
-.section-head { max-width: 640px; margin-bottom: 40px; }
-.section-head .caps { color: var(--primary); }
-.section-head h2 { margin: 12px 0; }
-
-/* Every grid gets explicit `minmax(0, 1fr)`. A bare `1fr` has an automatic
-   minimum of `auto`, which is a long unbreakable word away from overflowing. */
-.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.card { background: var(--surface-lowest); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 24px; transition: box-shadow .2s, transform .2s; min-width: 0; }
-.card:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
-.card .icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--primary-fixed); color: var(--on-primary-fixed-variant); display: grid; place-items: center; margin-bottom: 14px; }
-.card h3 { margin: 0 0 8px; }
-.card p { margin: 0; color: var(--on-surface-variant); overflow-wrap: anywhere; }
-.ai-band { background: var(--surface-low); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
-.ai-card { border-top: 3px solid transparent; border-image: linear-gradient(90deg, #5b5fef, #8a4cfc, #c0c1ff) 1; }
+/* Jobs (features page) */
+.job { display: grid; grid-template-columns: 1.15fr .85fr; gap: 40px; align-items: start; }
+.job-copy { min-width: 0; }
+.job-copy p { max-width: 58ch; }
+.job-list { list-style: none; padding: 22px; margin: 0; background: var(--surface-lowest); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); display: grid; gap: 12px; }
+.job-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; }
 
 /* Pricing */
+.billing-toggle {
+  display: inline-flex; padding: 4px; margin-bottom: 28px;
+  background: var(--surface-container); border-radius: var(--radius-full); gap: 4px;
+}
+.billing-toggle button {
+  border: 0; background: transparent; cursor: pointer;
+  padding: 9px 18px; border-radius: var(--radius-full);
+  font: inherit; font-size: 14.5px; font-weight: 600; color: var(--on-surface-variant);
+}
+.billing-toggle button[aria-pressed="true"] { background: var(--surface-lowest); color: var(--on-surface); box-shadow: var(--shadow-soft); }
+.billing-toggle .save { color: var(--success-text); font-size: 12.5px; }
+
 .plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
-.plan { position: relative; min-width: 0; }
+.plan { position: relative; display: flex; flex-direction: column; }
 .plan.featured { border-color: var(--primary); box-shadow: var(--shadow-lift); }
-.plan .badge { position: absolute; top: -12px; right: 20px; background: var(--primary); color: #fff; padding: 4px 10px; border-radius: var(--radius-full); }
-.price { display: flex; align-items: baseline; gap: 6px; margin: 12px 0 4px; flex-wrap: wrap; }
-.price .amount { font-size: clamp(26px, 7vw, 32px); font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.price .per { color: var(--outline); }
-.plan ul { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 10px; }
-.plan li { display: flex; gap: 10px; align-items: flex-start; color: var(--on-surface-variant); }
-.plan li .tick { color: var(--success); font-weight: 700; flex: none; }
+.plan h3 { font-size: 20px; margin-bottom: 4px; }
+.plan-tagline { margin-bottom: 14px; }
+.badge {
+  display: inline-block; margin-left: 8px; vertical-align: middle;
+  background: var(--primary); color: var(--on-primary);
+  padding: 3px 10px; border-radius: var(--radius-full);
+  font-size: 11px; font-weight: 600; letter-spacing: .02em;
+}
+.price { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
+.price .amount { font-size: clamp(26px, 6vw, 34px); font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.price .per { color: var(--on-surface-variant); font-size: 14px; }
+.price-note { min-height: 2.6em; margin-bottom: 8px; }
+.plan ul { list-style: none; padding: 0; margin: 12px 0 20px; display: grid; gap: 10px; }
+.plan li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--on-surface-variant); }
 .plan li.off { opacity: .55; }
-.plan li.off .tick { color: var(--outline); }
-.plan .btn { width: 100%; }
-.billing-note { margin: 20px 0 0; }
+.plan li.off .tick { color: var(--on-surface-variant); }
+.plan .btn { width: 100%; margin-top: auto; }
+.billing-foot { margin-top: 22px; max-width: 76ch; }
 
-/* CTA + footer */
-.cta { background: var(--ai-gradient); color: #fff; border-radius: var(--radius-xl); padding: 48px; text-align: center; box-shadow: var(--shadow-overlay); }
-.cta h2 { margin: 0 0 12px; }
+.price-teaser { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.price-line { display: flex; align-items: baseline; gap: 5px; margin: 8px 0; flex-wrap: wrap; }
+.price-line .amount { font-size: clamp(24px, 5vw, 32px); font-weight: 700; font-variant-numeric: tabular-nums; }
+.price-line .per { color: var(--on-surface-variant); font-size: 14px; }
+.price-teaser-foot { margin-top: 18px; font-weight: 600; }
 
-/* The CTA's two buttons. They used to be inline links separated by a 12px
-   left margin, which is not a gap: once the line ran out of room the second
-   one wrapped and sat flush on the first, and because `.cta .btn` painted both
-   of them white there was nothing to tell them apart. `gap` survives wrapping;
-   a margin does not. */
+.compare-note { max-width: 760px; }
+.compare-note .btn { margin-top: 8px; }
+
+/* FAQ */
+.faq-list { display: grid; gap: 10px; max-width: 860px; }
+.faq-item {
+  background: var(--surface-lowest);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 4px 20px;
+}
+.faq-item summary {
+  cursor: pointer; padding: 14px 0; font-weight: 600; font-size: 15.5px;
+  list-style: none; display: flex; justify-content: space-between; gap: 16px; align-items: center;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: '+'; color: var(--primary); font-size: 20px; font-weight: 400; flex: none; }
+.faq-item[open] summary::after { content: '−'; }
+.faq-item p { margin: 0 0 16px; color: var(--on-surface-variant); font-size: 15px; max-width: 72ch; }
+.faq-more { margin-top: 20px; font-weight: 600; }
+
+/* Lead capture */
+.lead { display: grid; grid-template-columns: 1.2fr .8fr; gap: 32px; align-items: center; max-width: 940px; }
+.lead-copy h3 { font-size: 22px; margin: 6px 0 8px; }
+.lead-copy p { margin: 0; }
+.lead-form { display: grid; gap: 10px; }
+.lead-form input {
+  width: 100%; padding: 13px 15px;
+  border: 1px solid var(--outline-variant); border-radius: var(--radius-lg);
+  background: var(--surface-lowest); color: var(--on-surface);
+  font: inherit; font-size: 15px;
+}
+.lead-form input:focus-visible { border-color: var(--primary); outline: 2px solid color-mix(in srgb, var(--primary) 30%, transparent); }
+.form-note { margin: 0; }
+.lead-done { background: var(--surface-lowest); border: 1px solid var(--success); border-radius: var(--radius-lg); padding: 18px; font-size: 14.5px; overflow-wrap: anywhere; }
+
+/* CTA band */
+.cta {
+  background: var(--ai-gradient); color: #fff;
+  border-radius: var(--radius-xl);
+  padding: 48px; text-align: center;
+  box-shadow: var(--shadow-overlay);
+}
+.cta h2 { margin: 0 0 10px; color: #fff; }
+.cta-sub { opacity: .94; margin: 0 0 22px; }
 .cta-actions { display: flex; flex-wrap: wrap; justify-content: center; }
-/* Spacing here is a margin, deliberately, and NOT `gap`.
-   This site is read on mid-range Android phones: older Chrome WebView, Opera
-   Mini and the Facebook/Instagram in-app browsers are all below the version
-   that shipped flex `gap` (Chrome 84 / Safari 14.1). On those, `gap` is
-   silently dropped and the two buttons stack flush against each other with no
-   space at all — which is exactly the bug reported twice. A margin is honoured
-   by every browser that can draw a flex container. Symmetric so it still
-   centres correctly, 6px a side = 12px between the two. */
-.cta-actions .btn { margin: 6px; min-width: 0; max-width: 100%; }
-.cta .btn { background: #fff; color: var(--primary); border-color: #fff; }
-.cta .btn:hover { background: #fff; color: var(--primary); border-color: #fff; box-shadow: 0 8px 20px rgb(0 0 0 / .18); }
-/* The secondary keeps the gradient showing through so the pair reads as
-   "do this" and "or this", not as two identical white slabs. */
-.cta .btn.cta-btn-secondary {
-  background: transparent; color: #fff;
-  border-color: rgb(255 255 255 / .65);
-}
-.cta .btn.cta-btn-secondary:hover {
-  background: rgb(255 255 255 / .14); color: #fff; border-color: #fff;
-  box-shadow: none;
-}
-footer { border-top: 1px solid var(--border-subtle); padding: 40px 0; color: var(--on-surface-variant); }
-.foot { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: center; }
-.foot p { overflow-wrap: anywhere; }
+.cta-actions.left { justify-content: flex-start; }
+.cta-actions .btn { margin: 5px; min-width: 0; max-width: 100%; }
+.cta .btn-primary { background: #fff; color: var(--primary); border-color: #fff; }
+.cta .btn-primary:hover { background: var(--primary-fill-hover); }
+.cta .btn.cta-btn-secondary { background: transparent; color: #fff; border-color: rgb(255 255 255 / .7); }
+.cta .btn.cta-btn-secondary:hover { background: rgb(255 255 255 / .15); color: #fff; border-color: #fff; }
 
-/* Product tour */
-.tour-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-.tour-card { padding: 16px; }
-.tour-card h3 { margin: 14px 0 6px; }
-.shot {
-  position: relative; width: 100%; aspect-ratio: 16 / 10; border-radius: var(--radius-md);
-  overflow: hidden; background: var(--surface-low); border: 1px solid var(--border-subtle);
+/* Signup */
+.signup { display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: start; }
+.signup > * { min-width: 0; }
+.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; counter-reset: step; }
+.steps li { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-lowest); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 16px; }
+.step-n { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--primary-fixed); color: var(--on-primary-fixed-variant); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.steps h3 { font-size: 16px; margin: 0 0 4px; }
+.steps p { margin: 0; }
+.notice-strip {
+  margin-top: 20px; padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-container);
+  border: 1px solid var(--border-subtle);
+  font-size: 14px;
 }
-.shot-button {
-  display: block; padding: 0; cursor: pointer; font: inherit;
-  -webkit-appearance: none; appearance: none;
-}
-.shot-button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.shot-media { width: 100%; height: 100%; object-fit: cover; display: block; }
-.shot-placeholder {
-  position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px;
-  align-items: center; justify-content: center; text-align: center; padding: 16px;
-  color: var(--outline);
-  background:
-    repeating-linear-gradient(45deg, var(--surface-low), var(--surface-low) 10px, var(--surface-container) 10px, var(--surface-container) 20px);
-}
-.shot-placeholder small { color: var(--outline); opacity: .8; }
+.notice-strip.warn { background: color-mix(in srgb, var(--warning) 12%, var(--surface)); border-color: color-mix(in srgb, var(--warning) 40%, transparent); }
 
-/* Founders video */
-.video-frame {
-  position: relative; width: min(880px, 100%); margin: 0 auto; aspect-ratio: 16 / 9;
-  border-radius: var(--radius-xl); overflow: hidden; background: var(--surface-lowest);
-  border: 1px solid var(--border-subtle); box-shadow: var(--shadow-overlay);
-}
-.video-frame video, .video-frame iframe { width: 100%; height: 100%; display: block; border: 0; object-fit: cover; }
-.video-hint {
-  position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px;
-  background: color-mix(in srgb, var(--surface-lowest) 80%, transparent);
-  color: var(--on-surface-variant); border-top: 1px solid var(--border-subtle);
-  overflow-wrap: anywhere;
-}
-.video-hint code { background: var(--surface-container); padding: 1px 5px; border-radius: var(--radius-sm); }
+/* Case study / about / security lists */
+.case-honest { max-width: 760px; }
+.case-honest .btn { margin-top: 8px; }
+.timeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 18px; max-width: 820px; }
+.timeline li { border-left: 3px solid var(--primary-fixed); padding-left: 18px; }
+.timeline strong { display: block; margin-bottom: 4px; }
+.timeline p { margin: 0; }
+
+.gap-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; max-width: 820px; }
+.gap-list li { display: flex; gap: 14px; align-items: flex-start; }
+.gap-mark { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--warning) 16%, var(--surface)); color: var(--warning-text); font-size: 12px; font-weight: 700; }
+.gap-list p { margin: 4px 0 0; }
+
+.data-table { display: grid; gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); overflow: hidden; max-width: 900px; }
+.data-table > div { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr); gap: 16px; padding: 16px 20px; background: var(--surface-lowest); border-top: 1px solid var(--border-subtle); }
+.data-table > div:first-child { border-top: 0; }
+.data-table dt { font-weight: 600; font-size: 14px; }
+.data-table dd { margin: 0; font-size: 14.5px; color: var(--on-surface-variant); }
+
+.about-lede { max-width: 720px; }
+.beliefs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.beliefs h3 { font-size: 17px; }
+.not-for { max-width: 760px; display: grid; gap: 10px; }
+.not-for li { color: var(--on-surface-variant); }
+.team-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 
 /* Contact */
-.contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; max-width: 720px; }
-.contact-item { min-width: 0; }
-.contact-item .icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--primary-fixed); color: var(--on-primary-fixed-variant); display: grid; place-items: center; font-size: 20px; margin-bottom: 14px; }
-/* An email address and a phone number have no spaces to break at; without this
-   they set the card's minimum width and pull the section off-screen. */
-.contact-link { color: var(--primary); font-weight: 600; overflow-wrap: anywhere; display: inline-block; max-width: 100%; }
-.contact-link:hover { text-decoration: underline; }
-.contact-item code { background: var(--surface-container); padding: 1px 5px; border-radius: var(--radius-sm); }
+.contact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.contact-item { display: block; min-width: 0; }
+.contact-item:hover { border-color: var(--primary); box-shadow: var(--shadow-lift); }
+.contact-item h3 { font-size: 17px; margin-bottom: 6px; }
+.contact-link { color: var(--primary); font-weight: 600; overflow-wrap: anywhere; display: inline-block; max-width: 100%; margin-top: 6px; }
+.muted-card { background: var(--surface-low); }
+.address { margin-top: 20px; }
 
-/* ── 1024px: three columns is one too many ───────────────────────────────── */
+/* Legal + prose */
+.legal .prose { max-width: 720px; }
+.prose h2 { font-size: 19px; margin-top: 30px; }
+.prose p, .prose li { color: var(--on-surface-variant); font-size: 15.5px; }
+.prose a { color: var(--primary); text-decoration: underline; }
+
+/* 404 */
+.notfound-links { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 16px; margin: 20px 0 28px; }
+.notfound-links a { color: var(--primary); font-weight: 600; }
+
+/* ── 7. Breakpoints ──────────────────────────────────────────────────────── */
+
 @media (max-width: 1024px) {
-  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-3, .proof-grid, .team-grid, .contact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .foot-grid { grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr)); gap: 24px; }
 }
 
-/* ── 860px: one column, and the nav becomes a real menu ──────────────────── */
-@media (max-width: 860px) {
-  .hero { padding: 64px 0 48px; }
-  .hero-inner, .grid-3, .grid-2, .plans, .tour-grid, .contact-grid { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 900px) {
+  .hero-inner, .signup, .job, .lead, .beliefs, .plans, .price-teaser { grid-template-columns: minmax(0, 1fr); }
+  .hero { padding: 48px 0 44px; }
   .hero-inner { gap: 32px; }
-  .section-head { margin-bottom: 28px; }
+  .job { gap: 24px; }
+  .foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .data-table > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 
-  /* The nav used to be display:none here, which left a phone with no way to
-     reach Pricing, FAQ or Download. It is a real disclosure menu now. */
+  /* A nav that simply disappears leaves a phone with no route around the page.
+     This is a real disclosure menu, not display:none. */
   .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
   .nav {
     display: none; position: absolute; top: 100%; left: 0; right: 0;
-    flex-direction: column; gap: 0; margin: 0; padding: 8px 0 12px;
-    background: var(--surface-lowest);
+    flex-direction: column; align-items: stretch; gap: 0; margin: 0;
+    padding: 8px 0 12px; background: var(--surface-lowest);
     border-bottom: 1px solid var(--border-subtle);
     box-shadow: var(--shadow-lift);
   }
   .nav.nav-open { display: flex; }
-  .nav a { padding: 12px 24px; font-size: 15px; white-space: normal; }
-  /* Anchored to .topbar (sticky, so positioned), not to the inner container:
-     the panel is full-bleed instead of 92vw wide with a 4vw gutter. */
-  .topbar-inner { position: static; }
+  .nav a { padding: 14px 24px; font-size: 15.5px; white-space: normal; border-radius: 0; }
   .topbar { position: sticky; }
-  /* Footer links are not the menu: they stay visible and wrap. */
-  .nav-footer { display: flex; position: static; flex-direction: row; flex-wrap: wrap;
-    gap: 16px; margin-left: 0; padding: 0; background: none; border: 0; box-shadow: none; }
-  .nav-footer a { padding: 0; }
 }
 
-/* ── 640px: the "phone" layout proper ────────────────────────────────────── */
-@media (max-width: 640px) {
-  section { padding: 48px 0; }
-  .container { width: min(1120px, calc(100% - 32px)); }  /* 16px gutters, not 4vw */
-  .topbar-inner { height: 60px; gap: 12px; }
-  .hero { padding: 48px 0 40px; }
-  .hero .lede { font-size: 17px; line-height: 26px; margin-bottom: 24px; }
+@media (max-width: 720px) {
+  .grid-2, .grid-3, .proof-grid, .team-grid, .contact-grid { grid-template-columns: minmax(0, 1fr); }
+  section { padding: 52px 0; }
+  .page-head { padding-top: 40px; }
+  .container, .container-narrow { width: min(1120px, calc(100% - 32px)); }
   .section-head { margin-bottom: 24px; }
   .card { padding: 20px; }
   .cta { padding: 32px 20px; }
-  /* Below 640px "Get started free" + "Download the app" cannot share a line
-     (they need ~332px of a 294px screen), so they stack full-width. */
   .cta-actions { flex-direction: column; align-items: stretch; }
-  .cta-actions .btn { width: 100%; margin: 5px 0; }  /* 10px between, stacked */
-  .price .amount { font-size: 30px; }
-  footer { padding: 32px 0; }
-  .foot { flex-direction: column; align-items: flex-start; gap: 16px; }
-  .foot .nav-footer { gap: 10px 16px; }
-
-  /* Two buttons side by side leave a sliver of text each on a 320px screen,
-     which is what "the buttons are too close" was. Below this width they are
-     full-width and stacked, with a real 10px between them. */
-  .hero-cta { flex-direction: column; align-items: stretch; margin: 0; }
-  .hero-cta .btn { width: 100%; margin: 5px 0; }  /* 10px between, stacked */
+  .cta-actions .btn { width: 100%; margin: 5px 0; }
+  .cta-actions.left { align-items: stretch; }
+  .hero-cta { flex-direction: column; align-items: stretch; margin: 9px 0 0; }
+  .hero-cta .btn { width: 100%; margin: 5px 0; }
+  .ba-head, .ba-row { grid-template-columns: minmax(0, 1fr); }
+  .ba-head span:first-child { display: none; }
+  .ba-row p { padding: 14px 18px; }
+  .ba-before { border-bottom: 1px solid var(--border-subtle); }
+  .foot-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .foot-bottom { flex-direction: column; }
+  .facts { gap: 18px; }
+  .panel-links { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ── 560px: the header drops the trial button ────────────────────────────── */
 @media (max-width: 560px) {
-  /* logo (~90) + menu (40) + theme (36) + CTA (~154) + gaps = ~400px in a
-     294px space. The CTA moves into the menu panel and the hero instead of
-     squeezing everything else. */
-  .topbar .btn-sm { display: none; }
-  .topbar-inner { gap: 8px; }
+  /* logo + menu + theme + CTA needs ~400px; a 320px phone gives 288.
+     The CTA moves into the menu panel — it is not removed. */
+  .header-cta { display: none; }
+  .topbar-inner { gap: 8px; height: 60px; }
   .theme-toggle { margin-left: 0; }
   .logo { font-size: 17px; gap: 8px; }
-  .logo-img { width: 28px; height: 28px; }
-
+  .logo svg { width: 24px; height: 24px; }
   .nav-cta {
-    display: flex; width: auto; margin: 8px 24px 4px; padding: 14px 20px;
+    display: flex; margin: 8px 20px 4px; padding: 14px 20px;
     background: var(--primary); color: var(--on-primary) !important;
-    border-radius: var(--radius-lg); justify-content: center; text-align: center;
-    font-size: 16px; font-weight: 600;
+    border-radius: var(--radius-lg); justify-content: center;
+    font-size: 16px; font-weight: 600; text-align: center;
   }
-  /* Thumb-sized targets: 40px was under the 44px that a finger reliably hits. */
-  .nav-toggle { width: 44px; height: 44px; }
-  .theme-toggle { width: 40px; height: 40px; }
-  .nav-cta:hover { color: var(--on-primary) !important; background: var(--primary-container); }
-}
-
-/* ── 460px: the KPI tiles go to two columns ──────────────────────────────── */
-@media (max-width: 460px) {
-  /* Three tiles in a 258px card leaves ~50px of text per tile; "₦1,240,500"
-     needs ~83px even at the clamped size. Two columns leave ~95px. */
+  .nav-cta:hover { background: var(--primary-container); color: var(--on-primary) !important; }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .preview { padding: 14px; }
+  .billing-toggle { width: 100%; justify-content: stretch; }
+  .billing-toggle button { flex: 1; padding: 10px 8px; font-size: 13.5px; }
+  .k-value { font-size: 15px; }
+  .foot-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; }
 }
 
-/* Loader (equalizer bars) — reusable in-app; the boot loader in index.html
-   uses the same animation. Colour uses the brand primary. */
-.loader {
-  width: 45px;
-  aspect-ratio: .75;
-  --c: no-repeat linear-gradient(var(--primary) 0 0);
-  background:
-    var(--c) 0%   100%,
-    var(--c) 50%  100%,
-    var(--c) 100% 100%;
-  background-size: 20% 65%;
-  animation: l5 1s infinite linear;
-}
-@keyframes l5 {
-  20% {background-position: 0% 50% ,50% 100%,100% 100%}
-  40% {background-position: 0% 0%  ,50% 50% ,100% 100%}
-  60% {background-position: 0% 100%,50% 0%  ,100% 50% }
-  80% {background-position: 0% 100%,50% 100%,100% 0%  }
-}
+/* ── 8. Utility ──────────────────────────────────────────────────────────── */
+
+.panel-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

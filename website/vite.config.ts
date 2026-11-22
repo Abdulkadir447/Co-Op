@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react';
 // dev server binds 0.0.0.0 (the preview is proxied under an external host).
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  base: '/',
   server: {
     host: '0.0.0.0',
     port: 5178,

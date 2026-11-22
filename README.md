@@ -180,9 +180,12 @@ numbers are not routable. Nothing here points at a real stranger's inbox.
 
 | What | Value shipped now | Where | Replace with | Effect of leaving it |
 | --- | --- | --- | --- | --- |
-| Site URL (canonical, `og:url`, `og:image`) | `https://coop.example` | `website/index.html` (5 tags) and `SITE.url` in `website/src/App.tsx` | The real https domain | WhatsApp previews still work (the image renders) but its link points nowhere |
-| Support email | `hello@coop.example` | `CONTACT.email` in `website/src/App.tsx` | A monitored inbox | Mail bounces |
+| Site URL (canonical, `og:url`, `og:image`) | `https://coop.example` | `SITE.url` in `website/src/site.ts` (one place — `scripts/prerender.mjs` writes it into every page's head, sitemap and robots) | The real https domain, or set `VITE_PUBLIC_URL` at build time | Share links point nowhere |
+| Support email | `hello@coop.example` | `CONTACT.email` in `website/src/site.ts` | A monitored inbox | Mail bounces |
 | Phone / WhatsApp | `+234 800 000 0000` / `2348000000000` | `CONTACT.phone`, `CONTACT.whatsapp` | A real number | The WhatsApp link opens an empty chat with nobody |
+| Demo booking link | *(empty)* | `CONTACT.demoUrl` | A Cal.com / Calendly URL | The contact page offers "message us and we will suggest times" instead |
+| Status page | *(empty)* | `STATUS_URL` in `website/src/site.ts` | A public uptime page | The status page explains what is and is not monitored |
+| Analytics endpoint | *(empty)* | `VITE_ANALYTICS_URL` | Plausible / Umami / a Worker URL | CTA events are buffered in `window.__coopEvents` and go nowhere |
 
 **One more decision that is not mine to make final: the price level.** The plans
 are now priced in Naira — **Starter ₦25,000/mo, Professional ₦75,000/mo, 20% off
@@ -201,17 +204,75 @@ is charged until a Paystack secret key is set, so this commits you to nothing
 today.
 
 While these values are in place the site says so out loud: the contact cards
-carry a "Not live yet" note and the footer carries "Preview build — the public
-address in this page's share links is a placeholder until launch." Both
-appear automatically while the placeholder values are present, so replacing
-the values above is the only edit needed — there is no flag to remember to
-remove.
+carry a "Preview build" note and the footer carries "Preview build — contact
+details and the public address are placeholders until launch." Both appear
+automatically while the placeholder values are present, so replacing the values
+above is the only edit needed — there is no flag to remember to remove.
 
-Two further assets are still missing on purpose: the product tour needs real
-screenshots (drop 1600×1000 PNGs into `website/src/assets/screenshots/`, named
-`dashboard`, `products`, `inventory`, `orders`, `customers`, `reports`,
-`ai`), and the founders section needs either `website/src/assets/videos/founders.mp4`
-or a `FOUNDERS_EMBED` URL. Sections whose assets are absent are not rendered.
+### The site: eight pages, and why
+
+`website/` is a small React app with a real router and **no routing library** —
+eleven routes, each prerendered to its own HTML file at build time.
+
+| Page | Path | Job |
+| --- | --- | --- |
+| Home | `/` | The offer, the product, the price, the objections |
+| Features | `/features` | What it does, organised by the job it does |
+| Pricing | `/pricing` | Highest-intent page: real prices, monthly/yearly, FAQ |
+| Signup | `/signup` | The trial: what happens when you click, and what it costs |
+| Case study | `/case-study` | Honest: there is no customer yet, so it publishes the method |
+| Security | `/security` | Architecture and hosting, plus what we do **not** have |
+| About | `/about` | Who is accountable, what we believe, who it is not for |
+| Contact | `/contact` | WhatsApp, email, and a booked call |
+| Privacy / Terms / Status | `/privacy` `/terms` `/status` | Footer links, not navigation |
+
+**Growth-phase pages (blog, comparisons, integrations, docs, changelog) are
+deliberately absent.** The brief is right that eight tight pages beat
+twenty-five; the comparison pages are the first thing to add once there is
+traffic to compare for.
+
+Three things about the build worth knowing:
+
+1. **It prerenders.** `scripts/prerender.mjs` renders every route with
+   `react-dom/server` and writes `dist/<path>/index.html` with the real copy,
+   its own `<title>`, canonical, OG tags and `SoftwareApplication`/`FAQPage`
+   JSON-LD, plus `sitemap.xml`, `robots.txt` and a `404.html`. An empty
+   `<div id="root">` is a page WhatsApp cannot preview and a crawler may not
+   render — and WhatsApp is how links travel here.
+2. **There is one primary CTA.** "Start free trial", in the header, the hero
+   and every page's closing band. A test reads the built HTML and fails if a
+   second primary CTA appears, or if the same action is given a different
+   name — "Get started free" and "Start Free Trial" were both being rendered
+   for the same href.
+3. **Nothing is faked.** `TESTIMONIALS`, `CUSTOMER_LOGOS` and `TEAM` are empty
+   arrays, not placeholder names; the proof section says why, and the case
+   study page says it does not exist yet. Fill the arrays and the sections
+   appear; there is no flag to flip.
+
+`website/test/` enforces all three, against the source **and the built HTML**:
+`content.test.mjs` (page structure, one primary CTA and one spelling of it, one
+`<h1>` per page, JSON-LD present in the output, honest proof, prices read from
+the billing catalog, unique titles, instrumented events),
+`design-parity.test.mjs` (the site's tokens still match
+`frontend/src/theme/*`), `contrast.test.mjs` (WCAG AA for every text pair, in
+both themes) and `responsive.test.mjs` (the mobile rules that broke before —
+grids that collapse, buttons spaced by margin not flex `gap`, no fixed width a
+320px screen cannot satisfy). Run them with `pnpm --filter ./website test`
+after a build; several read `dist/`.
+
+Three bugs these tests caught that a green build had not: every inner page was
+missing its `<h1>` (the shared heading component always rendered `<h2>`), the
+structured data was created by a `useEffect` and so never ran during prerender
+(the built pages shipped with none), and the primary button used `--primary` as
+a fill, which is 3.48:1 under white text in dark mode.
+
+Product screenshots are still missing on purpose. `src/assets/screenshots/` is
+empty, so the page shows a rendered mock of the real dashboard — same KPI
+labels, same Naira formatting, same tokens as the app — rather than a stock
+photo or an invented interface. Drop real 1600×1000 PNGs in there, named after
+the screens (`dashboard`, `products`, `inventory`, `orders`, `customers`,
+`reports`, `ai`), and they take the mock's place. Assets that are absent are
+not rendered; there is no placeholder frame to mistake for a real screenshot.
 
 ### Deploying the site to Vercel
 

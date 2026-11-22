@@ -10,9 +10,10 @@ name: CI
 #                imports `backend.*`. `cd backend && pytest tests/` cannot
 #                work.
 #   frontend   — eslint + tsc + the local-analytics port tests + a build.
-#   website    — the marketing site's build + a static mobile-layout audit
-#                (no browser: it checks the CSS properties that broke on a
-#                phone, not how it looks).
+#   website    — the marketing site's build + content/design/contrast tests
+#                (no browser: they check the prerendered HTML — headings,
+#                structured data, CTA labels, one h1 per page — and the CSS
+#                properties that broke on a phone, not how it looks).
 #   desktop    — the Electron data-layer/sync/backup suite, ON WINDOWS: the
 #                desktop build ships to Windows, and electron/test/windows.test.js
 #                has a group that only runs on a real Windows filesystem. The
@@ -108,7 +109,7 @@ jobs:
         run: pnpm --filter ./frontend build
 
   website:
-    name: Website build + mobile layout audit
+    name: Website build + content audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
@@ -130,9 +131,12 @@ jobs:
       - name: Build (tsc + vite)
         run: pnpm --filter ./website build
 
-      # Static audit of the CSS/JSX: grids that cannot collapse, fixed heading
-      # sizes, a header wider than a 320px screen. No browser needed.
-      - name: Mobile layout audit
+      # Content + design gates, checked against the source AND the built HTML:
+      # one primary CTA, honest (empty) social proof, prices read from the
+      # billing catalog, one <h1> per page, JSON-LD actually in the output,
+      # WCAG contrast per theme, and the mobile layout rules that broke before.
+      # No browser needed.
+      - name: Content, design and contrast audit
         run: pnpm --filter ./website test
 
   desktop:
