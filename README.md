@@ -363,6 +363,10 @@ pnpm doctor         # something is broken: names the cause, incl. a stale API
 
 Desktop wrapper (optional): `pnpm dev:desktop` from the repo root.
 
+Building the Windows installer is a GitHub Actions
+run — see [docs/INSTALLER.md](docs/INSTALLER.md) for the inputs, what the
+artifact can and cannot do today, and why it is unsigned.
+
 Packaged desktop builds (electron-builder, produces AppImage / NSIS / DMG
 per platform).
 
