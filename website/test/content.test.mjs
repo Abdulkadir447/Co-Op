@@ -79,15 +79,25 @@ test('the built pages carry one primary action, named the same way', () => {
   // the CTA band said "Get started free" and the pricing cards said "Start Free
   // Trial" — three labels for one action. This reads the built HTML instead.
   const labels = new Set();
+  const destinations = new Set();
   for (const file of ['index.html', 'pricing/index.html', 'features/index.html', 'about/index.html']) {
     const html = readFileSync(join(SITE, 'dist', file), 'utf8');
-    for (const m of html.matchAll(/class="[^"]*btn-primary[^"]*"[^>]*>([\s\S]{0,60}?)</g)) {
-      labels.add(m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
+    for (const m of html.matchAll(/<a\b[^>]*class="[^"]*btn-primary[^"]*"[^>]*>[\s\S]{0,60}?<\/a>/g)) {
+      const button = m[0];
+      const text = button.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      // The accessible name is the button's real label. The compact header
+      // button shows "Try free" on a phone but is announced as "Start free
+      // trial" — same action, deliberately shorter where the space is 288px.
+      const name = button.match(/aria-label="([^"]+)"/);
+      labels.add(name ? name[1] : text);
+      const href = button.match(/href="([^"]+)"/);
+      if (href) destinations.add(href[1]);
     }
   }
-  // '/signup' legitimately says "Download for Windows": there is no web sign-up
-  // yet, and the button must not promise a form that does not exist.
+  // One action, one name, one destination — however many times it is repeated
+  // and however short the phone version has to be.
   assert.deepEqual([...labels], ['Start free trial'], `CTA labels: ${[...labels].join(' | ')}`);
+  assert.deepEqual([...destinations], ['/trial'], `CTA destinations: ${[...destinations].join(' | ')}`);
 });
 
 test('the hero has one primary button and one secondary, in that order', () => {
