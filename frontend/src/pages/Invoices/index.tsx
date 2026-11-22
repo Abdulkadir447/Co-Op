@@ -61,7 +61,7 @@ const InvoicesPage: React.FC = () => {
       dataIndex: 'number',
       render: (value: string, row) => (
         <Space direction="vertical" size={0}>
-          <Typography.Text strong style={{ fontSize: 13.5 }}>
+          <Typography.Text strong style={{ fontSize: 14 }}>
             {value}
           </Typography.Text>
           <CoopBadge variant={STATUS_VARIANT[row.status]}>{row.status}</CoopBadge>

@@ -61,9 +61,14 @@ class TestApi:
         self.client = client
 
     def set_user(self, user_id: str, email: Optional[str] = None) -> None:
+        # A real session token always carries an email in this app (the backend
+        # refuses one that does not), so the default identity models that.
+        # Pass email="" explicitly to simulate a token WITHOUT the claim.
+        claim = f"{user_id}@example.com" if email is None else (email or None)
+
         async def override_verify():
             return ClerkUser(
-                user_id=user_id, session_id="test-session", azp=None, email=email
+                user_id=user_id, session_id="test-session", azp=None, email=claim
             )
 
         app.dependency_overrides[verify_clerk_token] = override_verify

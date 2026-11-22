@@ -5,6 +5,16 @@
  * limited — no more than three distinct type levels on a single view
  * (DESIGN.md, Typography) — and `labelCaps` provides the utilitarian,
  * uppercase metadata/headers treatment.
+ *
+ * Two rules the components must keep:
+ *   1. Sizes are whole numbers. A fractional size (12.5px) lands on part of a
+ *      device pixel and renders soft; frontend/test/design-tokens.test.ts
+ *      fails the build if one appears in src/.
+ *   2. Prefer a token over a literal. If a size you need is missing, add a
+ *      named step here rather than typing a number into a component.
+ *
+ * Display sizes above the scale (34/36/40) are reserved for the welcome and
+ * billing hero screens and are set inline there on purpose.
  */
 
 export const fontFamily =
@@ -43,6 +53,15 @@ export const type: Record<string, TypeStyle> = {
   bodyCompact: { fontSize: 14, lineHeight: '20px', fontWeight: 400, letterSpacing: 0 },
   // 12/16/600 + 0.05em — uppercase metadata, table headers, pills
   labelCaps: { fontSize: 12, lineHeight: '16px', fontWeight: 600, letterSpacing: 0.05 },
+  // 13/18/400 — the dense step between bodyCompact and labelCaps: table
+  // cells, order-line metadata, list rows. It was already the second most
+  // used size in the app (58 sites) before it was named here; naming it is
+  // what stops it being "an arbitrary number someone typed".
+  bodyDense: { fontSize: 13, lineHeight: '18px', fontWeight: 400, letterSpacing: 0 },
+  // 11/16/600 — micro labels: sidebar badges, chart axes, count pills.
+  labelSmall: { fontSize: 11, lineHeight: '16px', fontWeight: 600, letterSpacing: 0.02 },
+  // 26/32/700 — KPI and dashboard figures, one step above sectionHeading.
+  metricLg: { fontSize: 26, lineHeight: '32px', fontWeight: 700, letterSpacing: -0.01 },
 } as const;
 
 export type TextStyleName = keyof typeof type;

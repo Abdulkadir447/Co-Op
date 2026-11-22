@@ -136,12 +136,18 @@ async def test_send_requires_operational_role(api, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_send_without_any_email_is_400(api, monkeypatch):
+async def test_send_without_an_email_claim_is_refused(api, monkeypatch):
+    """A token with no email claim cannot reach a business endpoint at all.
+
+    The route's own "no recipient" branch is now unreachable in practice (the
+    claim is mandatory, so `user.email` always exists) — it stays as defence in
+    depth, but the contract a client sees is the 403 below.
+    """
     _configure_smtp(monkeypatch)
-    api.set_user("owner-noemail")
-    await _seed_data(api)
+    api.set_user("owner-noemail", email="")
     resp = await api.client.post("/notifications/summary/send", json={})
-    assert resp.status_code == 400
+    assert resp.status_code == 403
+    assert "email" in resp.json()["detail"].lower()
 
 
 @pytest.mark.asyncio

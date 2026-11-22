@@ -113,7 +113,10 @@ async def test_platform_console_opens_via_user_id_without_email(api, monkeypatch
     # The realistic Clerk-default case: the token has a user id but NO email
     # claim. The user id alone must open the console.
     monkeypatch.setenv("COOP_PLATFORM_ADMINS", "user-a")
-    api.set_user("user-a")  # no email
+    # email="" means the token carries NO email claim. The platform console is
+    # keyed on the Clerk user id and is deliberately independent of the tenant
+    # resolver, so it must still open.
+    api.set_user("user-a", email="")
 
     me = await api.client.get("/platform/me")
     assert me.status_code == 200

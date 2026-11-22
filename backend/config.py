@@ -106,6 +106,48 @@ def get(key: str, default: Any = None) -> Any:
 
 
 # Commonly referenced settings exposed as module-level helpers.
+def validate_database_url(url: str) -> str:
+    """Reject the three URLs people actually paste here by mistake.
+
+    A URL that is not a database connection string does not fail cleanly: it
+    reaches SQLAlchemy as a dialect name, and the error is
+
+        Can't load plugin: sqlalchemy.dialects:https
+
+    which names neither the variable nor the fix. The commonest mistake is
+    pasting the Supabase **project URL** (`https://<ref>.supabase.co`) instead
+    of the database connection string beside it in the dashboard. Say so, name
+    the variable, and show the shape that works.
+    """
+    if not url:
+        raise RuntimeError("DATABASE_URL is empty.")
+
+    if url.startswith(("http://", "https://")):
+        ref = url.rstrip("/").rsplit("//", 1)[-1].split(".")[0]
+        raise RuntimeError(
+            f"DATABASE_URL is a web address ({url.split('://')[0]}://...), not a "
+            "database connection string. That value belongs in SUPABASE_URL.\n"
+            "Use the Postgres string from Supabase (Project Settings -> Database "
+            "-> Connection string -> URI), which looks like:\n"
+            f"  postgresql://postgres.{ref}:<password>"
+            "@aws-0-<region>.pooler.supabase.com:5432/postgres"
+        )
+
+    if "://" not in url:
+        raise RuntimeError(
+            f"DATABASE_URL has no scheme ({url[:40]!r}). It must start with "
+            "postgresql:// (or sqlite+aiosqlite:// in the testing environment)."
+        )
+
+    scheme = url.split("://", 1)[0].split("+", 1)[0]
+    if scheme not in {"postgresql", "postgres", "sqlite"}:
+        raise RuntimeError(
+            f"DATABASE_URL uses an unknown scheme {scheme!r}. Expected "
+            "postgresql:// (Supabase) or sqlite+aiosqlite:// (testing only)."
+        )
+    return url
+
+
 def database_url() -> str:
     """Resolve the SQLAlchemy database URL.
 
@@ -116,6 +158,7 @@ def database_url() -> str:
     """
     explicit = secret("DATABASE_URL") or secret("SUPABASE_DB_URL")
     if explicit:
+        explicit = validate_database_url(explicit.strip())
         # Canonical postgres URLs need the async driver scheme for SQLAlchemy.
         if explicit.startswith("postgres://"):
             explicit = "postgresql+asyncpg://" + explicit[len("postgres://"):]

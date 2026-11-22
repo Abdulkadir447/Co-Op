@@ -20,7 +20,10 @@ from __future__ import annotations
 
 from enum import Enum
 
+from .money import Money, Rate, as_money, to_decimal
 from sqlalchemy import (
+    CheckConstraint,
+    Boolean,
     Column,
     DateTime,
     Enum as SAEnum,
@@ -50,22 +53,48 @@ class Business(Base):
     """A tenant. Every record in the system belongs to exactly one business."""
 
     __tablename__ = "businesses"
+    # Money is stored as an integer number of kobo (backend/money.py). The
+    # exponent is therefore fixed at 2, and a currency with a different exponent
+    # (JPY has zero, KWD three) would be silently mis-scaled. This edition is
+    # Naira-only, so the database refuses any other code rather than trusting
+    # every write path to check.
+    __table_args__ = (
+        CheckConstraint("currency = 'NGN'", name="ck_businesses_currency_ngn"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     owner_id = Column(String(255), index=True)        # Clerk user id of the owner
     owner_email = Column(String(255), index=True)     # business contact email (editable)
     industry = Column(String(100))
-    currency = Column(String(8), default="USD")
+    currency = Column(String(8), default="NGN", server_default="NGN")
     # Company profile fields (UXDS 15.6, Task 9) — additive, nullable.
     address = Column(String(500))
     phone = Column(String(20))
-    tax_id = Column(String(100))
+    tax_id = Column(String(100))                      # Tax ID / VAT / EIN
+    # Business registration number (company/LLC number, EIN, CRN, CAC RC/BN).
+    # A tax invoice normally has to show who the supplier legally is: the
+    # Nigeria Tax Act 2025 s.153(d) makes it explicit, and US/EU/UK invoices
+    # carry the equivalent. Nullable because a sole trader may have none and
+    # must still be able to invoice (0023).
+    registration_number = Column(String(60))
     website = Column(String(255))
     timezone = Column(String(64))
     # Public Supabase Storage URL for the business logo (0019). The bytes live
     # in object storage; the database records only which logo is current.
     logo_url = Column(String(1024), nullable=True)
+    # Tax presentation (0021). Tax is *exclusive* by default: an order's
+    # total_amount is the net subtotal and tax is added on top, so existing
+    # revenue reporting stays net-of-tax and correct. `tax_rate` is a
+    # percentage (7.5 = 7.5%), snapshotted onto each order at creation so a
+    # later rate change never rewrites an invoice the customer already holds.
+    tax_enabled = Column(Boolean, default=False, server_default=text("false"), nullable=False)
+    # Percentage, not a fraction: 7.5 means 7.5%. Defaults to zero because
+    # the rate is local law (US state/county sales tax, UK/EU VAT, none at
+    # all for many services) and a wrong pre-filled rate is worse than a
+    # blank one. The owner sets it once in Settings.
+    tax_rate = Column(Rate, default=0, server_default="0", nullable=False)
+    tax_label = Column(String(20), default="Tax", server_default="Tax", nullable=False)
     # Ask Zeno answer style preference (0009): concise | standard | detailed.
     ai_response_style = Column(
         String(20), default="standard", server_default="standard", nullable=False
@@ -77,6 +106,101 @@ class Business(Base):
     deleted_at = Column(DateTime, nullable=True)  # soft delete (BSD Ch1.17 / Ch2.12)
     deleted_by = Column(String(255), nullable=True)   # BSD Ch2.12 soft delete actor
     version = Column(Integer, default=1, nullable=False)  # optimistic lock (BSD Ch1.17 / Ch2.9)
+
+
+# ---------------------------------------------------------------------------
+# Branches — the location dimension (D1)
+# ---------------------------------------------------------------------------
+class Branch(Base):
+    """One physical location of a business.
+
+    Every business has at least one (``MAIN``, auto-provisioned by
+    ``backend.branches.default_branch``) so the single-shop product and a
+    forty-store chain run through identical code. A branch is never deleted
+    when it closes — ``closed_at`` marks it, because its history stays in the
+    ledgers it posted.
+    """
+
+    __tablename__ = "branches"
+    # The code is what humans say out loud ("send it to LEK"), so it is
+    # unique per business among live rows only — a closed branch's code can
+    # be reused by the shop that replaces it.
+    __table_args__ = (
+        Index(
+            "uq_branches_business_code",
+            "business_id",
+            "code",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+            sqlite_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)
+    code = Column(String(20), nullable=False)
+    name = Column(String(255), nullable=False)
+    address = Column(String(500), nullable=True)
+    timezone = Column(String(64), nullable=True)
+    is_default = Column(Boolean, default=False, nullable=False, server_default="0")
+    opened_at = Column(DateTime, nullable=True)
+    closed_at = Column(DateTime, nullable=True)
+    created_by = Column(String(255), nullable=True)
+    updated_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+    version = Column(Integer, default=1, nullable=False)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<Branch id={self.id} code={self.code!r}>"
+
+
+class Device(Base):
+    """One enrolled installation of the desktop app.
+
+    Offline writes are made by a *person at a machine*, and for approvals the
+    server has to be able to say which machine claimed what. A device is
+    therefore a first-class row, not a string in a log line:
+
+      * it is bound to one branch (the shop it sits in) and cannot post for
+        another one;
+      * it carries the public half of a keypair (used from D5 to verify
+        supervisor approvals signed while the WAN was down) — the private key
+        never leaves the machine;
+      * it is revoked, never deleted, because the audit trail references it.
+
+    ``device_key`` is generated by the client (a UUID), so a device can stamp
+    its first offline write before it has ever reached the server.
+    """
+
+    __tablename__ = "devices"
+    __table_args__ = (
+        Index(
+            "uq_devices_business_key",
+            "business_id",
+            "device_key",
+            unique=True,
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False, index=True)
+    device_key = Column(String(64), nullable=False)
+    name = Column(String(255), nullable=False)
+    public_key = Column(String(4000), nullable=True)
+    enrolled_at = Column(DateTime, server_default=func.now())
+    last_seen_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+    created_by = Column(String(255), nullable=True)
+    updated_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    version = Column(Integer, default=1, nullable=False)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<Device id={self.id} key={self.device_key!r}>"
 
 
 class Product(Base):
@@ -104,8 +228,8 @@ class Product(Base):
     name = Column(String(255), nullable=False)
     description = Column(String(1000))
     category = Column(String(100))
-    unit_price = Column(Float, nullable=False)
-    cost_price = Column(Float)
+    unit_price = Column(Money, nullable=False)
+    cost_price = Column(Money)
     current_stock = Column(Integer, default=0)
     reorder_level = Column(Integer, default=5)
     created_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
@@ -205,6 +329,11 @@ class ImportBatch(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     business_id = Column(Integer, index=True, nullable=False)
+    # Nullable: an import can be chain-wide (a central SKU master), so the
+    # batch is not necessarily a branch event.
+    branch_id = Column(
+        Integer, ForeignKey("branches.id"), nullable=True, index=True
+    )
     dataset = Column(String(20), nullable=False)  # products | customers | orders
     filename = Column(String(255))
     row_count = Column(Integer, default=0)
@@ -236,6 +365,13 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     business_id = Column(Integer, index=True)            # tenant isolation
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+
+    # D1: the location dimension. Not nullable — a transactional row with no
+    # branch is a row that cannot be attributed to a shop.
+    branch_id = Column(
+        Integer, ForeignKey("branches.id"), nullable=False, index=True
+    )
+
     order_date = Column(DateTime, server_default=func.now())
     # native_enum=False keeps `status` a VARCHAR so the ORM-created schema
     # matches the Alembic baseline migration on every database (Task 11 / H4).
@@ -244,7 +380,11 @@ class Order(Base):
         default=OrderStatus.pending,
         nullable=False,
     )
-    total_amount = Column(Float, nullable=False, default=0.0)
+    total_amount = Column(Money, nullable=False, default=0)  # NET subtotal (ex-tax)
+    # Tax snapshot (0021). NULL rate = tax was off when this order was raised;
+    # a zero amount keeps grand_total == total_amount for every legacy row.
+    tax_rate = Column(Rate, nullable=True)
+    tax_amount = Column(Money, nullable=False, default=0, server_default="0")
     created_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     updated_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     created_at = Column(DateTime, server_default=func.now())
@@ -265,9 +405,73 @@ class Order(Base):
         back_populates="order",
         cascade="all, delete-orphan",
     )
+    # Money received from the customer against this order (0020). Eagerly
+    # loaded with ``selectin`` so every place that already loads an Order can
+    # compute paid/balance without an extra query or a lazy-load in async
+    # context (which would raise MissingGreenlet).
+    payments = relationship(
+        "OrderPayment",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="OrderPayment.id",
+    )
+
+    @property
+    def grand_total(self):
+        """What the customer actually owes: net subtotal + tax.
+
+        Both addends are already exact and already rounded (int->kobo at the
+        column boundary), so this addition introduces no rounding of its own.
+        The old version converted both to float and rounded again — a second
+        rounding of an already-rounded value, which is how a total ends up one
+        kobo away from the sum of its own lines.
+        """
+        return as_money(to_decimal(self.total_amount) + to_decimal(self.tax_amount))
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Order id={self.id} status={self.status.value!r}>"
+
+
+class OrderPayment(Base):
+    """One payment received from a customer against an order (0020).
+
+    Before this table Co-op could create, deliver and invoice an order and
+    never record that the customer actually paid — so "who owes me money?"
+    was unanswerable. Order *totals* stay the single source of truth for what
+    was charged (``orders.total_amount``); payments are a separate ledger of
+    what came in, which is why partial payments and overpayment detection are
+    possible without ever mutating the order.
+
+    Rows are append-only by convention: a correction is a delete (owner/
+    manager, audited) rather than an edit, so the ledger never silently
+    rewrites history.
+    """
+
+    __tablename__ = "order_payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)   # tenant isolation
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+
+    # D1: the location dimension. Not nullable — a transactional row with no
+    # branch is a row that cannot be attributed to a shop.
+    branch_id = Column(
+        Integer, ForeignKey("branches.id"), nullable=False, index=True
+    )
+
+    amount = Column(Money, nullable=False)
+    method = Column(String(20), nullable=False, default="cash", server_default="cash")
+    reference = Column(String(120), nullable=True)   # transfer ref / receipt no.
+    note = Column(String(500), nullable=True)
+    received_at = Column(DateTime, server_default=func.now(), nullable=False)
+    created_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    order = relationship("Order", back_populates="payments")
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<OrderPayment id={self.id} order={self.order_id} amount={self.amount}>"
 
 
 class OrderItem(Base):
@@ -279,9 +483,16 @@ class OrderItem(Base):
     business_id = Column(Integer, index=True)            # tenant isolation
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+
+    # D1: the location dimension. Not nullable — a transactional row with no
+    # branch is a row that cannot be attributed to a shop.
+    branch_id = Column(
+        Integer, ForeignKey("branches.id"), nullable=False, index=True
+    )
+
     quantity = Column(Integer, nullable=False)
-    unit_price = Column(Float, nullable=False)  # price at the moment of ordering
-    total_price = Column(Float, nullable=False)
+    unit_price = Column(Money, nullable=False)  # price at the moment of ordering
+    total_price = Column(Money, nullable=False)
     created_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     updated_by = Column(String(255), nullable=True)   # BSD Ch2.7 universal structure
     created_at = Column(DateTime, server_default=func.now())
@@ -329,6 +540,13 @@ class StockMovement(Base):
     id = Column(Integer, primary_key=True, index=True)
     business_id = Column(Integer, index=True, nullable=False)   # tenant isolation
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+
+    # D1: the location dimension. Not nullable — a transactional row with no
+    # branch is a row that cannot be attributed to a shop.
+    branch_id = Column(
+        Integer, ForeignKey("branches.id"), nullable=False, index=True
+    )
+
     change = Column(Integer, nullable=False)                    # signed quantity delta
     # VARCHAR, not a native Postgres enum, for parity with the Alembic
     # baseline (Task 11 / H4).
@@ -404,6 +622,57 @@ class AiHistory(Base):
     model = Column(String(64))
     credits_used = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class ZenoLesson(Base):
+    """One thing Zeno must not get wrong twice (AI learning ledger, 0022).
+
+    Two kinds, deliberately stored together because they share the same
+    lifecycle and the same trust rule — *only ``status="active"`` rows reach
+    the prompt*:
+
+    ``kind="mistake"``
+        Something Zeno did that was wrong. Carries a 1-5 severity and, where
+        Co-op can measure it, the money it cost (``cost_amount``) — the ledger
+        is the ground truth, so severity is graded by real consequence rather
+        than by a thumbs-down.
+
+    ``kind="preference"``
+        Something the OWNER asked for more than once. ``repeat_count`` counts
+        the asks; at 2 it becomes ``status="candidate"`` — a proposal, shown to
+        the owner, never silently obeyed. Only the owner moves it to
+        ``"active"``.
+
+    ``fingerprint`` (business_id + a hash of kind/scope/statement) is unique so
+    a repeated mistake bumps ``repeat_count`` instead of duplicating a row: the
+    ledger stays small enough to fit in a prompt.
+
+    Why the tiering matters: a wrong answer costs a sentence, a wrong *rule*
+    costs money. Nothing here can mutate business data, and nothing becomes
+    behavioural without the owner seeing it.
+    """
+
+    __tablename__ = "zeno_lessons"
+    __table_args__ = (
+        UniqueConstraint("business_id", "fingerprint", name="uq_zeno_lessons_business_fingerprint"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, index=True, nullable=False)
+    kind = Column(String(16), nullable=False, default="mistake")  # mistake | preference
+    scope = Column(String(40), nullable=False, default="general")
+    statement = Column(Text, nullable=False)  # owner-readable "do not ..."
+    severity = Column(Integer, nullable=False, default=3)  # 1 trivial .. 5 money/stock
+    cost_amount = Column(Money)  # measured/estimated money lost, business currency
+    cost_basis = Column(String(12), default="estimated")  # measured | estimated
+    blast_radius = Column(Integer, default=0)  # rows/customers affected
+    repeat_count = Column(Integer, nullable=False, default=1)
+    status = Column(String(12), nullable=False, default="active")  # active | candidate | dismissed
+    source = Column(String(12), nullable=False, default="owner")  # owner | detected | repeated
+    fingerprint = Column(String(40), nullable=False)
+    evidence_ref = Column(String(80))  # e.g. "order:412", "action:DRAFT_ORDER"
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class Subscription(Base):
@@ -512,6 +781,13 @@ class Invoice(Base):
     id = Column(Integer, primary_key=True, index=True)
     business_id = Column(Integer, index=True, nullable=False)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+
+    # D1: the location dimension. Not nullable — a transactional row with no
+    # branch is a row that cannot be attributed to a shop.
+    branch_id = Column(
+        Integer, ForeignKey("branches.id"), nullable=False, index=True
+    )
+
     number = Column(String(20), nullable=False)
     issue_date = Column(DateTime, nullable=False)
     due_date = Column(DateTime, nullable=True)
@@ -587,6 +863,15 @@ class AuditLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     business_id = Column(Integer, index=True)          # tenant scoping (0008)
+    # Nullable: membership, billing and licence events are chain-level and
+    # genuinely belong to no branch.
+    branch_id = Column(
+        Integer, ForeignKey("branches.id"), nullable=True, index=True
+    )
+    # Which enrolled machine made the change. Together with ``actor`` this is
+    # the (device, staff) pair an offline write is attributed to — neither
+    # alone identifies who did what where.
+    device_id = Column(Integer, ForeignKey("devices.id"), nullable=True, index=True)
     table_name = Column(String(50), nullable=False)
     record_id = Column(Integer, nullable=True)
     action = Column(String(20), nullable=False)        # INSERT | UPDATE | DELETE
@@ -607,7 +892,15 @@ class AnalyticsSnapshot(Base):
     business_id = Column(Integer, index=True)
     snapshot_date = Column(DateTime, server_default=func.now())
     metric_key = Column(String(50), nullable=False)
+    # Cached, derived, and never the source of a figure the owner is shown as
+    # fact — which is why this one column stays a float while every ledger
+    # column is exact.
     metric_value = Column(Float)
+    # …but a bare number with no unit is not a measurement. 'money' values are
+    # naira (display only, recomputed from the ledger on every read); 'count'
+    # and 'ratio' carry no currency at all. Money columns are integer kobo;
+    # this cache is the one place a float is allowed, and the unit says so.
+    metric_unit = Column(String(16), nullable=True)  # money | count | ratio
     dimensions_json = Column(Text)
 
 

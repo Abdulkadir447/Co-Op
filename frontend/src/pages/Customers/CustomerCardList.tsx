@@ -71,7 +71,7 @@ const CustomerCardList: React.FC<CustomerCardListProps> = ({ customers, stats, s
 
             {/* Hairline + total spent */}
             <div style={{ borderTop: `1px solid ${colors.borderSubtle}`, marginTop: 12, paddingTop: 12 }}>
-              <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline }}>Total Spent</div>
+              <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>Total Spent</div>
               <div style={{ ...type.titleMd, fontSize: 18, color: colors.onSurface, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
                 {statsLoading ? '…' : formatCurrency(s?.total ?? 0)}
               </div>

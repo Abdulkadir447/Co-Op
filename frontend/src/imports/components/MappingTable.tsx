@@ -54,7 +54,7 @@ const MappingTable: React.FC<MappingTableProps> = ({
         <strong style={{ color: colors.onSurface }}>{matched}</strong> of {suggestions.length} columns
         matched
         {needsReview > 0 ? (
-          <> — <strong style={{ color: colors.warning }}>{needsReview} need your review</strong></>
+          <> — <strong style={{ color: colors.warningText }}>{needsReview} need your review</strong></>
         ) : (
           ' ✓'
         )}
@@ -122,7 +122,7 @@ const MappingTable: React.FC<MappingTableProps> = ({
                 {unmapped ? 'Needs review' : s.label}
               </CoopBadge>
               {s.hints[0] && (
-                <span style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, width: '100%', marginLeft: 44 }}>
+                <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, width: '100%', marginLeft: 44 }}>
                   {s.hints[0]}
                 </span>
               )}

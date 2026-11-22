@@ -97,9 +97,9 @@ const PlanCard: React.FC<{
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 10 }}>
         <span style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-0.02em', color: colors.onSurface }}>{price.amount}</span>
-        {plan.priceMonthly != null && <span style={{ ...type.bodyCompact, color: colors.outline }}>/mo</span>}
+        {plan.priceMonthly != null && <span style={{ ...type.bodyCompact, color: colors.onSurfaceMuted }}>/mo</span>}
       </div>
-      <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline, marginTop: 4 }}>{price.note}</div>
+      <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 4 }}>{price.note}</div>
 
       <div style={{ marginTop: 16, marginBottom: 18 }}>
         {plan.priceMonthly == null ? (
@@ -148,7 +148,7 @@ const PlanCard: React.FC<{
                   background: 'transparent',
                   color: colors.outline,
                   ...type.bodyCompact,
-                  fontSize: 12.5,
+                  fontSize: 12,
                   cursor: processing ? 'default' : 'pointer',
                 }}
               >
@@ -180,7 +180,7 @@ const PlanCard: React.FC<{
                 background: 'transparent',
                 color: colors.outline,
                 ...type.bodyCompact,
-                fontSize: 12.5,
+                fontSize: 12,
                 cursor: processing ? 'default' : 'pointer',
               }}
             >
@@ -198,18 +198,18 @@ const PlanCard: React.FC<{
           </CoopButton>
         )}
         {onTrial && !onCheckout && (
-          <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, marginTop: 8, textAlign: 'center' }}>
+          <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 8, textAlign: 'center' }}>
             No card required · cancel anytime
           </div>
         )}
         {onCheckout && (
-          <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, marginTop: 8, textAlign: 'center' }}>
+          <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 8, textAlign: 'center' }}>
             {`Secure checkout by Paystack · billed in ${currency}`}
           </div>
         )}
       </div>
 
-      <div style={{ ...type.labelCaps, color: colors.outline, textTransform: 'uppercase', marginBottom: 10 }}>
+      <div style={{ ...type.labelCaps, color: colors.onSurfaceMuted, textTransform: 'uppercase', marginBottom: 10 }}>
         {plan.includesLabel}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -345,7 +345,7 @@ const ResultPanel: React.FC<{
           justifyContent: 'center',
           fontSize: 40,
           background: ok ? tint(colors.success, 0.2) : colors.errorContainer,
-          color: ok ? colors.success : colors.error,
+          color: ok ? colors.successText : colors.errorText,
           marginBottom: 24,
         }}
       >

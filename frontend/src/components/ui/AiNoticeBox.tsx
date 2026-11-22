@@ -83,7 +83,7 @@ const AiNoticeBox: React.FC<AiNoticeBoxProps> = ({
           <SparkleIcon size={17} />
         </span>
         <div style={{ minWidth: 0 }}>
-          <div style={{ ...type.titleMd, fontSize: 14.5, color: colors.onSurface, marginBottom: 3 }}>
+          <div style={{ ...type.titleMd, fontSize: 15, color: colors.onSurface, marginBottom: 3 }}>
             {title}
           </div>
           <div style={{ ...type.bodyCompact, fontSize: 13, color: colors.onSurfaceVariant }}>

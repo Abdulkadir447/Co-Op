@@ -39,6 +39,7 @@ import {
 } from '../../components/ui';
 import ProductCardList from '../../components/ui/ProductCardList';
 import PageHeader from '../../components/layout/PageHeader';
+import { describeError } from '../../lib/describeError';
 
 const ProductsPage: React.FC = () => {
   const { colors, isDark } = useCoopTheme();
@@ -92,7 +93,7 @@ const ProductsPage: React.FC = () => {
       setModalOpen(false);
       reload();
     } catch (e) {
-      messageApi.error(e instanceof Error ? e.message : 'Request failed');
+      messageApi.error(describeError(e, editing ? 'update' : 'create', 'product'));
     }
   };
 
@@ -105,7 +106,7 @@ const ProductsPage: React.FC = () => {
       setDeleting(null);
       reload();
     } catch (e) {
-      messageApi.error(e instanceof Error ? e.message : 'Delete failed');
+      messageApi.error(describeError(e, 'delete', 'product'));
     } finally {
       setDeleteBusy(false);
     }
@@ -191,13 +192,13 @@ const ProductsPage: React.FC = () => {
       render: (_: unknown, p) => {
         const status = stockStatusOf(p.current_stock, p.reorder_level);
         const countColor =
-          status === 'out' ? colors.error : status === 'low' ? colors.warning : isDark ? colors.primaryContainer : colors.primary;
+          status === 'out' ? colors.errorText : status === 'low' ? colors.warningText : isDark ? colors.primaryContainer : colors.primary;
         return (
           <div>
             <div style={{ fontWeight: 700, color: countColor, fontVariantNumeric: 'tabular-nums' }}>
               {p.current_stock}
             </div>
-            <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, marginTop: 2 }}>
+            <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 2 }}>
               Reorder: {p.reorder_level}
             </div>
           </div>
@@ -492,7 +493,7 @@ const ProductsPage: React.FC = () => {
                 padding: '12px 14px',
               }}
             >
-              <div style={{ ...type.labelCaps, color: colors.outline, marginBottom: 4 }}>
+              <div style={{ ...type.labelCaps, color: colors.onSurfaceMuted, marginBottom: 4 }}>
                 Product Details
               </div>
               <div style={{ ...type.bodyCompact, fontWeight: 600, color: colors.onSurface }}>

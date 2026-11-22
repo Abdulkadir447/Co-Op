@@ -26,6 +26,8 @@ from sqlalchemy import text
 # Tenant-scoped tables (every one carries a NOT NULL ``business_id``).
 # Kept in sync with backend/models.py; migration 0014 iterates this list.
 TENANT_TABLES = (
+    "branches",
+    "devices",
     "products",
     "customers",
     "import_batches",
@@ -44,6 +46,8 @@ TENANT_TABLES = (
     "business_invitations",
     "payments",
     "issue_reports",
+    "order_payments",
+    "zeno_lessons",
 )
 
 GUC = "app.business_id"

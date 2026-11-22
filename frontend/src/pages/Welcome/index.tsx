@@ -93,7 +93,7 @@ const WelcomePage: React.FC = () => {
         >
           Let&rsquo;s get your business ready.
         </p>
-        <p style={{ margin: '14px 0 0', ...type.bodyCompact, color: colors.outline, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>
+        <p style={{ margin: '14px 0 0', ...type.bodyCompact, color: colors.onSurfaceMuted, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>
           Have data from another system? Co-op imports it, organizes it, and tells you
           what matters \u2014 in one go.
         </p>
@@ -103,7 +103,7 @@ const WelcomePage: React.FC = () => {
           <CoopButton size="lg" icon={<ImportOutlined />} onClick={() => navigate('/import')}>
             Import my business data
           </CoopButton>
-          <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.outline }}>or</div>
+          <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>or</div>
           <CoopButton size="lg" variant="secondary" icon={<RocketOutlined />} onClick={startFromScratch}>
             Start from scratch
           </CoopButton>
@@ -140,14 +140,14 @@ const WelcomePage: React.FC = () => {
                 </span>
                 <span style={{ ...type.titleMd, fontSize: 14, color: colors.onSurface }}>{p.title}</span>
               </div>
-              <div style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant, lineHeight: '19px' }}>
+              <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant, lineHeight: '19px' }}>
                 {p.body}
               </div>
             </CoopCard>
           ))}
         </div>
 
-        <div style={{ marginTop: spacing.lg, ...type.bodyCompact, fontSize: 12, color: colors.outline }}>
+        <div style={{ marginTop: spacing.lg, ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>
           Nothing is written until you review the mapping \u2014 and every import keeps its provenance.
         </div>
       </div>

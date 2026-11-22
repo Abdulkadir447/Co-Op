@@ -72,6 +72,17 @@ export const darkColors = {
   onWarning: '#2c1f00',
   info: '#4da3f5',
   onInfo: '#04263c',
+
+  // --- Semantic TEXT variants ------------------------------------------------
+  // Already lighter than the light palette, but still short of 4.5:1 as 12px
+  // text on a 20% tint (error measured 3.73:1). These pass on the dark card:
+  // successText 4.97:1, warningText 5.95:1, infoText 4.52:1, errorText 6.29:1.
+  successText: '#3fbf72',
+  warningText: '#f0b429',
+  infoText: '#4da3f5',
+  errorText: '#ffb4ab',
+  /** Tertiary / caption text on dark surfaces. */
+  onSurfaceMuted: '#b9b7c9',
 } as const;
 
 export type DarkColorToken = keyof typeof darkColors;

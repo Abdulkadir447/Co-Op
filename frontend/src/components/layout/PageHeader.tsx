@@ -59,19 +59,24 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, actions, onBac
             <ArrowLeftOutlined />
           </button>
         )}
-        <h1
-          style={{
-            margin: 0,
-            ...type.pageTitle,
-            color: colors.onBackground,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          {title}
-        </h1>
-        {subtitle && (
-          <p style={{ margin: '6px 0 0', ...type.bodyCompact, color: colors.onSurfaceVariant }}>{subtitle}</p>
-        )}
+        {/* Title over subtitle. They used to be sibling flex items in a
+            `flex-direction: row` container, which put the subtitle beside the
+            title on every page instead of under it. */}
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <h1
+            style={{
+              margin: 0,
+              ...type.pageTitle,
+              color: colors.onBackground,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {title}
+          </h1>
+          {subtitle && (
+            <p style={{ margin: '6px 0 0', ...type.bodyCompact, color: colors.onSurfaceVariant }}>{subtitle}</p>
+          )}
+        </div>
       </div>
       {actions && <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>{actions}</div>}
     </div>

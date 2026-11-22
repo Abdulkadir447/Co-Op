@@ -11,10 +11,12 @@ Authentication model (this phase):
     to that tenant via ``business_id`` (BSD Ch1.8 multi-tenant isolation).
 """
 
+import logging
 import os
+import sys
 import secrets
 from contextlib import asynccontextmanager
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, EmailStr, Field
@@ -33,7 +35,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import case, func, or_, select, text
+from sqlalchemy import case, func, or_, select
 from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,9 +50,14 @@ from . import storage as storage_mod
 from .ai import service as ai_service
 from .ai import forecast as ai_forecast_mod
 from .ai import history as ai_history_mod
+from .ai import lessons as zeno_lessons
 from .ai import prompts as ai_prompts_mod
 from .ai.ratelimit import SlidingWindowRateLimiter, enforce_ai_rate_limit
-from .ratelimits import enforce_export_rate_limit, enforce_import_rate_limit
+from .ratelimits import (
+    enforce_export_rate_limit,
+    enforce_import_rate_limit,
+    enforce_write_rate_limit,
+)
 from .exports import export_report, ExportError
 from .notifications import build_daily_summary
 from .notifications import delivery as delivery_mod
@@ -64,17 +71,23 @@ from . import platform_admin
 from . import team as team_mod
 from .database import dispose_db, get_db, init_db
 from .models import (
+    Branch,
     Business,
+    Device,
     BusinessInvitation,
     BusinessMember,
     Customer,
+    Invoice,
     License,
     Order,
     OrderItem,
+    OrderStatus,
     Product,
     StockMovement,
     StockMovementReason,
 )
+from . import branches as branches_mod
+from . import money as money_mod
 from . import timezones as tz_mod
 from .schemas import (
     ALLOWED_CURRENCIES,
@@ -82,6 +95,8 @@ from .schemas import (
     AdjustStockRequest,
     AuditEntryOut,
     AuthMeResponse,
+    BranchCreate,
+    BranchOut,
     BusinessSettingsOut,
     BusinessSettingsUpdate,
     CategoryValue,
@@ -90,6 +105,8 @@ from .schemas import (
     CustomerOut,
     CustomerUpdate,
     DashboardSummary,
+    DeviceEnrol,
+    DeviceOut,
     FeedbackOut,
     FeedbackStatusOut,
     FeedbackSubmitIn,
@@ -101,6 +118,9 @@ from .schemas import (
     OrderCreate,
     OrderListResponse,
     OrderOut,
+    OrderPaymentCreate,
+    OrderPaymentsResponse,
+    ReceivablesResponse,
     OrderUpdate,
     ProductCreate,
     ProductListResponse,
@@ -127,18 +147,76 @@ async def lifespan(_app: FastAPI):
     # Fail fast in production when Clerk is not configured (Task 11 / audit
     # H5): get_frontend_api raises unless CLERK_FRONTEND_API is set there.
     get_frontend_api()
+    # The auth bypass must be a BOOT failure, not a first-request failure: a
+    # server that only refuses the seam when somebody logs in is a server that
+    # looks healthy while it cannot be used, and the message arrives too late.
+    if os.getenv("COOP_TEST_AUTH_USER") and get_env() == "production":
+        raise RuntimeError(
+            "COOP_TEST_AUTH_USER is set in production — refusing to start. "
+            "Unset it: it authenticates every request as one fixed user."
+        )
     # Additive dev bootstrap: CREATE TABLE IF NOT EXISTS via the ORM. Alembic
     # migrations (backend/alembic) are the real migration path; this never
     # alters existing tables.
     await init_db()
+    # Say out loud whether the database matches this code. Every endpoint
+    # depends on it, so a mismatch is not a detail to discover one 500 at a
+    # time — it is the first thing the operator should read. Never fatal:
+    # /healthcheck and /docs still answer, which is how you diagnose it.
+    from .diagnostics import database_report
+
+    _report = await database_report()
+    _log = logging.getLogger("coop")
+    _where = f"{_report['dialect']} {_report['database']}"
+    if not _report["reachable"]:
+        _log.error(
+            "DATABASE PROBLEM (%s): %s (%s)",
+            _where, _report["summary"], _report.get("detail_for_log", "no detail"),
+        )
+    elif _report["cause"] == "schema_behind":
+        # Name the database and print the fix that is correct for ITS dialect:
+        # a testing SQLite file and Supabase need different answers, and the
+        # wrong one costs an hour. See diagnostics.fix_for.
+        _log.error(
+            "DATABASE SCHEMA IS BEHIND THIS CODE (%s): %s\n"
+            "  missing tables : %s\n"
+            "  missing columns: %s\n"
+            "  FIX: %s",
+            _where,
+            _report["summary"],
+            ", ".join(_report["missing_tables"]) or "none",
+            "; ".join(f"{t}: {', '.join(cols)}" for t, cols in _report["missing_columns"].items())
+            or "none",
+            _report["fix"],
+        )
+    else:
+        _log.info("Database ready (%s): %s", _where, _report["summary"])
+
+    # Time zones are the other thing that differs by machine, not by code:
+    # Windows ships no IANA database, so one missing wheel turns every
+    # business-local report into a 500. Say it at boot, in one line, instead of
+    # letting the dashboard fail and the cause stay invisible.
+    from .timezones import has_tz_database
+
+    if not has_tz_database():
+        _log.warning(
+            "TIME ZONES: no IANA database on this machine — business-local "
+            "days fall back to UTC. FIX: pip install tzdata (it is in "
+            "backend/requirements.txt), then restart."
+        )
     yield
     await dispose_db()
 
 
+# The generated docs are a complete map of the API and are unauthenticated.
+# Useful while developing, free reconnaissance in production.
+_DOCS_ENABLED = get_env() != "production"
+
 app = FastAPI(
     title="Co-op",
-    openapi_url="/docs/openapi.json",
-    docs_url="/docs",
+    openapi_url="/docs/openapi.json" if _DOCS_ENABLED else None,
+    docs_url="/docs" if _DOCS_ENABLED else None,
+    redoc_url=None,
     lifespan=lifespan,
 )
 
@@ -189,7 +267,19 @@ async def security_headers(request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
-    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
+    response.headers.setdefault(
+        "Permissions-Policy", "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+    )
+    response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+    response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+    # Every API response is per-tenant. Authenticated JSON must never be
+    # stored by a shared cache or replayed from the bfcache to the next user
+    # of the same machine — the same reason the nginx tier sets no-store on
+    # /api/. Set unconditionally: there is no cacheable API response here.
+    response.headers.setdefault(
+        "Cache-Control", "no-store, no-cache, must-revalidate, private"
+    )
     # The API is never rendered as a page; a strict CSP is safe here and
     # stops any accidental HTML/JS from executing if an error page leaks.
     response.headers.setdefault(
@@ -209,22 +299,92 @@ async def _unhandled_error_handler(request, exc):
     """Never let a traceback or an internal detail reach a client (149).
 
     HTTPException keeps its own (already-sanitised) detail; anything else is
-    a bug, and the client gets a generic 500 while the real error goes to the
-    server log.
+    a bug, and the real error goes to the server log.
+
+    Database errors are the one exception to "generic 500": a schema older
+    than the code, or a DATABASE_URL that points somewhere unreachable, breaks
+    *every* endpoint at once. That happened — the whole app answered "Internal
+    server error" on every request, with no hint that the fix was
+    `alembic upgrade head`. Those two causes now answer 503 with a sentence a
+    shop owner can read; the diagnosis goes to the log and /healthcheck.
     """
-    import logging
     import traceback
 
+    from . import diagnostics
     from .redact import scrub_text
 
     logging.getLogger("coop").error(
         "Unhandled error on %s %s\n%s",
         request.method, request.url.path, scrub_text(traceback.format_exc()),
     )
+
+    if diagnostics.is_database_error(exc):
+        cause = diagnostics.classify_error(exc)
+        # The cause goes to the log (already written above); the client gets a
+        # sentence with no host, schema or stack detail in it.
+        logging.getLogger("coop").error("Database problem (%s): %s", cause,
+                                        diagnostics.explain(cause))
+        return JSONResponse(
+            status_code=503,
+            content={"detail": diagnostics.user_message(cause)},
+        )
+
+    # In development the client gets the exception's CLASS NAME — and only the
+    # class name. Three rounds of "500 Internal Server Error" with nothing else
+    # is how a missing time zone database stayed invisible; "ZoneInfoNotFound"
+    # would have said it in one word. The message is deliberately excluded: a
+    # SQLAlchemy error routinely embeds the DSN, which on this machine is the
+    # real Supabase password, and that text lands in screenshots and bug
+    # reports. A type name cannot carry a secret. The traceback stays in the
+    # log, and production keeps the plain sentence.
+    if _DOCS_ENABLED:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": (
+                    f"Internal server error ({type(exc).__name__}). "
+                    "The traceback is in the API terminal; `pnpm doctor` checks "
+                    "the common causes."
+                )
+            },
+        )
+
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error."},
     )
+
+
+# When this process started and from which commit. `/version` is public and
+# carries nothing a stranger can use, but it answers the question that costs an
+# hour every time: *is the server I am talking to running the code I just
+# pulled?* A stale API process and a fixed bug look identical from the browser.
+APP_STARTED_AT = datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _running_commit() -> str:
+    """The checked-out commit, or "unknown" outside a git checkout.
+
+    Read once at import: spawning git per request would be a small fork bomb.
+    COOP_COMMIT overrides it for containers that ship without `.git`.
+    """
+    override = os.getenv("COOP_COMMIT")
+    if override:
+        return override.strip()[:40]
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            capture_output=True, text=True, timeout=2, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):  # pragma: no cover - defensive
+        return "unknown"
+    return out.stdout.strip() if out.returncode == 0 else "unknown"
+
+
+RUNNING_COMMIT = _running_commit()
 
 # Order statuses that count toward revenue/profit (not pending/cancelled).
 _ACTIVE_STATUSES = ["shipped", "delivered"]
@@ -270,6 +430,23 @@ async def get_current_business(
     request.state and every mutation is checked against the role matrix
     here — the single choke point all business endpoints pass through.
     """
+    # The email claim is not optional. Clerk's DEFAULT session token omits it,
+    # and every identity decision below degrades silently without it: a
+    # pending invitation is not seen (so the invitee is given a second, empty
+    # business) and an invitation cannot be bound to the person accepting it.
+    # Refusing here turns a silent mis-provisioning into a visible, fixable
+    # error (Clerk dashboard -> Sessions -> Customize session token -> add
+    # `email`).
+    if not user.email:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Your session token has no email claim. Add `email` to the "
+                "session token in Clerk (Sessions -> Customize session token), "
+                "then sign out and back in."
+            ),
+        )
+
     stmt = select(Business).where(
         Business.owner_id == user.user_id,
         Business.deleted_at.is_(None),
@@ -302,26 +479,25 @@ async def get_current_business(
                 )
             role = member.role
         else:
-            if user.email:
-                pending = (
-                    await db.execute(
-                        select(BusinessInvitation)
-                        .where(
-                            BusinessInvitation.email == user.email.lower(),
-                            BusinessInvitation.status == "pending",
-                        )
-                        .limit(1)
+            pending = (
+                await db.execute(
+                    select(BusinessInvitation)
+                    .where(
+                        BusinessInvitation.email == user.email.lower(),
+                        BusinessInvitation.status == "pending",
                     )
-                ).scalars().first()
-                if pending is not None:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail="You have a pending team invitation — accept it first",
-                    )
+                    .limit(1)
+                )
+            ).scalars().first()
+            if pending is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="You have a pending team invitation — accept it first",
+                )
             business = Business(
                 name="My Business",
                 owner_id=user.user_id,
-                currency="USD",
+                currency=money_mod.CURRENCY,
                 created_by=user.user_id,
             )
             db.add(business)
@@ -329,7 +505,33 @@ async def get_current_business(
 
     request.state.team_role = role
     request.state.is_owner = role == "owner"
+    # The person behind the request. Sync attribution needs it: an offline
+    # write was made by this staff member at a named device.
+    request.state.user_id = user.user_id
     team_mod.assert_can_write(role, request.method, request.url.path)
+
+    # D1: the location dimension. Resolved here, once, for the same reason the
+    # tenant and the role are — so no route has to remember to ask, and a
+    # branch id from another tenant cannot be smuggled in through a query
+    # parameter. Every business gets a MAIN branch, so this never returns None.
+    raw_branch = request.headers.get("x-branch-id")
+    requested_branch: Optional[int] = None
+    if raw_branch:
+        try:
+            requested_branch = int(raw_branch)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="X-Branch-Id must be an integer",
+            )
+    try:
+        branch = await branches_mod.resolve_branch(db, business.id, requested_branch)
+    except branches_mod.BranchNotInTenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Branch not found",
+        )
+    request.state.branch_id = branch.id
 
     # Database-side tenant backstop (Supabase RLS): carry the tenant in the
     # app.business_id GUC for this transaction. No-op on SQLite; the owner
@@ -353,12 +555,33 @@ def _scoped(model):
 async def healthcheck(db: AsyncSession = Depends(get_db)) -> dict:
     """Liveness + database readiness (Task 12 polish).
 
-    Returns 200 when the API and its database are reachable, 503 otherwise.
+    200 only when the API *and* its database are usable: reachable, and with a
+    schema that matches the running code. The old version ran `SELECT 1`,
+    which passes against an empty or outdated database — so it reported
+    "healthy" while every real endpoint returned 500. It now asks the same
+    question a request asks, on the same connection.
+
+    This endpoint is public by design (the platform and CI poll it), so the
+    body carries a status and a cause code — never a host, a table name, a
+    migration name or a stack. `cause` is what makes it useful from a browser:
+    "unreachable" and "schema_behind" have different fixes, and the operator
+    detail for both is in the server log and scripts/check_db.py.
     """
-    try:
-        await db.execute(text("SELECT 1"))
-    except Exception:
-        raise HTTPException(status_code=503, detail="database unavailable")
+    from .diagnostics import database_report, user_message
+
+    report = await database_report(session=db)
+    if not report["reachable"]:
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "down", "database": "unreachable",
+                    "message": user_message("unreachable")},
+        )
+    if report["cause"] == "schema_behind":
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "down", "database": "schema_behind",
+                    "message": user_message("schema_behind")},
+        )
     return {"status": "healthy", "database": "up"}
 
 
@@ -367,9 +590,237 @@ async def read_root() -> dict:
     return {"message": "Welcome to Co-op API"}
 
 
+@app.get("/version", tags=["Health"])
+async def version() -> dict:
+    """What this process is: commit, start time, and machine capabilities.
+
+    Deliberately boring and deliberately public (see tests/test_public_surface).
+    `commit` is how you tell a stale `uvicorn` apart from an unfixed bug;
+    `tz_database` is how you tell a Windows box from a Linux one without
+    reading a stack trace.
+    """
+    from .timezones import has_tz_database
+
+    return {
+        "commit": RUNNING_COMMIT,
+        "started_at": APP_STARTED_AT.isoformat() + "Z",
+        "env": get_env(),
+        "tz_database": has_tz_database(),
+        "python": sys.version.split()[0],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Authentication info
 # ---------------------------------------------------------------------------
+
+async def get_current_branch(request: Request) -> int:
+    """The branch id resolved by ``get_current_business``.
+
+    Declared as a dependency so a route's signature says out loud that it
+    writes branch-scoped rows — a route that only reads the tenant does not
+    need it, and one that creates a sale cannot forget it.
+    """
+    branch_id = getattr(request.state, "branch_id", None)
+    if branch_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Branch context missing (endpoint did not depend on the tenant)",
+        )
+    return branch_id
+
+
+@app.get("/branches", response_model=List[BranchOut], tags=["Branches"])
+async def list_branches(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> List[BranchOut]:
+    """The business's live branches. Every tenant has at least one (MAIN)."""
+    rows = (
+        await db.execute(
+            select(Branch)
+            .where(Branch.business_id == business.id, Branch.deleted_at.is_(None))
+            .order_by(Branch.is_default.desc(), Branch.id)
+        )
+    ).scalars().all()
+    return [BranchOut.model_validate(r) for r in rows]
+
+
+@app.post(
+    "/branches",
+    response_model=BranchOut,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Branches"],
+)
+async def create_branch(
+    payload: BranchCreate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
+) -> BranchOut:
+    """Add a location.
+
+    Owner-only: a branch is the dimension every ledger row hangs off, so it is
+    an organisational decision, not shop-floor operation.
+    """
+    exists = (
+        await db.execute(
+            select(Branch).where(
+                Branch.business_id == business.id,
+                Branch.code == payload.code.strip().upper(),
+                Branch.deleted_at.is_(None),
+            )
+        )
+    ).scalars().first()
+    if exists is not None:
+        raise HTTPException(status_code=409, detail="That branch code is already in use")
+
+    row = Branch(
+        business_id=business.id,
+        code=payload.code.strip().upper(),
+        name=payload.name,
+        address=payload.address,
+        timezone=payload.timezone,
+        is_default=False,
+        created_by=business.owner_id,
+    )
+    db.add(row)
+    await db.flush()
+    await audit_mod.record_audit(
+        db, business.id, "branches", row.id, "create",
+        change={"code": row.code, "name": row.name}, actor=business.owner_id,
+    )
+    return BranchOut.model_validate(row)
+
+
+def _device_out(row: Device) -> DeviceOut:
+    out = DeviceOut.model_validate(row)
+    out.has_public_key = bool(row.public_key)
+    return out
+
+
+@app.get("/devices", response_model=List[DeviceOut], tags=["Devices"])
+async def list_devices(
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> List[DeviceOut]:
+    """Machines enrolled to post offline writes for this business.
+
+    Revoked devices are included: a revoked till is history, and a shop needs
+    to see which machine a disputed sale came from.
+    """
+    rows = (
+        await db.execute(
+            select(Device)
+            .where(Device.business_id == business.id)
+            .order_by(Device.revoked_at.isnot(None), Device.id)
+        )
+    ).scalars().all()
+    return [_device_out(r) for r in rows]
+
+
+@app.post(
+    "/devices",
+    response_model=DeviceOut,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Devices"],
+)
+async def enrol_device(
+    payload: DeviceEnrol,
+    request: Request,
+    business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
+    db: AsyncSession = Depends(get_db),
+) -> DeviceOut:
+    """Enrol the machine making this request.
+
+    Any member may enrol their own till — it is part of setting a machine up,
+    not an organisational decision. The device is bound to one branch and can
+    only ever post for that branch (``X-Branch-Id`` must agree).
+
+    Re-enrolling a ``device_key`` is a conflict: the key IS the machine. A
+    revoked key cannot be revived either — revocation means "stop trusting
+    this machine", so re-installing generates a new key.
+    """
+    target_branch = branch_id
+    if payload.branch_id is not None:
+        try:
+            target_branch = (
+                await branches_mod.resolve_branch(db, business.id, payload.branch_id)
+            ).id
+        except branches_mod.BranchNotInTenant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found"
+            )
+
+    existing = (
+        await db.execute(
+            select(Device).where(
+                Device.business_id == business.id,
+                Device.device_key == payload.device_key,
+            )
+        )
+    ).scalars().first()
+    if existing is not None:
+        if existing.revoked_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="That device was revoked — install a fresh device key",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="That device is already enrolled"
+        )
+
+    row = Device(
+        business_id=business.id,
+        branch_id=target_branch,
+        device_key=payload.device_key,
+        name=payload.name,
+        public_key=payload.public_key,
+        created_by=getattr(request.state, "user_id", None),
+    )
+    db.add(row)
+    await db.flush()
+    await audit_mod.record_audit(
+        db, business.id, "devices", row.id, "create",
+        change={"device_key": row.device_key, "branch_id": row.branch_id},
+        actor=getattr(request.state, "user_id", None),
+    )
+    return _device_out(row)
+
+
+@app.post("/devices/{device_id}/revoke", response_model=DeviceOut, tags=["Devices"])
+async def revoke_device(
+    device_id: int,
+    request: Request,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
+) -> DeviceOut:
+    """Stop trusting a machine.
+
+    Owner-only and idempotent. Revoked devices can no longer push; their
+    historic rows stay attributed to them.
+    """
+    row = (
+        await db.execute(
+            select(Device).where(
+                Device.id == device_id, Device.business_id == business.id
+            )
+        )
+    ).scalars().first()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found")
+    if row.revoked_at is None:
+        row.revoked_at = datetime.now(timezone.utc)
+        await db.flush()
+        await audit_mod.record_audit(
+            db, business.id, "devices", row.id, "revoke",
+            change={"device_key": row.device_key},
+            actor=getattr(request.state, "user_id", None),
+        )
+    return _device_out(row)
+
 
 @app.get("/auth/me", response_model=AuthMeResponse, tags=["Authentication"])
 async def auth_me(
@@ -396,7 +847,7 @@ async def auth_me(
             user_id=user.user_id,
             business_id=business.id,
             business_name=business.name,
-            currency=business.currency or "USD",
+            currency=business.currency or money_mod.CURRENCY,
             role="owner",
             email=user.email,
         )
@@ -422,7 +873,7 @@ async def auth_me(
                 user_id=user.user_id,
                 business_id=team_business.id,
                 business_name=team_business.name,
-                currency=team_business.currency or "USD",
+                currency=team_business.currency or money_mod.CURRENCY,
                 role=member.role,
                 email=member.email or user.email,
             )
@@ -451,7 +902,7 @@ async def auth_me(
                 user_id=user.user_id,
                 business_id=None,
                 business_name=invite_business.name if invite_business else "",
-                currency="USD",
+                currency=money_mod.CURRENCY,
                 role="viewer",
                 email=user.email,
                 pending_invitation=TeamInviteOut(
@@ -468,7 +919,7 @@ async def auth_me(
     business = Business(
         name="My Business",
         owner_id=user.user_id,
-        currency="USD",
+        currency=money_mod.CURRENCY,
         created_by=user.user_id,
     )
     db.add(business)
@@ -477,7 +928,7 @@ async def auth_me(
         user_id=user.user_id,
         business_id=business.id,
         business_name=business.name,
-        currency="USD",
+        currency=money_mod.CURRENCY,
         role="owner",
         email=user.email,
     )
@@ -616,7 +1067,18 @@ async def accept_team_invite(
     ).scalars().first()
     if invite is None or invite.status != "pending":
         raise HTTPException(status_code=400, detail="Invitation not found or no longer pending")
-    if user.email and invite.email != user.email.lower():
+    if not user.email:
+        # Never skip the binding check: without an email claim anyone holding
+        # the token could claim the invitation at the invited role.
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Your session token has no email claim, so this invitation "
+                "cannot be tied to you. Enable the `email` claim in Clerk and "
+                "sign in again."
+            ),
+        )
+    if invite.email != user.email.lower():
         raise HTTPException(
             status_code=403, detail="This invitation was sent to a different email"
         )
@@ -796,8 +1258,11 @@ async def update_business_settings(
         if code not in ALLOWED_CURRENCIES:
             raise HTTPException(
                 status_code=422,
-                detail=f"Unsupported currency '{data['currency']}'. "
-                       f"Allowed: {', '.join(sorted(ALLOWED_CURRENCIES))}",
+                detail=(
+                    f"Unsupported currency '{data['currency']}'. "
+                    f"This edition keeps money in {money_mod.CURRENCY} kobo; "
+                    f"allowed: {', '.join(sorted(ALLOWED_CURRENCIES))}"
+                ),
             )
         data["currency"] = code
     if "timezone" in data and data["timezone"] is not None:
@@ -910,6 +1375,9 @@ async def audit_entries(
     offset: int = Query(0, ge=0),
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _role: str = Depends(
+        team_mod.require_any("owner", "manager", "accountant")
+    ),
 ) -> List[AuditEntryOut]:
     """The caller's activity log, newest first (tenant-scoped)."""
     rows = await audit_mod.list_entries(db, business.id, limit=limit, offset=offset)
@@ -927,9 +1395,15 @@ async def audit_entries(
 async def backups_export(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
 ) -> JSONResponse:
     """Download the tenant's business data as a Co-op backup file."""
-    payload = backups_mod.encrypt_backup(await backups_mod.build_backup(db, business))
+    try:
+        payload = backups_mod.encrypt_backup(
+            await backups_mod.build_backup(db, business)
+        )
+    except backups_mod.BackupKeyMissing as e:
+        raise HTTPException(status_code=503, detail=str(e))
     stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
     return JSONResponse(
         content=payload,
@@ -949,6 +1423,8 @@ async def backups_restore(
     try:
         payload = backups_mod.decrypt_backup(payload)
         result = await backups_mod.restore_backup(db, business, payload)
+    except backups_mod.BackupKeyMissing as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except backups_mod.RestoreRefused as e:
         raise HTTPException(status_code=409, detail=str(e))
     except backups_mod.BackupValidationError as e:
@@ -967,6 +1443,7 @@ async def backups_restore(
 def _log_movement(
     db: AsyncSession,
     business_id: int,
+    branch_id: int,
     product_id: int,
     change: int,
     reason: StockMovementReason,
@@ -978,6 +1455,7 @@ def _log_movement(
     db.add(
         StockMovement(
             business_id=business_id,
+            branch_id=branch_id,
             product_id=product_id,
             change=change,
             reason=reason,
@@ -991,6 +1469,7 @@ def _log_movement(
 async def _change_stock(
     db: AsyncSession,
     business_id: int,
+    branch_id: int,
     product: Product,
     delta: int,
     reason: StockMovementReason,
@@ -1039,7 +1518,7 @@ async def _change_stock(
     product.updated_by = actor
 
     _log_movement(
-        db, business_id, product.id, delta, reason, actor,
+        db, business_id, branch_id, product.id, delta, reason, actor,
         note=note, order_id=order_id,
     )
 
@@ -1053,6 +1532,7 @@ async def _change_stock(
 async def create_product(
     product: ProductCreate,
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
 ) -> ProductOut:
     # Duplicate check: live rows only — a soft-deleted product's SKU is
@@ -1081,7 +1561,7 @@ async def create_product(
     # Initial stock (if any) is the first ledger entry (UXDS 11.9).
     if new_product.current_stock:
         _log_movement(
-            db, business.id, new_product.id, new_product.current_stock,
+            db, business.id, branch_id, new_product.id, new_product.current_stock,
             StockMovementReason.initial, business.owner_id,
         )
     await db.refresh(new_product)
@@ -1199,6 +1679,7 @@ async def adjust_stock(
     id: int,
     req: AdjustStockRequest,
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
 ) -> ProductOut:
     """Apply a signed stock adjustment and log it to the ledger (UXDS 11.11)."""
@@ -1207,7 +1688,7 @@ async def adjust_stock(
 
     product = await get_product(id, business, db)
     await _change_stock(
-        db, business.id, product, req.change,
+        db, business.id, branch_id, product, req.change,
         StockMovementReason(req.reason.value), business.owner_id, note=req.note,
     )
     await db.flush()
@@ -1451,6 +1932,10 @@ def _serialize_order(order: Order) -> OrderOut:
         for s in sorted(ALLOWED_ORDER_TRANSITIONS.get(current, set()))
     ]
 
+    from .receivables import balance_for
+
+    balance = balance_for(order)
+
     return OrderOut(
         id=order.id,
         customer_id=order.customer_id,
@@ -1458,6 +1943,12 @@ def _serialize_order(order: Order) -> OrderOut:
         status=order.status,
         allowed_transitions=allowed,
         total_amount=order.total_amount,
+        tax_rate=order.tax_rate,
+        tax_amount=money_mod.as_money(order.tax_amount),
+        grand_total=order.grand_total,
+        amount_paid=balance.paid,
+        balance_due=balance.balance,
+        payment_status=balance.status,
         order_date=order.order_date,
         created_at=order.created_at,
         items=[
@@ -1485,7 +1976,7 @@ async def _restore_stock(
     for item in order.items:
         if item.product is not None:
             await _change_stock(
-                db, order.business_id, item.product, item.quantity,
+                db, order.business_id, order.branch_id, item.product, item.quantity,
                 reason, actor, order_id=order.id,
             )
 
@@ -1494,6 +1985,7 @@ async def _restore_stock(
 async def create_order(
     order: OrderCreate,
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
 ) -> OrderOut:
     customer = await get_customer(order.customer_id, business, db)
@@ -1520,27 +2012,45 @@ async def create_order(
         lines.append((product, item))
 
     # ---- Application phase (single request transaction; rollback-safe) ----
-    total = 0.0
+    # Exact money (backend/money.py): each line is rounded exactly once, to the
+    # kobo, and the subtotal is the sum of those rounded lines. That order
+    # matters — rounding a sum is not the sum of roundings, and only this way
+    # can the invoice prove Σ lines == subtotal with exact equality.
+    subtotal = money_mod.ZERO
     item_models: List[OrderItem] = []
     for product, item in lines:
-        line_total = round(item.unit_price * item.quantity, 2)
-        total += line_total
+        unit_price = money_mod.as_money(item.unit_price)
+        line_total = money_mod.as_money(unit_price * item.quantity)
+        subtotal = money_mod.as_money(subtotal + line_total)
         item_models.append(
             OrderItem(
                 business_id=business.id,
+                branch_id=branch_id,
                 product_id=product.id,
                 quantity=item.quantity,
-                unit_price=item.unit_price,  # snapshot price (Task 7 policy)
+                unit_price=unit_price,  # snapshot price (Task 7 policy)
                 total_price=line_total,
                 created_by=business.owner_id,
             )
         )
 
+    # Tax is exclusive (0021): total_amount stays the NET subtotal, so every
+    # existing revenue number keeps its meaning; the tax and the rate that
+    # produced it are snapshotted here so a later rate change cannot reprice
+    # an order that already exists. Tax is computed ONCE, on the subtotal — not
+    # per line — so rounding cannot accumulate across a long order.
+    net_total = subtotal
+    tax_rate = money_mod.as_rate(business.tax_rate) if business.tax_enabled else None
+    tax_amount = money_mod.percent_of(net_total, tax_rate)
+
     new_order = Order(
         business_id=business.id,
+        branch_id=branch_id,
         customer_id=customer.id,
         status=order.status or "pending",
-        total_amount=round(total, 2),
+        total_amount=net_total,
+        tax_rate=tax_rate,
+        tax_amount=tax_amount,
         created_by=business.owner_id,
         items=item_models,
     )
@@ -1553,7 +2063,7 @@ async def create_order(
     # leaving both the order and all stock untouched.
     for product, item in lines:
         await _change_stock(
-            db, business.id, product, -item.quantity,
+            db, business.id, branch_id, product, -item.quantity,
             StockMovementReason.order, business.owner_id, order_id=new_order.id,
         )
     await audit_mod.record_audit(
@@ -1561,6 +2071,7 @@ async def create_order(
         change={
             "customer_id": new_order.customer_id,
             "total_amount": new_order.total_amount,
+            "tax_amount": new_order.tax_amount,
             "status": "pending",
         },
         actor=business.owner_id,
@@ -1638,7 +2149,21 @@ async def get_order(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> OrderOut:
-    return _serialize_order(await _load_order(id, business, db))
+    order = await _load_order(id, business, db)
+    out = _serialize_order(order)
+    # A tax invoice must carry an invoice number (NTA 2025 s.153(b) says so
+    # explicitly; every tax authority expects one), and that number is the
+    # document's, not the order reference. One indexed lookup on a single-order
+    # read; the list endpoint is untouched.
+    number = (
+        await db.execute(
+            select(Invoice.number).where(
+                Invoice.business_id == business.id, Invoice.order_id == order.id
+            )
+        )
+    ).scalar_one_or_none()
+    out.invoice_number = number
+    return out
 
 
 @app.put("/orders/{id}/status", response_model=OrderOut, tags=["Orders"])
@@ -1675,6 +2200,175 @@ async def update_order_status(
     )
     # Re-load relationships refreshed by the stock restore.
     return _serialize_order(await _load_order(id, business, db))
+
+
+# ---------------------------------------------------------------------------
+# Receivables — money received against an order (0020)
+#
+# Reads are open to every role. Writes are limited to the people who
+# actually handle money: owner, manager, accountant and sales. (The path
+# matrix in team.py keys on the FIRST path segment, so `/orders/{id}/payments`
+# would otherwise inherit the sales/inventory rule — the accountant has to be
+# added explicitly here.)
+# ---------------------------------------------------------------------------
+
+_PAYMENT_ROLES = ("owner", "manager", "accountant", "sales")
+
+
+def _require_payment_role(role: str = Depends(team_mod.get_current_role)) -> str:
+    if role not in _PAYMENT_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Role {role!r} cannot record customer payments",
+        )
+    return role
+
+
+@app.get("/orders/{id}/payments", response_model=OrderPaymentsResponse, tags=["Orders"])
+async def list_order_payments(
+    id: int,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> OrderPaymentsResponse:
+    """The payment ledger for one order, with paid/outstanding totals."""
+    from . import receivables as recv
+
+    order = await _load_order(id, business, db)
+    return OrderPaymentsResponse(**await recv.list_payments(business, order))
+
+
+@app.post(
+    "/orders/{id}/payments",
+    response_model=OrderPaymentsResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Orders"],
+)
+async def record_order_payment(
+    id: int,
+    req: OrderPaymentCreate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(_require_payment_role),
+) -> OrderPaymentsResponse:
+    """Record money received. Refuses overpayment and cancelled orders."""
+    from . import receivables as recv
+
+    order = await _load_order(id, business, db)
+    try:
+        await recv.record_payment(
+            db, business, order,
+            amount=req.amount, method=req.method,
+            reference=req.reference, note=req.note,
+            actor=business.owner_id,
+        )
+    except recv.PaymentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    return OrderPaymentsResponse(**await recv.list_payments(business, order))
+
+
+@app.delete(
+    "/orders/{id}/payments/{payment_id}",
+    response_model=OrderPaymentsResponse,
+    tags=["Orders"],
+)
+async def delete_order_payment(
+    id: int,
+    payment_id: int,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(_require_payment_role),
+) -> OrderPaymentsResponse:
+    """Remove a mis-keyed payment (audited); the order itself is untouched."""
+    from . import receivables as recv
+
+    order = await _load_order(id, business, db)
+    try:
+        await recv.delete_payment(db, business, order, payment_id, actor=business.owner_id)
+    except recv.PaymentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    return OrderPaymentsResponse(**await recv.list_payments(business, order))
+
+
+@app.get("/receivables", response_model=ReceivablesResponse, tags=["Orders"])
+async def list_receivables(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> ReceivablesResponse:
+    """Everything the tenant is still owed, oldest first.
+
+    This is the question the app could not answer before 0020: "who owes me
+    money?". Cancelled orders are excluded (they were voided and their stock
+    returned); fully-paid orders are excluded because they are not
+    receivables.
+
+    Balances are computed per order from the payment ledger, which keeps a
+    single definition of "paid" shared with the order page. Aggregating in
+    SQL would duplicate that rule, so the trade is CPU for one source of
+    truth; the tenant's open orders are bounded by ``limit`` and the query
+    only loads orders that can still owe money.
+    """
+    from . import receivables as recv
+
+    stmt = (
+        select(Order)
+        .options(
+            selectinload(Order.customer),
+            selectinload(Order.payments),
+        )
+        .where(
+            Order.business_id == business.id,
+            Order.deleted_at.is_(None),
+            Order.status != "cancelled",
+        )
+        .order_by(Order.order_date.asc(), Order.id.asc())
+    )
+    orders = (await db.execute(stmt)).scalars().all()
+
+    rows: list[dict] = []
+    # Exact money: the totals below are summed in Decimal and rounded once, so
+    # "who owes me money" cannot be a kobo short of the payment ledger.
+    total_outstanding = money_mod.ZERO
+    total_collected = money_mod.ZERO
+    now = datetime.utcnow()
+    for order in orders:
+        balance = recv.balance_for(order)
+        total_collected = money_mod.as_money(total_collected + balance.paid)
+        if balance.balance <= money_mod.EPSILON:
+            continue
+        total_outstanding = money_mod.as_money(total_outstanding + balance.balance)
+        ordered_at = order.order_date or order.created_at
+        age_days = 0
+        if ordered_at is not None:
+            age_days = max(0, (now - ordered_at.replace(tzinfo=None)).days)
+        rows.append({
+            "order_id": order.id,
+            "customer_id": order.customer_id,
+            "customer_name": order.customer.full_name if order.customer else None,
+            "order_date": order.order_date,
+            "status": (order.status.value if hasattr(order.status, "value") else str(order.status)),
+            "subtotal": money_mod.as_money(order.total_amount),
+            "tax_amount": money_mod.as_money(order.tax_amount),
+            "total": balance.total,
+            "amount_paid": balance.paid,
+            "balance_due": balance.balance,
+            "payment_status": balance.status,
+            "age_days": age_days,
+        })
+
+    # Oldest first (biggest age first) — the ones to chase.
+    rows.sort(key=lambda r: (-r["age_days"], r["order_id"]))
+    count = len(rows)
+    start = (page - 1) * limit
+    return ReceivablesResponse(
+        items=rows[start:start + limit],
+        total_outstanding=total_outstanding,
+        total_collected=total_collected,
+        count=count,
+        page=page,
+        limit=limit,
+    )
 
 
 @app.delete("/orders/{id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Orders"])
@@ -1836,8 +2530,10 @@ async def revenue_timeseries(
     for order_date, amount in rows:
         if order_date is None:
             continue
-        bucket = buckets.setdefault(tz_mod.utc_to_local_date(order_date, tz), [0.0, 0])
-        bucket[0] += float(amount or 0.0)
+        bucket = buckets.setdefault(
+            tz_mod.utc_to_local_date(order_date, tz), [money_mod.ZERO, 0]
+        )
+        bucket[0] = money_mod.as_money(bucket[0] + money_mod.to_decimal(amount))
         bucket[1] += 1
     return [
         TimeseriesPoint(date=str(day), revenue=bucket[0], orders=bucket[1])
@@ -1959,6 +2655,9 @@ async def top_products(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
 ) -> List[TopProductItem]:
+    # Scope every leg of the join to this tenant, and count only orders that
+    # still exist: a soft-deleted or cancelled order must not keep feeding the
+    # "top products" number the owner makes stocking decisions from.
     stmt = (
         select(
             Product.id,
@@ -1967,7 +2666,14 @@ async def top_products(
             func.sum(OrderItem.quantity * OrderItem.unit_price).label("total_revenue"),
         )
         .join(OrderItem, OrderItem.product_id == Product.id)
-        .where(Product.business_id == business.id)
+        .join(Order, Order.id == OrderItem.order_id)
+        .where(
+            Product.business_id == business.id,
+            OrderItem.business_id == business.id,
+            Order.business_id == business.id,
+            Order.deleted_at.is_(None),
+            Order.status != OrderStatus.cancelled,
+        )
         .group_by(Product.id, Product.name)
         .order_by(func.sum(OrderItem.quantity).desc())
         .limit(limit)
@@ -1999,11 +2705,28 @@ MAX_IMPORT_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_SAMPLE_ROWS = 50
 
 
+_UPLOAD_CHUNK = 256 * 1024
+
+
 async def _read_upload(file: UploadFile) -> bytes:
-    data = await file.read()
-    if len(data) > MAX_IMPORT_BYTES:
-        raise HTTPException(status_code=400, detail="File is too large (max 5 MB).")
-    return data
+    """Read an upload with the size cap enforced WHILE reading.
+
+    ``await file.read()`` buffers the whole body before the length check, so a
+    100 MB upload cost 100 MB of RAM (and nginx allows 10 MB through) before it
+    was rejected. Reading in chunks and aborting at the cap means a hostile or
+    careless client cannot grow the process past the limit.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(_UPLOAD_CHUNK)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_IMPORT_BYTES:
+            raise HTTPException(status_code=400, detail="File is too large (max 5 MB).")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def _parsed_or_400(filename: str, data: bytes) -> importer.ParsedFile:
@@ -2028,6 +2751,7 @@ async def imports_schema(
 async def imports_preview(
     file: UploadFile = File(...),
     business: Business = Depends(get_current_business),
+    _rate: None = Depends(enforce_import_rate_limit),
 ) -> dict:
     """Parse the file and detect its dataset. No mapping yet, no writes."""
     data = await _read_upload(file)
@@ -2116,6 +2840,7 @@ async def imports_validate(
     mapping: str = Form("{}"),
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_import_rate_limit),
 ) -> dict:
     """Read-only validation pass BEFORE any database writes (spec item 6):
     "1,248 rows received — 1,201 valid, 23 duplicates, 7 missing dates…"."""
@@ -2153,6 +2878,7 @@ async def imports_commit(
     entity: str = Form("products"),
     mapping: str = Form("{}"),
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
     _rate: None = Depends(enforce_import_rate_limit),
 ) -> dict:
@@ -2172,7 +2898,9 @@ async def imports_commit(
         db,
     )
     try:
-        result = await importer.execute_import(db, business.id, parsed, entity, mapping_dict)
+        result = await importer.execute_import(
+            db, business.id, parsed, entity, mapping_dict, branch_id=branch_id
+        )
     except ValueError as e:
         await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
@@ -2358,7 +3086,7 @@ async def ai_forecast(
     verified data, so it is free and instant.
     """
     return await ai_forecast_mod.build_forecast(
-        db, business.id, currency=business.currency or "USD"
+        db, business.id, currency=business.currency or money_mod.CURRENCY
     )
 
 
@@ -2404,6 +3132,136 @@ async def ai_history_clear(
     """Delete the business's AI activity (explicit owner action)."""
     deleted = await ai_history_mod.clear_history(db, business.id)
     return {"deleted": deleted}
+
+
+# ---------------------------------------------------------------------------
+# Zeno learning ledger (0022) — graded mistakes + silently observed preferences.
+#
+# These endpoints exist for support and for the test suite; there is no screen
+# for them any more, on purpose (adaptation is behaviour, not a settings form).
+# The trust rule is enforced in data, not in prose: only status='active' rows
+# reach the prompt, a preference needs two independent mentions before it is
+# active, and nothing here can mutate business data.
+# ---------------------------------------------------------------------------
+
+
+class ZenoLessonCreate(BaseModel):
+    kind: str = "mistake"
+    statement: str
+    severity: int = Field(3, ge=1, le=5)
+    scope: str = "general"
+    cost_amount: Optional[float] = Field(None, ge=0)
+    evidence_ref: Optional[str] = None
+
+
+class ZenoLessonUpdate(BaseModel):
+    status: Optional[str] = None
+    severity: Optional[int] = Field(None, ge=1, le=5)
+
+
+class ZenoLessonItem(BaseModel):
+    id: int
+    kind: str
+    scope: str
+    statement: str
+    severity: int
+    severity_label: Optional[str] = None
+    cost_amount: Optional[float] = None
+    cost_basis: Optional[str] = None
+    blast_radius: int = 0
+    repeat_count: int = 1
+    status: str
+    source: Optional[str] = None
+    evidence_ref: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class ZenoLessonsResponse(BaseModel):
+    items: List[ZenoLessonItem]
+    severities: Dict[int, str]
+
+
+@app.get("/ai/lessons", response_model=ZenoLessonsResponse, tags=["AI"])
+async def zeno_lessons_list(
+    status: Optional[str] = Query(None),
+    kind: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+) -> ZenoLessonsResponse:
+    """What Zeno has learned in THIS business: graded mistakes and preferences.
+
+    Worst first — severity, then the money it cost, then how often it recurred.
+    ``severities`` is the 1-5 scale in words, so the UI never shows a bare number.
+    """
+    rows = await zeno_lessons.list_lessons(db, business.id, status=status, kind=kind, limit=limit)
+    return ZenoLessonsResponse(
+        items=[zeno_lessons.serialize(r) for r in rows],
+        severities=zeno_lessons.SEVERITY_LABELS,
+    )
+
+
+@app.post("/ai/lessons", response_model=ZenoLessonItem, status_code=201, tags=["AI"])
+async def zeno_lesson_record(
+    req: ZenoLessonCreate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_write_rate_limit),
+) -> ZenoLessonItem:
+    """Record a mistake (graded 1-5, optional cost) or a repeated preference.
+
+    A mistake is active immediately — it is a fact about what went wrong. A
+    preference is stored dormant and activates on its second mention; nothing is
+    surfaced to the owner, so there is no review step.
+    """
+    try:
+        if req.kind == "preference":
+            lesson, _ = await zeno_lessons.observe_preference(
+                db, business.id, req.statement, scope=req.scope, evidence_ref=req.evidence_ref
+            )
+        elif req.kind == "mistake":
+            lesson, _ = await zeno_lessons.record_mistake(
+                db,
+                business.id,
+                req.statement,
+                severity=req.severity,
+                scope=req.scope,
+                cost_amount=req.cost_amount,
+                evidence_ref=req.evidence_ref,
+            )
+        else:
+            raise HTTPException(status_code=422, detail="kind must be mistake or preference")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    await db.flush()
+    return ZenoLessonItem(**zeno_lessons.serialize(lesson))
+
+
+@app.patch("/ai/lessons/{lesson_id}", response_model=ZenoLessonItem, tags=["AI"])
+async def zeno_lesson_update(
+    lesson_id: int,
+    req: ZenoLessonUpdate,
+    business: Business = Depends(get_current_business),
+    db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(enforce_write_rate_limit),
+) -> ZenoLessonItem:
+    """Dismiss a lesson or re-grade a mistake (support / test surface).
+
+    Tenant-scoped: another business's lesson is a 404, not a 403 — the same
+    "does not exist for you" answer every other Co-op route gives.
+    """
+    if req.status is None and req.severity is None:
+        raise HTTPException(status_code=422, detail="nothing to update")
+    try:
+        lesson = await zeno_lessons.set_status(
+            db, business.id, lesson_id, req.status or "active", severity=req.severity
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if lesson is None:
+        raise HTTPException(status_code=404, detail="lesson not found")
+    await db.flush()
+    return ZenoLessonItem(**zeno_lessons.serialize(lesson))
 
 
 # ---------------------------------------------------------------------------
@@ -2751,11 +3609,13 @@ async def support_submit_issue(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
     user: ClerkUser = Depends(verify_clerk_token),
+    _rate: None = Depends(enforce_write_rate_limit),
 ) -> dict:
     """Record a problem report and email it to the support inbox.
 
-    Always allowed: there is no cadence, no prompt to dismiss and no limit on
-    how often a business can ask for help.
+    Always available — no cadence and no prompt to dismiss — but not
+    unbounded: each submission writes a row and sends an email, so a loop
+    here is an inbox flood. Bounded by the shared write limiter.
     """
     from . import support as support_mod
 
@@ -2881,6 +3741,25 @@ async def platform_overview(
         "payments_success": payments_success,
         "payments_pending": payments_pending,
     }
+
+
+@app.get("/platform/investor-metrics", tags=["Platform"])
+async def platform_investor_metrics(
+    window_days: int = Query(28, ge=7, le=365),
+    db: AsyncSession = Depends(get_db),
+    _admin: ClerkUser = Depends(require_platform_admin),
+) -> dict:
+    """The five numbers every accelerator application asks for.
+
+    Computed from the ledgers that already exist (businesses, invoices,
+    audit_log, ai_usage, payments) — no new instrumentation and no analytics
+    vendor. Aggregates only: no business name, no email, no customer row.
+    ``headline`` is a ready-to-quote sentence whose every figure comes from the
+    same read, so the application and the dashboard can never disagree.
+    """
+    from . import investor_metrics
+
+    return await investor_metrics.snapshot(db, window_days=window_days)
 
 
 @app.get("/platform/feedback", tags=["Platform"])
@@ -3022,12 +3901,19 @@ async def require_admin_token(request: Request) -> str:
     """Team-only gate for the licence-issuing routes (see block comment)."""
     from . import licensing as licensing_mod
 
+    from . import ratelimits as ratelimits_mod
+
     tokens = licensing_mod.admin_tokens()
     if not tokens:
         raise HTTPException(
             status_code=503,
             detail="Licence issuing is not configured on this server",
         )
+    # Throttle before comparing: a constant-time compare stops timing attacks,
+    # not a brute-force loop. Keyed by peer address because these routes have
+    # no user identity to key on.
+    client = request.client.host if request.client else "unknown"
+    ratelimits_mod.limiter_for("admin").check(f"admin-ip:{client}")
     presented = request.headers.get("x-admin-token", "")
     if not presented or not any(secrets.compare_digest(presented, t) for t in tokens):
         from .security_events import security_event
@@ -3167,8 +4053,15 @@ async def admin_revoke_license(
 async def license_status(
     business: Business = Depends(get_current_business),
     db: AsyncSession = Depends(get_db),
+    _owner: str = Depends(team_mod.require_owner),
 ) -> dict:
-    """This business's licence position (Settings -> Licence)."""
+    """This business's licence position (Settings -> Licence).
+
+    **Owner only.** The Settings menu already hid this section from other
+    roles, but the API answered anyone in the tenant — hiding a menu item is
+    presentation, not access control. A licence is the commercial entitlement
+    for the whole account, so a viewer/sales member has no reason to read it.
+    """
     from . import billing as billing_mod
 
     sub = await billing_mod.get_or_create_subscription(db, business)
@@ -3447,13 +4340,59 @@ class SyncPushRequest(BaseModel):
 @app.post("/sync/push", tags=["Sync"])
 async def sync_push(
     req: SyncPushRequest,
+    request: Request,
     business: Business = Depends(get_current_business),
+    branch_id: int = Depends(get_current_branch),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Apply a batch of offline operations idempotently. Returns applied /
-    skipped counts, a client_id -> server id map, and any per-op errors."""
+    skipped counts, a client_id -> server id map, and any per-op errors.
+
+    D1: the operations are attributed to the branch the device is posting for
+    (``X-Branch-Id``, default MAIN), so an offline sale from Shop 4 lands in
+    Shop 4's ledger even though the device could not reach the server.
+
+    ``X-Device-Id`` is the client-generated device key. When it is present the
+    device must be enrolled, live, and bound to the branch being posted for —
+    a till cannot file its sales under another shop. When it is absent the
+    batch still applies (older clients) but the audit rows say only
+    "offline-sync", which is a breadcrumb, not an identity.
+    """
     ops = [o.model_dump() for o in req.operations]
-    return await apply_push(db, business.id, ops)
+    device: Optional[Device] = None
+    raw_device = request.headers.get("x-device-id")
+    if raw_device:
+        device = (
+            await db.execute(
+                select(Device).where(
+                    Device.business_id == business.id,
+                    Device.device_key == raw_device.strip(),
+                )
+            )
+        ).scalars().first()
+        if device is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Device not enrolled"
+            )
+        if device.revoked_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="This device has been revoked"
+            )
+        if device.branch_id != branch_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This device is enrolled at a different branch",
+            )
+        device.last_seen_at = datetime.now(timezone.utc)
+
+    return await apply_push(
+        db,
+        business.id,
+        ops,
+        branch_id=branch_id,
+        device_id=device.id if device is not None else None,
+        actor=getattr(request.state, "user_id", None),
+    )
 
 
 @app.get("/sync/pull", tags=["Sync"])

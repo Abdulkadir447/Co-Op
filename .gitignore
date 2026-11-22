@@ -63,3 +63,9 @@ stress-report.json
 
 # website build output
 website/dist/
+
+# Local-only renderer for brand/build-assets.mjs (sharp). The script is
+# committed; its dependencies are not. Run `npm i` inside brand/.tools.
+brand/.tools/node_modules/
+brand/.tools/package-lock.json
+brand/.drafts/

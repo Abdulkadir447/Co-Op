@@ -60,6 +60,9 @@ class PaystackConfig:
     """The non-secret Paystack settings for this environment."""
 
     enabled: bool = False
+    # Naira: the edition is Naira-only (Business.currency is constrained to NGN
+    # and money is stored as integer kobo), so a dollar default here would be a
+    # charge in a currency the ledger cannot represent.
     currency: str = "NGN"
     api_base: str = API_BASE
     callback_url: Optional[str] = None
@@ -70,8 +73,10 @@ class PaystackConfig:
     allowed_callback_hosts: tuple[str, ...] = ()
     # plan -> hosted payment page URL (created in the Paystack dashboard)
     payment_pages: dict[str, str] = field(default_factory=dict)
-    # plan -> {"monthly": kobo, "annual": kobo}. Absent = the hosted page
-    # carries its own amount, so none is sent.
+    # plan -> {"monthly": minor units, "annual": minor units} of ``currency``
+    # (kobo for NGN: ₦25,000 is 2_500_000; the key keeps its historical name
+    # because the payments ledger column is amount_kobo). Absent = the hosted
+    # page carries its own amount, so none is sent.
     prices_kobo: dict[str, dict[str, int]] = field(default_factory=dict)
 
     @property

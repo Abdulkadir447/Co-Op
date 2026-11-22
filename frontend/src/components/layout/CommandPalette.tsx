@@ -378,7 +378,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose }) => {
                       {label}
                     </span>
                     {sub && (
-                      <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {sub}
                       </span>
                     )}
@@ -423,7 +423,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose }) => {
           <span>↵ Open</span>
           <span>Esc Close</span>
           <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <CoopMark size={14} /> Powered by CO OP
+            <CoopMark size={14} /> Powered by Co-op
           </span>
         </div>
       </div>

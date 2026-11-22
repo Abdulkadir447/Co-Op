@@ -1,16 +1,48 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-type="software">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CO OP — the operating system for small businesses</title>
-    <meta name="description" content="Co-op is an offline-first inventory, orders, customers and AI assistant for small businesses. Start your free trial." />
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="apple-touch-icon" href="/logo.png" />
+    <!-- Title, description, canonical and social tags are written per route by
+         scripts/prerender.mjs (and by src/head.ts on client-side navigation).
+         Leaving them out of this template is deliberate: one source of truth. -->
+    <!-- Page classification the design-taste skill reads (and which keeps the
+         page honest about what it is: a software product, not a place). -->
+    <meta name="page-type" content="software" />
+    <meta name="site-kind" content="software" />
+
+    <!-- Sharing. WhatsApp is the primary channel in this market, and without
+         these tags every shared link renders as a bare URL. They are generated
+         per route by scripts/prerender.mjs, from one source: SITE.url in
+         src/site.ts (or VITE_PUBLIC_URL at build time). That default is
+         `coop.example` — a placeholder, reserved by RFC 2606 so it can never
+         point at somebody else's server by accident. See README "Temporary
+         placeholders". -->
+    <!-- Favicons are generated from brand/coop-mark.svg by brand/build-assets.mjs.
+         A 16px tab needs the mark alone on transparency; a home-screen icon
+         needs the opaque tile. Different files, on purpose. -->
+    <link rel="icon" type="image/svg+xml" href="/coop-mark.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/logo.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#4143d5" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <!--
+      The only inline script on the site: pick the theme before first paint.
+      Without it a visitor whose OS is dark sees a white flash on every load,
+      because React cannot set the attribute until the bundle has run.
+    -->
+    <script>
+      try {
+        var m = localStorage.getItem('coop-web:theme');
+        if (m !== 'light' && m !== 'dark') {
+          m = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', m);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    </script>
     <style>
       /* Boot loader: shown until React mounts. Animation per the approved design. */
       .boot { position: fixed; inset: 0; display: grid; place-items: center; background: #fcf8ff; }

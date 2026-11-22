@@ -53,7 +53,7 @@ const QuickActionsCard: React.FC = () => {
               background: `linear-gradient(135deg, ${colors.primaryContainer} 0%, ${colors.secondaryContainer} 100%)`,
               color: colors.onPrimary,
               fontWeight: 600,
-              fontSize: 13.5,
+              fontSize: 14,
               cursor: 'pointer',
               transition: 'opacity 150ms, transform 150ms',
             }}

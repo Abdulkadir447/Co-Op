@@ -24,7 +24,7 @@ class BusinessRepository {
   }
 
   /** Ensure a local business row exists (idempotent by client_id). */
-  ensure({ client_id, name, currency = 'USD' }) {
+  ensure({ client_id, name, currency = 'NGN' }) {
     let row = this.db.prepare(`SELECT * FROM business WHERE client_id=?`).get(client_id);
     if (row) return row;
     const r = this.db

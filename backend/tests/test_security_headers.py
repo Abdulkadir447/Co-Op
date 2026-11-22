@@ -30,16 +30,37 @@ def _run(coro):
     return asyncio.new_event_loop().run_until_complete(coro)
 
 
-def test_unhandled_errors_never_leak_internals():
+def test_unhandled_errors_never_leak_secrets_in_any_environment():
+    """Production says nothing; development names the exception *class* only.
+
+    The class is included because "Internal server error" with no hint cost
+    three debugging rounds. The *message* is never included in either mode: a
+    SQLAlchemy error routinely embeds the DSN, i.e. the real database password,
+    and that string would end up in a screenshot or a bug report.
+    """
+
     class Boom(Exception):
         pass
 
     req = SimpleNamespace(method="GET", url=SimpleNamespace(path="/x"))
-    err = Boom("sk_live_super_secret_do_not_leak")
+    err = Boom("sk_live_super_secret_do_not_leak postgresql://u:hunter2@h/db")
 
-    loop = _run(_unhandled_error_handler(req, err))
-    assert loop.status_code == 500
-    body = json.loads(loop.body)
-    assert body["detail"] == "Internal server error."
-    assert "sk_live" not in loop.body.decode()
-    assert "Boom" not in loop.body.decode()
+    from backend import main as main_mod
+
+    # Production: generic, no internals at all.
+    original = main_mod._DOCS_ENABLED
+    try:
+        main_mod._DOCS_ENABLED = False
+        resp = _run(_unhandled_error_handler(req, err))
+        assert json.loads(resp.body) == {"detail": "Internal server error."}
+
+        # Development: the class name, and nothing that could be a secret.
+        main_mod._DOCS_ENABLED = True
+        resp = _run(_unhandled_error_handler(req, err))
+        text = resp.body.decode()
+        assert "Boom" in text  # the useful part
+        assert "sk_live" not in text
+        assert "hunter2" not in text
+        assert "super_secret" not in text
+    finally:
+        main_mod._DOCS_ENABLED = original

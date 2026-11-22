@@ -22,7 +22,7 @@ const SecuritySection: React.FC = () => {
           showIcon
           message="Password, two-factor authentication and active sessions live in your Clerk account."
         />
-        <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           Account management requires an internet connection — it opens Clerk's secure panel in
           this window.
         </Typography.Text>

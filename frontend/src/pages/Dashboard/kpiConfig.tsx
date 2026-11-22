@@ -5,7 +5,7 @@ import {
   InboxOutlined,
   ShoppingCartOutlined,
 } from '@ant-design/icons';
-import { getCurrency } from '../../services/currency';
+import { currencySymbol, formatMoney, getCurrency } from '../../services/currency';
 
 /**
  * KPI definitions for the Dashboard first row (Stitch
@@ -64,11 +64,13 @@ export const KPI_DEFINITIONS: KpiDefinition[] = [
  * Shared currency formatter. Defaults to the business currency from the
  * Settings store (Task 9) so money formatting follows the company setting;
  * pass an explicit code to override.
+ *
+ * Re-exported from `services/currency`, which is the only implementation —
+ * this name is kept because a dozen call sites import it from here.
  */
-export const formatCurrency = (value: number, currency?: string): string =>
-  value.toLocaleString(undefined, { style: 'currency', currency: currency ?? getCurrency() });
+export const formatCurrency = formatMoney;
 
-/** Compact money for tight spaces (donut center label): $1.4k / $2.3M. */
+/** Compact money for tight spaces (donut center label): ₦1.4k / ₦2.3M. */
 export const formatCompact = (value: number, currency?: string): string => {
   const cur = currency ?? getCurrency();
   const abs = Math.abs(value);
@@ -76,9 +78,5 @@ export const formatCompact = (value: number, currency?: string): string => {
   if (abs >= 1_000_000) num = (value / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
   else if (abs >= 1_000) num = (value / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
   else num = String(Math.round(value));
-  const symbol =
-    new Intl.NumberFormat(undefined, { style: 'currency', currency: cur, currencyDisplay: 'symbol' })
-      .formatToParts(0)
-      .find((p) => p.type === 'currency')?.value ?? `${cur} `;
-  return `${symbol}${num}`;
+  return `${currencySymbol(cur)}${num}`;
 };

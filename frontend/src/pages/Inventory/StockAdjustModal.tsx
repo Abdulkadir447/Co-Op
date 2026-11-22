@@ -132,10 +132,10 @@ const StockAdjustModal: React.FC<StockAdjustModalProps> = ({
                 <ShoppingOutlined />
               </span>
               <span style={{ minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, fontSize: 13.5, color: colors.onSurface, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ display: 'block', fontWeight: 600, fontSize: 14, color: colors.onSurface, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {product.name}
                 </span>
-                <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>
+                <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>
                   SKU: {product.sku} · {product.current_stock} in stock · reorder at {product.reorder_level}
                 </span>
               </span>

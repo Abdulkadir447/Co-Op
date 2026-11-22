@@ -98,7 +98,7 @@ export async function getLocalBundle(): Promise<LocalBundle> {
   const biz: LBusiness = {
     id: Number(bizRow?.id ?? bizId),
     name: String(bizRow?.name ?? 'My Business'),
-    currency: String(bizRow?.currency ?? 'USD'),
+    currency: String(bizRow?.currency ?? 'NGN'),
   };
 
   const bundle: LocalBundle = { business: biz, orders, items, products, customers, movements };

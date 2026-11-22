@@ -1,53 +1,44 @@
-// Maps the app's real design tokens (frontend/src/theme/*) onto :root CSS
-// variables, for both the light and dark palettes. The website never hard-codes
-// a colour — it reads the same source of truth the product does.
-import { colors, aiGradient } from '../../frontend/src/theme/colors';
-import { darkColors } from '../../frontend/src/theme/dark';
-import { fontFamily } from '../../frontend/src/theme/typography';
-import { radius, shadow } from '../../frontend/src/theme/tokens';
+/**
+ * Theme switching.
+ *
+ * The palette itself lives in `tokens.css` as static CSS — see the note at the
+ * top of that file for why. This module only flips the `data-theme` attribute
+ * and keeps the browser's own chrome (address bar, form controls, scrollbars)
+ * in step, which is what `color-scheme` in the stylesheet handles.
+ *
+ * The old version painted every colour onto `:root` from JavaScript after
+ * React mounted, which left the first paint unstyled — on a slow phone that is
+ * a flash of black-on-white with the wrong font, exactly where a first
+ * impression is made.
+ */
 
 export type Mode = 'light' | 'dark';
 
-const shape = {
-  '--font': fontFamily,
-  '--ai-gradient': aiGradient,
-  '--radius-sm': `${radius.sm}px`,
-  '--radius-md': `${radius.md}px`,
-  '--radius-lg': `${radius.lg}px`,
-  '--radius-xl': `${radius.xl}px`,
-  '--radius-full': `${radius.full}px`,
-  '--shadow-lift': shadow.lift,
-  '--shadow-soft': shadow.soft,
-  '--shadow-brand-tile': shadow.brandTile,
-  '--shadow-overlay': shadow.overlay,
-};
-
-function palette(c: Record<keyof typeof colors, string>): Record<string, string> {
-  return {
-    '--primary': c.primary,
-    '--on-primary': c.onPrimary,
-    '--primary-container': c.primaryContainer,
-    '--secondary-container': c.secondaryContainer,
-    '--primary-fixed': c.primaryFixed,
-    '--on-primary-fixed-variant': c.onPrimaryFixedVariant,
-    '--surface': c.surface,
-    '--surface-lowest': c.surfaceContainerLowest,
-    '--surface-low': c.surfaceContainerLow,
-    '--surface-container': c.surfaceContainer,
-    '--surface-high': c.surfaceContainerHigh,
-    '--on-surface': c.onSurface,
-    '--on-surface-variant': c.onSurfaceVariant,
-    '--outline': c.outline,
-    '--outline-variant': c.outlineVariant,
-    '--border-subtle': c.borderSubtle,
-    '--success': c.success,
-    '--warning': c.warning,
-  };
+export function applyTheme(mode: Mode): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.setAttribute('data-theme', mode);
 }
 
-export function applyTheme(mode: Mode): void {
-  const style = document.documentElement.style;
-  const vars = { ...shape, ...palette(mode === 'dark' ? darkColors : colors) };
-  for (const [k, v] of Object.entries(vars)) style.setProperty(k, v);
-  document.documentElement.setAttribute('data-theme', mode);
+/**
+ * Set the theme before React runs, so the first paint is already correct.
+ * Called from main.tsx and, in the prerendered HTML, from a tiny inline script
+ * in <head> — the only inline script on the site, and it is a theme read, not
+ * tracking.
+ */
+export function initialMode(): Mode {
+  if (typeof window === 'undefined') return 'light';
+  // The attribute, not localStorage, is the source of truth on load: the inline
+  // script in index.html has already resolved exactly this value before first
+  // paint, and it is the same expression. Reading it back means the component's
+  // first render agrees with the DOM the browser painted, which is what keeps
+  // hydration from throwing away the prerendered markup.
+  const painted = document.documentElement.getAttribute('data-theme');
+  if (painted === 'light' || painted === 'dark') return painted;
+  try {
+    const stored = window.localStorage.getItem('coop-web:theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch {
+    /* private mode */
+  }
+  return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'dark' : 'light';
 }

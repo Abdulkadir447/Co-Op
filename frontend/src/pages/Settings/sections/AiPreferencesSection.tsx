@@ -9,6 +9,7 @@ import type { MessageInstance } from 'antd/es/message/interface';
 import { CoopCard } from '../../../components/ui';
 import { AI_RESPONSE_STYLE_OPTIONS } from '../useSettings';
 import type { BusinessSettings, BusinessSettingsUpdate } from '../useSettings';
+import { describeError } from '../../../lib/describeError';
 
 export interface AiPreferencesSectionProps {
   settings: BusinessSettings | null;
@@ -25,14 +26,14 @@ const AiPreferencesSection: React.FC<AiPreferencesSectionProps> = ({ settings, s
       await save({ ai_response_style: style });
       messageApi.success('AI preferences saved');
     } catch (e) {
-      messageApi.error(e instanceof Error ? e.message : 'Save failed');
+      messageApi.error(describeError(e, 'save', 'AI preferences'));
     }
   };
 
   return (
     <CoopCard
       title="AI Preferences"
-      subtitle="How Ask Zeno answers you. Applied to every AI response."
+      subtitle="How Zeno answers you. It also gets to know how your business works as you use it — there is nothing to set up."
     >
       <Radio.Group value={current} onChange={(e) => void handleChange(e.target.value as string)} disabled={saving}>
         <Space direction="vertical" size={14}>
@@ -40,7 +41,7 @@ const AiPreferencesSection: React.FC<AiPreferencesSectionProps> = ({ settings, s
             <Radio key={o.value} value={o.value}>
               <span>
                 <Typography.Text strong>{o.label}</Typography.Text>
-                <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12.5 }}>
+                <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
                   {o.blurb}
                 </Typography.Text>
               </span>

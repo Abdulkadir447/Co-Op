@@ -362,6 +362,32 @@ async def apply_webhook_event(
             business_id = int(business_id)
         except (TypeError, ValueError):
             return {"ignored": "unattributable_charge"}
+
+        # The metadata came from a URL a payer can edit before paying, so the
+        # amount has to be checked against the price we published — otherwise
+        # a 1-unit charge carrying {"plan": "enterprise"} upgrades the tenant.
+        interval = str(metadata.get("interval") or "monthly").strip().lower()
+        cfg = paystack_config()
+        expected = cfg.price_kobo(plan, interval)
+        try:
+            charged = int(data.get("amount") or 0)
+        except (TypeError, ValueError):
+            return {"ignored": "unattributable_charge", "reference": reference}
+        charged_currency = str(data.get("currency") or "").upper()
+        if expected is None:
+            # No published price for this plan+interval (e.g. Enterprise, which
+            # is Contact Sales): there is nothing to check the charge against,
+            # so it is left for a human to reconcile rather than granted.
+            return {"ignored": "unverifiable_amount", "reference": reference}
+        if charged_currency and cfg.currency and charged_currency != cfg.currency.upper():
+            return {"ignored": "currency_mismatch", "reference": reference}
+        if charged < expected:
+            return {
+                "ignored": "underpayment",
+                "reference": reference,
+                "expected": expected,
+                "charged": charged,
+            }
         business = (
             await db.execute(select(Business).where(Business.id == business_id))
         ).scalars().first()
@@ -374,7 +400,7 @@ async def apply_webhook_event(
             provider="paystack",
             reference=reference,
             plan=plan,
-            interval=str(metadata.get("interval") or "monthly").strip().lower(),
+            interval=interval,
             mode=MODE_PAGE,
             amount_kobo=int(data.get("amount") or 0) or None,
             currency=str(data.get("currency") or "").upper() or None,

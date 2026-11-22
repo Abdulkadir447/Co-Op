@@ -138,11 +138,11 @@ const DashboardPage: React.FC = () => {
     if (key === 'inventory-health') {
       return (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: colors.warning }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: colors.warningText }}>
             <span aria-hidden style={{ width: 7, height: 7, borderRadius: '50%', background: colors.warning }} />
             {summary.low_stock_count} Low
           </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: colors.error }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: colors.errorText }}>
             <span aria-hidden style={{ width: 7, height: 7, borderRadius: '50%', background: colors.error }} />
             {summary.out_of_stock_count} Out
           </span>

@@ -326,3 +326,34 @@ async def test_admin_can_list_what_the_team_minted(api):
     assert rows[0]["plan"] == "starter"
     assert rows[0]["activated_at"] is not None
     assert "license_key" not in rows[0]
+
+
+async def test_licence_state_is_owner_only(api) -> None:
+    """A licence is the commercial entitlement for the account.
+
+    The Settings menu already hid this section from non-owners, but the API
+    answered anyone in the tenant. Hiding a menu item is presentation, not
+    access control (OWASP A01) — so a manager (who can read the team roster)
+    must still get 403 on the licence.
+    """
+    api.set_user("licence-owner", email="licence-owner@example.com")
+    assert (await api.client.get("/auth/me")).status_code == 200
+
+    owner = await api.client.get("/licenses")
+    assert owner.status_code == 200, owner.text
+    assert "license" in owner.json()
+
+    invite = await api.client.post(
+        "/team/invites", json={"email": "licence-manager@example.com", "role": "manager"}
+    )
+    assert invite.status_code == 201, invite.text
+    api.set_user("licence-manager", email="licence-manager@example.com")
+    accept = await api.client.post(
+        "/team/invites/accept", json={"token": invite.json()["token"]}
+    )
+    assert accept.status_code in (200, 201), accept.text
+
+    # Same tenant, non-owner: the roster is readable, the licence is not.
+    assert (await api.client.get("/team")).status_code == 200
+    denied = await api.client.get("/licenses")
+    assert denied.status_code == 403, denied.text

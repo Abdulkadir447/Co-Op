@@ -28,15 +28,26 @@ _SENSITIVE_KEY = re.compile(
     re.IGNORECASE,
 )
 
-# Secret shapes that can appear inside free-form text.
-_SCRUB_PATTERNS = [
+# Secret shapes that can appear inside free-form text: (pattern, replacement).
+# A replacement of MASK masks the whole match; a group reference keeps the
+# identifying parts (scheme, user, host) and masks only the secret.
+_SCRUB_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Paystack / Stripe-style keys.
-    re.compile(r"\b(sk|pk)_(live|test)_[A-Za-z0-9_-]+"),
+    (re.compile(r"\b(sk|pk)_(live|test)_[A-Za-z0-9_-]+"), MASK),
     # Bearer tokens in headers or logs.
-    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._\-]+"),
+    (re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._\-]+"), MASK),
     # key=value style secrets.
-    re.compile(
+    (re.compile(
         r"(?i)\b(password|passwd|secret|token|api_?key)\s*[=:]\s*\S+"
+    ), MASK),
+    # The password inside a connection string: postgresql://user:PASSWORD@host.
+    # Found while writing the error handler — a SQLAlchemy error message
+    # routinely embeds the DSN, so an unscrubbed traceback put the real
+    # Supabase password in the log. Only the password is masked; scheme, user
+    # and host stay readable, which is what makes the line useful.
+    (
+        re.compile(r"(?i)\b(postgres(?:ql)?(?:\+[a-z0-9]+)?://[^:/@\s]+):[^@\s]+@"),
+        r"\1:***@",
     ),
 ]
 
@@ -71,6 +82,6 @@ def scrub_text(text: str) -> str:
     """Mask known secret shapes inside an arbitrary string."""
     if not text:
         return text
-    for pattern in _SCRUB_PATTERNS:
-        text = pattern.sub(MASK, text)
+    for pattern, replacement in _SCRUB_PATTERNS:
+        text = pattern.sub(replacement, text)
     return text

@@ -39,6 +39,7 @@ from typing import Any, Optional
 
 from sqlalchemy import select
 
+from . import money
 from .models import Business, Customer, Order, OrderItem, Product, StockMovement
 
 
@@ -179,7 +180,9 @@ async def build_pull_payload(
     now_trunc = datetime.utcnow().replace(microsecond=0)
     new_cursor = now_trunc if since is None or now_trunc >= since else since
 
-    return {
+    # Mirror payload: money crosses as JSON numbers (backend/money.py). Without
+    # this the mirror would receive "100.00" as a string and store it as one.
+    return money.jsonable({
         "cursor": new_cursor.isoformat(),
         "since": _iso(since),
         "business": business_out,
@@ -195,4 +198,4 @@ async def build_pull_payload(
             "order_items": len(order_items_out),
             "stock_movements": len(movements_out),
         },
-    }
+    })

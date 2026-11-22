@@ -84,7 +84,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
                 background: 'transparent',
                 color: colors.error,
                 fontWeight: 600,
-                fontSize: 13.5,
+                fontSize: 14,
                 cursor: 'pointer',
                 padding: '6px 8px',
                 borderRadius: radius.md,

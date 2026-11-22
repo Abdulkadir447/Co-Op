@@ -24,7 +24,7 @@ const ReportTable: React.FC<{ table: ReportTableType }> = ({ table }) => {
         {table.title}
       </div>
       {table.rows.length === 0 ? (
-        <div style={{ padding: '8px 18px 20px', ...type.bodyCompact, color: colors.outline }}>
+        <div style={{ padding: '8px 18px 20px', ...type.bodyCompact, color: colors.onSurfaceMuted }}>
           Nothing to show for this period (or these filters).
         </div>
       ) : (

@@ -180,7 +180,7 @@ export function coopAuthAppearance(dark: boolean, mode: 'signin' | 'signup'): Co
         background: p.inputBg,
         border: `1px solid ${p.inputBorder}`,
         borderRadius: 12,
-        fontSize: 14.5,
+        fontSize: 15,
         color: p.foreground,
         '&hover': { borderColor: p.borderStrong },
         '&focus': {
@@ -189,8 +189,8 @@ export function coopAuthAppearance(dark: boolean, mode: 'signin' | 'signup'): Co
         },
       },
       'formFieldInput__error': { borderColor: p.danger },
-      formFieldErrorText: { color: p.danger, fontSize: 12.5, marginTop: 6 },
-      formFieldHintText: { color: p.mutedFaint, fontSize: 12.5, marginTop: 6 },
+      formFieldErrorText: { color: p.danger, fontSize: 12, marginTop: 6 },
+      formFieldHintText: { color: p.mutedFaint, fontSize: 12, marginTop: 6 },
       formFieldCheckboxLabel: { fontSize: 14, color: p.muted },
       checkbox: { borderRadius: 6, width: 16, height: 16 },
 
@@ -201,7 +201,7 @@ export function coopAuthAppearance(dark: boolean, mode: 'signin' | 'signup'): Co
         background: p.primary,
         color: '#ffffff',
         fontWeight: 600,
-        fontSize: 14.5,
+        fontSize: 15,
         boxShadow: 'none',
         '&hover': { background: p.primaryHover, boxShadow: 'none' },
         '&active': { background: p.primary },
@@ -253,7 +253,7 @@ export function coopAuthAppearance(dark: boolean, mode: 'signin' | 'signup'): Co
         '&focus': { borderColor: p.primary, boxShadow: `0 0 0 3px ${tint(p.primary, 0.15)}` },
       },
       'otpCodeFieldInput__error': { borderColor: p.danger },
-      otpCodeFieldErrorText: { color: p.danger, fontSize: 12.5, marginTop: 8 },
+      otpCodeFieldErrorText: { color: p.danger, fontSize: 12, marginTop: 8 },
 
       // --- Email code / password tabs ---
       tabListContainer: {
@@ -267,7 +267,7 @@ export function coopAuthAppearance(dark: boolean, mode: 'signin' | 'signup'): Co
       tabButton: {
         borderRadius: 9,
         fontWeight: 600,
-        fontSize: 13.5,
+        fontSize: 14,
         color: p.muted,
       },
 
@@ -280,7 +280,7 @@ export function coopAuthAppearance(dark: boolean, mode: 'signin' | 'signup'): Co
         marginBottom: 18,
       },
       alertIcon: { color: p.danger },
-      alertText: { color: p.foreground, fontSize: 13.5 },
+      alertText: { color: p.foreground, fontSize: 14 },
     },
   };
 }

@@ -103,7 +103,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
     >
       {/* Label + icon tile */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ ...type.bodyDefault, fontSize: 14.5, color: colors.onSurfaceVariant, fontWeight: 500 }}>
+        <span style={{ ...type.bodyDefault, fontSize: 15, color: colors.onSurfaceVariant, fontWeight: 500 }}>
           {title}
         </span>
         <span
@@ -157,7 +157,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
             alignItems: 'center',
             gap: 6,
             flexWrap: 'wrap',
-            fontSize: 12.5,
+            fontSize: 12,
             color: colors.outline,
           }}
         >
@@ -171,7 +171,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
                   alignItems: 'center',
                   gap: 3,
                   fontWeight: 700,
-                  color: trendUp ? colors.success : colors.error,
+                  color: trendUp ? colors.successText : colors.errorText,
                 }}
               >
                 {trendUp ? <TrendUpIcon size={12} color="currentColor" /> : <TrendDownIcon size={12} color="currentColor" />}

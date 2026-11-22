@@ -200,3 +200,93 @@ async def test_member_sees_team_business_data(api):
     assert products["items"][0]["sku"] == "CH1"
     state = (await api.client.get("/onboarding/state")).json()
     assert state["has_data"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_manager_cannot_rewrite_business_settings(api):
+    """`/business/settings` is owner-only — the check must survive the
+    first-segment strip. Manager edits changed the currency, tax rate and
+    legal name that print on every invoice."""
+    await _owner_business(api)
+    invite = await _invite(api, "mgr@example.com", role="manager")
+    api.set_user("user-mgr", email="mgr@example.com")
+    await api.client.post("/team/invites/accept", json={"token": invite["token"]})
+
+    before = (await api.client.get("/business/settings")).json()
+
+    resp = await api.client.patch(
+        "/business/settings",
+        json={"name": "Taken Over Ltd", "currency": "EUR", "tax_rate": 0.0},
+    )
+    assert resp.status_code == 403, resp.text
+
+    after = (await api.client.get("/business/settings")).json()
+    assert after == before, "nothing on the settings surface moved"
+
+    # The manager is still an operational role: ordinary writes still work.
+    assert (
+        await api.client.post(
+            "/products", json={"name": "Desk", "sku": "DK9", "unit_price": 80.0,
+                               "current_stock": 2}
+        )
+    ).status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_owner_only_surfaces_stay_owner_only_for_a_manager(api):
+    await _owner_business(api)
+    invite = await _invite(api, "mgr2@example.com", role="manager")
+    api.set_user("user-mgr2", email="mgr2@example.com")
+    await api.client.post("/team/invites/accept", json={"token": invite["token"]})
+
+    for method, path in (
+        ("post", "/billing/plan"),
+        ("post", "/billing/trial"),
+        ("get", "/backups/export"),
+        ("post", "/backups/restore"),
+        ("post", "/team/invites"),
+    ):
+        call = getattr(api.client, method)
+        body = (
+            {"plan": "starter"}
+            if path.startswith("/billing")
+            else {"email": "x@example.com", "role": "viewer"}
+            if path == "/team/invites"
+            else {"app": "coop"}
+        )
+        resp = await call(path) if method == "get" else await call(path, json=body)
+        assert resp.status_code in (403, 422), f"{method.upper()} {path} -> {resp.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_a_token_without_an_email_claim_cannot_accept_an_invite(api):
+    """Clerk's default session token has no `email`, and the old code skipped
+    the binding check when it was missing — so anyone holding the token could
+    claim the invitation at the invited role."""
+    await _owner_business(api)
+    invite = await _invite(api, "victim@example.com", role="manager")
+
+    api.set_user("attacker", email="")  # no email claim
+    resp = await api.client.post(
+        "/team/invites/accept", json={"token": invite["token"]}
+    )
+    assert resp.status_code == 403
+    assert "email" in resp.json()["detail"].lower()
+
+    # The invitation is untouched and still claimable by the right person.
+    api.set_user("user-victim", email="victim@example.com")
+    ok = await api.client.post("/team/invites/accept", json={"token": invite["token"]})
+    assert ok.status_code == 200
+    assert ok.json()["role"] == "manager"
+
+
+@pytest.mark.asyncio
+async def test_a_token_without_an_email_claim_gets_no_business(api):
+    """No claim means no pending-invite lookup — which used to end in a silent
+    second business instead of the invitation."""
+    api.set_user("no-claim-user", email="")
+    resp = await api.client.get("/auth/me")
+    assert resp.status_code == 200, "auth/me itself stays reachable"
+    for path in ("/products", "/onboarding/state", "/billing/summary"):
+        r = await api.client.get(path)
+        assert r.status_code == 403, f"{path} -> {r.status_code}"

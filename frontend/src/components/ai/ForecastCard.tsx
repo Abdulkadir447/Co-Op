@@ -67,10 +67,10 @@ const ForecastCard: React.FC = () => {
             gap: 5,
             padding: '3px 10px',
             borderRadius: radius.full,
-            fontSize: 11.5,
+            fontSize: 12,
             fontWeight: 600,
             background: tint(colors.warning, isDark ? 0.16 : 0.14),
-            color: isDark ? colors.warning : tint(colors.warning, 0.9),
+            color: colors.warningText,
           }}
         >
           <LineChartOutlined style={{ fontSize: 11 }} />
@@ -79,7 +79,7 @@ const ForecastCard: React.FC = () => {
       </div>
 
       {state === 'loading' && (
-        <div style={{ ...type.bodyCompact, color: colors.outline, padding: '8px 0' }}>
+        <div style={{ ...type.bodyCompact, color: colors.onSurfaceMuted, padding: '8px 0' }}>
           Calculating from your sales history…
         </div>
       )}
@@ -115,7 +115,7 @@ const ForecastCard: React.FC = () => {
             >
               {formatCurrency(forecast.estimated, data.currency)}
             </span>
-            <span style={{ ...type.bodyCompact, color: colors.outline }}>
+            <span style={{ ...type.bodyCompact, color: colors.onSurfaceMuted }}>
               expected for {forecast.period_label}
             </span>
             {forecast.trend_percent !== null && (
@@ -124,9 +124,9 @@ const ForecastCard: React.FC = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
-                  fontSize: 12.5,
+                  fontSize: 12,
                   fontWeight: 700,
-                  color: forecast.trend_percent >= 0 ? colors.success : colors.error,
+                  color: forecast.trend_percent >= 0 ? colors.successText : colors.errorText,
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -150,7 +150,7 @@ const ForecastCard: React.FC = () => {
             />
           )}
 
-          <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline, marginTop: 'auto' }}>
+          <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted, marginTop: 'auto' }}>
             {data.method} Built on {forecast.completed_months_used} completed months · as of{' '}
             {dayjs(data.as_of).format('MMM D, YYYY')}
           </div>

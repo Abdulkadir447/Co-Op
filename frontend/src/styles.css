@@ -107,6 +107,30 @@ body .ant-table-thead > tr > td {
   margin-inline-start: 4px;
 }
 
+/*
+ * Skip link — the first focusable element on every page (WCAG 2.4.1).
+ * Off-screen until focused, then a normal, visible control above the chrome.
+ */
+.coop-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 999;
+  transform: translateY(-200%);
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--coop-primary);
+  color: #fff;
+  font: 600 14px/20px var(--coop-font);
+  text-decoration: none;
+  transition: transform 120ms ease-out;
+}
+.coop-skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
 /* Focus visibility — WCAG 2.1 AA (UXDS 9.27/9.28). */
 :focus-visible {
   outline: 2px solid #5b5fef;
@@ -281,6 +305,11 @@ body .ant-table-thead > tr > td {
     display: none;
   }
 }
+/* Hidden by default; the <=768px rule below reveals it. Kept in CSS (not an
+   inline style) so the media query can win. */
+.coop-topbar-menu-btn {
+  display: none;
+}
 @media (max-width: 768px) {
   .coop-topbar-menu-btn {
     display: inline-flex;
@@ -356,7 +385,7 @@ body .ant-table-thead > tr > td {
   }
 }
 
-/* --- CO OP loader (equalizer bars) --------------------------------------- */
+/* --- Co-op loader (equalizer bars) --------------------------------------- */
 /* Reusable in-app loader. Color is themed via --loader-color (set by the
    CoopLoader component); falls back to the brand indigo. */
 .loader {

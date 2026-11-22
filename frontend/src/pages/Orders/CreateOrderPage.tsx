@@ -306,7 +306,7 @@ const CreateOrderPage: React.FC = () => {
   // Shared bits
   // ------------------------------------------------------------------
   const stepLabel = (n: number, text: string) => (
-    <div style={{ ...type.titleMd, fontSize: 14.5, color: colors.onSurface, marginBottom: 10 }}>
+    <div style={{ ...type.titleMd, fontSize: 15, color: colors.onSurface, marginBottom: 10 }}>
       {n}. {text}
     </div>
   );
@@ -335,12 +335,15 @@ const CreateOrderPage: React.FC = () => {
       }}
     >
       <SearchOutlined style={{ color: colors.outline }} />
+      {/* A placeholder is not a label: it disappears the moment the user
+          types, and it was this input's only name (WCAG 3.3.2). */}
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={onFocus}
         onBlur={() => setTimeout(onBlur, 150)}
         placeholder={placeholder}
+        aria-label={placeholder}
         style={{
           flex: 1,
           border: 'none',
@@ -530,7 +533,7 @@ const CreateOrderPage: React.FC = () => {
                   <span style={{ display: 'block', fontWeight: 600, fontSize: 14, color: colors.onSurface }}>
                     Invoice — pay by invoice
                   </span>
-                  <span style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+                  <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
                     The order is confirmed and payment is collected by invoice.
                   </span>
                 </span>
@@ -550,7 +553,7 @@ const CreateOrderPage: React.FC = () => {
                   <span style={{ display: 'block', fontWeight: 600, fontSize: 14, color: colors.onSurface }}>
                     Card payment
                   </span>
-                  <span style={{ ...type.bodyCompact, fontSize: 12.5, color: colors.onSurfaceVariant }}>
+                  <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceVariant }}>
                     The card gateway connects in a later stage — no charges are processed yet.
                   </span>
                 </span>
@@ -654,7 +657,7 @@ const CreateOrderPage: React.FC = () => {
                 <CustomerAvatar name={selectedCustomer.full_name} size={30} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: colors.onSurface }}>{selectedCustomer.full_name}</div>
-                  <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>{selectedCustomer.email}</div>
+                  <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>{selectedCustomer.email}</div>
                 </div>
                 <button
                   type="button"
@@ -748,8 +751,8 @@ const CreateOrderPage: React.FC = () => {
                         >
                           <CustomerAvatar name={c.full_name} size={28} />
                           <span style={{ minWidth: 0 }}>
-                            <span style={{ display: 'block', fontWeight: 600, fontSize: 13.5, color: colors.onSurface }}>{c.full_name}</span>
-                            <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>{c.email}</span>
+                            <span style={{ display: 'block', fontWeight: 600, fontSize: 14, color: colors.onSurface }}>{c.full_name}</span>
+                            <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>{c.email}</span>
                           </span>
                         </button>
                       ))
@@ -828,7 +831,7 @@ const CreateOrderPage: React.FC = () => {
                     background: colors.surfaceContainer,
                     color: colors.primary,
                     fontWeight: 600,
-                    fontSize: 12.5,
+                    fontSize: 12,
                     borderRadius: radius.md,
                     padding: '6px 10px',
                     cursor: 'pointer',
@@ -887,8 +890,8 @@ const CreateOrderPage: React.FC = () => {
                         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       >
                         <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ display: 'block', fontWeight: 600, fontSize: 13.5, color: colors.onSurface }}>{p.name}</span>
-                          <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>
+                          <span style={{ display: 'block', fontWeight: 600, fontSize: 14, color: colors.onSurface }}>{p.name}</span>
+                          <span style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>
                             {p.sku} · {formatCurrency(p.unit_price)}
                           </span>
                         </span>
@@ -955,7 +958,7 @@ const CreateOrderPage: React.FC = () => {
                       <div
                         style={{
                           fontWeight: 600,
-                          fontSize: 13.5,
+                          fontSize: 14,
                           color: colors.onSurface,
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
@@ -964,7 +967,7 @@ const CreateOrderPage: React.FC = () => {
                       >
                         {l.product.name}
                       </div>
-                      <div style={{ ...type.bodyCompact, fontSize: 11.5, color: colors.outline }}>{l.product.sku}</div>
+                      <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>{l.product.sku}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                       <button
@@ -991,7 +994,7 @@ const CreateOrderPage: React.FC = () => {
                           minWidth: 24,
                           textAlign: 'center',
                           fontWeight: 600,
-                          fontSize: 13.5,
+                          fontSize: 14,
                           color: colors.onSurface,
                           fontVariantNumeric: 'tabular-nums',
                         }}
@@ -1032,7 +1035,7 @@ const CreateOrderPage: React.FC = () => {
                       style={{
                         textAlign: 'right',
                         fontWeight: 700,
-                        fontSize: 13.5,
+                        fontSize: 14,
                         color: colors.onSurface,
                         fontVariantNumeric: 'tabular-nums',
                       }}
@@ -1080,7 +1083,7 @@ const CreateOrderPage: React.FC = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.outline }}>Total</div>
+              <div style={{ ...type.bodyCompact, fontSize: 12, color: colors.onSurfaceMuted }}>Total</div>
               <div style={{ ...type.sectionHeading, fontSize: 22, color: colors.onSurface, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(grandTotal)}
               </div>

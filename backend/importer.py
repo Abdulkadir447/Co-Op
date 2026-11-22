@@ -16,6 +16,8 @@ Supported: CSV (any of , ; tab delimiters, UTF-8/UTF-8-BOM) and XLSX
 """
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
+
 import csv
 import io
 import re
@@ -37,11 +39,19 @@ def _parse_int(v: str) -> int:
     return int(s)
 
 
-def _parse_money(v: str) -> float:
+def _parse_money(v: str) -> Decimal:
+    """A number typed in a spreadsheet, parsed exactly.
+
+    Going through float here is how ₦4,500.00 becomes 4499.999999999999 in a
+    total three lines later, so the digits are read as a decimal directly.
+    """
     s = re.sub(r"[^\d\.\-]", "", v.strip())
     if s in ("", "-", "-."):
         raise ValueError("expected a number")
-    return float(s)
+    try:
+        return Decimal(s)
+    except InvalidOperation:
+        raise ValueError("expected a number")
 
 
 def _parse_date(v: str) -> str:
@@ -236,6 +246,12 @@ DATASETS: dict[str, DatasetSpec] = {
 # File parsing
 # ---------------------------------------------------------------------------
 
+# A 5 MB CSV is millions of rows; parsing them holds the whole thing in memory
+# and takes seconds of CPU per request. 20k rows is far more than a small shop
+# imports and keeps the endpoint bounded.
+MAX_IMPORT_ROWS = 20_000
+
+
 @dataclass
 class ParsedFile:
     filename: str
@@ -279,7 +295,19 @@ def _parse_csv(data: bytes) -> ParsedFile:
         delimiter = max({",", ";", "\t"}, key=header_line.count, default=",")
 
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
-    rows = [r for r in reader if any(c.strip() for c in r)]
+    rows = []
+    for row in reader:
+        if not any(c.strip() for c in row):
+            continue
+        rows.append(row)
+        if len(rows) > MAX_IMPORT_ROWS + 1:  # +1 for the header row
+            return ParsedFile(
+                "file", "csv", [], [],
+                error=(
+                    f"The file has more than {MAX_IMPORT_ROWS:,} rows. Split it "
+                    "into smaller files — nothing was imported."
+                ),
+            )
     if not rows:
         return ParsedFile("file", "csv", [], [], error="The file appears to be empty.")
     headers = [_clean_header(h) for h in rows[0]]
@@ -295,9 +323,21 @@ def _parse_xlsx(data: bytes) -> ParsedFile:
 
     wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     ws = wb.worksheets[0]  # v1: first worksheet only
-    rows = [[("" if c is None else str(c)) for c in row] for row in ws.iter_rows(values_only=True)]
+    rows = []
+    for row in ws.iter_rows(values_only=True):
+        if not any(str(c).strip() for c in row if c is not None):
+            continue
+        rows.append([("" if c is None else str(c)) for c in row])
+        if len(rows) > MAX_IMPORT_ROWS + 1:
+            wb.close()
+            return ParsedFile(
+                "file", "xlsx", [], [],
+                error=(
+                    f"The file has more than {MAX_IMPORT_ROWS:,} rows. Split it "
+                    "into smaller files — nothing was imported."
+                ),
+            )
     wb.close()
-    rows = [r for r in rows if any(c.strip() for c in r)]
     if not rows:
         return ParsedFile("file", "xlsx", [], [], error="The first worksheet appears to be empty.")
     headers = [_clean_header(h) for h in rows[0]]
@@ -954,6 +994,7 @@ async def execute_import(
     parsed: ParsedFile,
     dataset_key: str,
     mapping: dict[str, Optional[str]],
+    branch_id: Optional[int] = None,
 ) -> ImportResult:
     from .models import Customer, ImportBatch, Order, OrderItem, OrderStatus, Product
     from sqlalchemy import select
@@ -961,6 +1002,14 @@ async def execute_import(
     ds, field_col = _build_field_col(parsed, dataset_key, mapping)
     if parsed.error:
         raise ValueError(parsed.error)
+
+    # D1: imported orders are backfilled sales, so they land in a branch like
+    # every other sale. The route passes the caller's branch; a direct caller
+    # gets the business's default.
+    if branch_id is None:
+        from .branches import default_branch
+
+        branch_id = (await default_branch(db, business_id)).id
 
     # Provenance: one batch per committed import (spec item 9).
     batch = ImportBatch(business_id=business_id, dataset=dataset_key,
@@ -1223,6 +1272,7 @@ async def execute_import(
 
             o = Order(
                 business_id=business_id,
+                branch_id=branch_id,
                 customer_id=customer.id,
                 order_date=_dt.date.fromisoformat(rec["date"]),
                 status=OrderStatus.delivered,  # historic backfill
@@ -1235,6 +1285,7 @@ async def execute_import(
             await db.flush()  # assign o.id before the line items reference it
             db.add(OrderItem(
                 business_id=business_id,
+                branch_id=branch_id,
                 order_id=o.id,
                 product_id=product.id,
                 quantity=rec["qty"],

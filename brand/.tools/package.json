@@ -1,0 +1,9 @@
+{
+  "name": "coop-brand-tools",
+  "private": true,
+  "description": "Local-only renderer for brand/build-assets.mjs (sharp). Not part of the workspace; node_modules is gitignored.",
+  "type": "module",
+  "dependencies": {
+    "sharp": "^0.35.5"
+  }
+}
