@@ -89,17 +89,26 @@ test('the header fits a 320px screen once the trial button moves into the menu',
   const CHAR_REGULAR = 0.56;
   const textWidth = (text, px, em) => text.length * px * em;
 
-  // ≤560px: logo, menu button, theme toggle. The CTA is display:none.
+  // ≤560px: logo, menu button, theme toggle, and the compact CTA. The labelled
+  // CTA and the WhatsApp button are display:none and live in the menu.
   const small = {
     logoImage: 24,
     logoText: textWidth('Co-op', 17, CHAR_BOLD),
     logoGap: 8,
     menu: 44,
     theme: 38,
-    gaps: 8 * 2, // .topbar-inner gap between the three items
+    // "Try free" at 13.5px + 12px padding each side + 1px border each side.
+    compact: textWidth('Try free', 13.5, CHAR_BOLD) + 12 * 2 + 2,
+    gaps: 8 * 3, // four items, three gaps
   };
   const smallTotal =
-    small.logoImage + small.logoGap + small.logoText + small.menu + small.theme + small.gaps;
+    small.logoImage +
+    small.logoGap +
+    small.logoText +
+    small.menu +
+    small.theme +
+    small.compact +
+    small.gaps;
 
   // 16px gutter each side below 640px.
   const availableAt320 = 320 - 32;
@@ -115,6 +124,13 @@ test('the header fits a 320px screen once the trial button moves into the menu',
   assert.match(css, /\.nav-cta\s*\{\s*display:\s*none/); // desktop default
   assert.match(narrowBlock, /\.nav-cta\s*\{[^}]*display:\s*flex/, 'menu must carry the CTA');
   assert.match(app, /className="nav-cta"[^>]*href=\{TRIAL_HREF\}/, 'the menu CTA targets the trial');
+
+  // The compact CTA is the opposite rule: it must be VISIBLE exactly where the
+  // labelled one is hidden, or the primary action ends up behind the hamburger.
+  assert.match(css, /\.header-cta-compact\s*\{\s*display:\s*none/, 'hidden on desktop');
+  assert.match(narrowBlock, /\.header-cta-compact[^{]*\{[^}]*display:\s*inline-flex/, 'visible on a phone');
+  assert.match(app, /className="btn btn-primary btn-sm header-cta-compact"[\s\S]*?href=\{TRIAL_HREF\}/, 'compact CTA targets the trial');
+  assert.match(app, /aria-label="Start free trial"/, 'compact CTA keeps a full accessible name');
 
   // Hiding the header WhatsApp button is only safe because the menu carries a
   // replacement — otherwise a phone user loses the one contact route.

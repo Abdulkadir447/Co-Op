@@ -9,7 +9,7 @@
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NAV_ROUTES, ROUTES, useRouter } from '../router';
-import { CONTACT, TRIAL_HREF, CONTACT_IS_PLACEHOLDER, PRODUCT, whatsappHref } from '../site';
+import { CONTACT, TRIAL_HREF, TRIAL_PATH, CONTACT_IS_PLACEHOLDER, PRODUCT, whatsappHref } from '../site';
 import { track } from '../analytics';
 import { applyTheme, initialMode } from '../theme';
 
@@ -167,6 +167,22 @@ export function TopBar({ mode, onToggle }: { mode: 'light' | 'dark'; onToggle: (
         >
           Start free trial
         </a>
+
+        {/* Below 560px the labelled CTA above does not fit beside the logo, the
+            theme toggle and the menu button — but hiding the only action behind
+            a hamburger is how a phone visitor leaves without starting anything.
+            This is the same destination, shortened, and it is the last item in
+            the bar so it never pushes the logo off-screen. Its accessible name
+            stays the full "Start free trial" whatever the visible text says. */}
+        <a
+          className="btn btn-primary btn-sm header-cta-compact"
+          href={TRIAL_HREF}
+          aria-label="Start free trial"
+          onClick={() => track('cta_click', 'header-compact', 'Start free trial')}
+          {...(TRIAL_HREF.startsWith('http') ? { target: '_blank', rel: 'noreferrer' } : {})}
+        >
+          Try free
+        </a>
       </div>
     </header>
   );
@@ -200,7 +216,7 @@ export function Footer() {
                     <Link to="/pricing">Pricing</Link>
                   </li>
                   <li>
-                    <Link to="/signup">Start free trial</Link>
+                    <Link to={TRIAL_PATH}>Start free trial</Link>
                   </li>
                 </>
               )}
@@ -232,7 +248,10 @@ export function Footer() {
                     <Link to="/status">Status</Link>
                   </li>
                   <li>
-                    <a href={CONTACT.phone ? `mailto:${CONTACT.email}` : CONTACT.email}>Email us</a>
+                    {/* `mailto:` whether or not a phone exists — the old
+                        fallback put the bare address in `href`, which the
+                        browser treated as a relative path. */}
+                    <a href={`mailto:${CONTACT.email}`}>Email us</a>
                   </li>
                 </>
               )}

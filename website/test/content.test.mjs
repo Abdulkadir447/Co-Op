@@ -125,7 +125,16 @@ test('social proof is data-driven and starts empty, not faked', () => {
 test('the site says it is a preview instead of pretending to be launched', () => {
   assert.match(siteTs, /CONTACT_IS_PLACEHOLDER/);
   assert.match(layout, /Preview build/);
-  assert.match(siteTs, /isPlaceholder: true/);
+  // `isPlaceholder` is now derived from whether a real host was configured, not
+  // hard-coded: a literal `true` here outlived the day the host became real.
+  assert.match(siteTs, /isPlaceholder:\s*!configuredUrl/);
+  // And the fallback origin must be a host that resolves. `.example` is
+  // reserved by RFC 2606 — canonicalising to it de-indexes the site and breaks
+  // every link preview.
+  const fallback = siteTs.match(/const FALLBACK_URL = '([^']+)'/);
+  assert.ok(fallback, 'expected a FALLBACK_URL');
+  assert.doesNotMatch(fallback[1], /\.example/, 'the fallback host must be real');
+  assert.match(fallback[1], /^https:\/\//);
 });
 
 test('the case study page is honest about not having a customer yet', () => {

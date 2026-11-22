@@ -117,7 +117,14 @@ function page(template, route, html, siteUrl, data = []) {
 }
 
 async function main() {
-  const siteUrl = (process.env.VITE_PUBLIC_URL || 'https://coop.example').replace(/\/$/, '');
+  // The prerenderer runs as plain Node, so it cannot read `import.meta.env`.
+  // It must fall back to the SAME host the client bundle uses, or the canonical
+  // tags it writes and the ones the app writes at runtime disagree — which is
+  // how the site ended up canonicalising to a domain that does not resolve.
+  const siteUrl = (process.env.VITE_PUBLIC_URL || 'https://co-op-fawn.vercel.app').replace(
+    /\/$/,
+    '',
+  );
   const template = readFileSync(join(DIST, 'index.html'), 'utf8');
 
   await bundleForNode();

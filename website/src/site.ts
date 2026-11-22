@@ -27,16 +27,34 @@ export const PRODUCT = {
 } as const;
 
 /**
- * The site's own address.
+ * The site's own address — the origin that canonical tags, `og:url`, `og:image`
+ * and the sitemap are built from.
  *
- * TEMPORARY — `.example` is reserved by RFC 2606 and can never resolve, so a
- * placeholder link here cannot send anyone to a stranger's server. Change this
- * one line when the real domain exists (and the same host in index.html).
+ * This is not cosmetic. Until it matches the host people actually visit, every
+ * canonical tells Google the real page is somewhere that does not resolve, and
+ * every WhatsApp share — the channel this product leans on — renders with a
+ * dead link. A domain you do not own is not a safer default than a domain you
+ * do: `.example` is *provably* wrong, and wrong in a way that quietly de-indexes
+ * the site.
+ *
+ * So the default is the host the site is actually deployed to today. Set
+ * `VITE_PUBLIC_URL` at build time to the real domain and it takes over; when
+ * `coop.ng` exists this line changes and nothing else does.
  */
+const FALLBACK_URL = 'https://co-op-fawn.vercel.app';
+
+const configuredUrl = String((import.meta.env ?? {}).VITE_PUBLIC_URL ?? '')
+  .trim()
+  .replace(/\/+$/, '');
+
 export const SITE = {
-  url: 'https://coop.example',
-  /** Set from `VITE_PUBLIC_URL` at build time when a real host is configured. */
-  isPlaceholder: true,
+  url: configuredUrl || FALLBACK_URL,
+  /**
+   * True when the address is still the `*.vercel.app` fallback rather than a
+   * domain we own. Pages use it to keep the "preview build" notice honest;
+   * nothing user-facing should link differently because of it.
+   */
+  isPlaceholder: !configuredUrl,
 };
 
 /**

@@ -22,6 +22,21 @@
  *   · buttons are 44px tall so a thumb can hit them.
  */
 
+/* ── 0. Design tokens ────────────────────────────────────────────────────── */
+
+/**
+ * `tokens.css` defines every custom property the rest of this file reads, in
+ * both palettes. It has to be imported, and it has to be imported HERE, first.
+ *
+ * This was missing: nothing in `src/` imported `tokens.css`, so the built
+ * stylesheet contained 148 `var(--…)` uses and zero definitions. Everything
+ * still looked roughly right because the boot loader in `index.html` hard-codes
+ * its own colours — which is exactly why nobody caught it. The theme toggle set
+ * `data-theme` correctly and nothing repainted, because there were no dark
+ * values to repaint to.
+ */
+@import './tokens.css';
+
 /* ── 1. Reset + base ─────────────────────────────────────────────────────── */
 
 * { box-sizing: border-box; }
@@ -197,6 +212,8 @@ code { background: var(--surface-container); padding: 1px 5px; border-radius: va
 }
 .theme-toggle:hover { color: var(--primary); border-color: var(--primary); }
 .header-cta { margin-left: 8px; }
+/* Shown only where the labelled CTA is hidden — see the 560px block. */
+.header-cta-compact { display: none; margin-left: 8px; padding: 6px 12px; }
 /* WhatsApp sits left of the CTA as a secondary action. On a phone it moves
    into the menu panel (see the 560px block) rather than shrinking the header
    until the logo and the CTA collide. */
@@ -617,8 +634,12 @@ section.band { background: var(--surface-low); border-top: 1px solid var(--borde
 
 @media (max-width: 560px) {
   /* logo + menu + theme + CTA needs ~400px; a 320px phone gives 288.
-     The CTA moves into the menu panel — it is not removed. */
+     The labelled CTA and the WhatsApp button leave the bar, and both move into
+     the menu panel. The primary action does NOT leave the bar: "Try free"
+     replaces it (≈96px, measured below), because on a phone the one thing that
+     must not be behind a tap is the thing the page is selling. */
   .header-cta, .header-wa { display: none; }
+  .header-cta-compact { display: inline-flex; min-height: 36px; font-size: 13.5px; padding: 6px 12px; }
   .topbar-inner { gap: 8px; height: 60px; }
   .theme-toggle { margin-left: 0; }
   .logo { font-size: 17px; gap: 8px; }
