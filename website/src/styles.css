@@ -344,44 +344,31 @@ section.band { background: var(--surface-low); border-top: 1px solid var(--borde
 .avatar-lg { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; }
 .logo-wall { display: flex; flex-wrap: wrap; gap: 32px; align-items: center; opacity: .8; }
 
-/* Product preview (the "screenshot" above the fold) */
-.preview {
-  background: var(--surface-lowest);
-  border: 1px solid var(--border-subtle);
+/* Product screenshots (the shot above the fold)
+
+   These replaced a CSS mock built out of divs. The images are 1120px wide, so
+   they get a fluid width and a height derived from the file's own aspect ratio:
+   `height: auto` plus the width/height attributes in the markup is what stops
+   the hero jumping as the PNG decodes. */
+.shot { margin: 0; min-width: 0; }
+.shot-img {
+  display: block;
+  width: 100%;
+  height: auto;
   border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-overlay);
-  padding: 16px;
-  min-width: 0;
+  background: var(--surface-lowest);
 }
-.preview-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 14px; }
-.preview-bar span { width: 9px; height: 9px; border-radius: 50%; background: var(--surface-high); flex: none; }
-.preview-title { width: auto !important; height: auto !important; border-radius: 0 !important; background: none !important; margin-left: 8px; font-size: 11.5px; color: var(--on-surface-variant); letter-spacing: .02em; }
-.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.kpi { background: var(--surface-low); border-radius: var(--radius-lg); padding: 12px; min-width: 0; }
-.kpi .caps { color: var(--on-surface-variant); font-size: 10.5px; letter-spacing: .06em; }
-.k-value {
-  font-size: clamp(15px, 3.6vw, 21px);
-  font-weight: 700; margin: 5px 0 3px;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+/* The note is part of the honesty rule, not decoration: it is the difference
+   between a labelled drawing and a fake screenshot. Quiet, but legible. */
+.shot-note {
+  margin: 10px 2px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--on-surface-variant);
+  max-width: 62ch;
 }
-.k-delta { font-size: 10.5px; }
-.k-delta.up { color: var(--success-text); }
-.k-delta.warn { color: var(--warning-text); }
-.chart {
-  margin-top: 10px; height: 96px; border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, var(--primary-fixed), transparent);
-  border: 1px solid var(--border-subtle); position: relative; overflow: hidden;
-}
-.chart::after {
-  content: ''; position: absolute; inset: auto 0 0 0; height: 72%;
-  background: var(--ai-gradient); opacity: .28;
-  clip-path: polygon(0 72%, 14% 54%, 28% 62%, 42% 34%, 58% 46%, 74% 18%, 100% 30%, 100% 100%, 0 100%);
-}
-.preview-rows { margin-top: 10px; display: grid; gap: 1px; }
-.preview-rows div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; font-size: 12.5px; background: var(--surface-low); }
-.preview-rows div:first-child { border-radius: var(--radius-md) var(--radius-md) 0 0; }
-.preview-rows div:last-child { border-radius: 0 0 var(--radius-md) var(--radius-md); }
 
 /* Jobs (features page) */
 .job { display: grid; grid-template-columns: 1.15fr .85fr; gap: 40px; align-items: start; }
@@ -652,10 +639,8 @@ section.band { background: var(--surface-low); border-top: 1px solid var(--borde
   }
   .nav-cta:hover { background: var(--primary-container); color: var(--on-primary) !important; }
   .nav-wa { margin: 8px 20px 0; }
-  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .billing-toggle { width: 100%; justify-content: stretch; }
   .billing-toggle button { flex: 1; padding: 10px 8px; font-size: 13.5px; }
-  .k-value { font-size: 15px; }
   .foot-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; }
 }
 

@@ -215,58 +215,62 @@ export function LeadCapture({ surface = 'lead' }: { surface?: string }) {
   );
 }
 
-/* ── Product preview ──────────────────────────────────────────────────────── */
+/* ── Product screenshots ──────────────────────────────────────────────────── */
 
 /**
- * The "product shot" above the fold.
+ * The product shot above the fold.
  *
- * It is a rendered mock of the real Dashboard — same KPI labels, same Naira
- * formatting, same tokens as the app — not a stock screenshot of somebody
- * else's software and not an invented interface. When real screenshots land in
- * src/assets/screenshots they replace this only after someone has verified
- * they match the shipped build; until then an honest mock beats a fake photo.
+ * These are real PNGs rendered by `scripts/render-screenshots.py` from the
+ * app's own design tokens and component geometry — not the CSS mock this used
+ * to be, and not a photo of somebody else's software.
+ *
+ * They are still **mocks**, and the `figcaption` says so in the markup. That is
+ * not hedging: they show plausible trade numbers, not your shop's. When someone
+ * captures the running app, the note comes off — see
+ * `public/screenshots/README.md`.
+ *
+ * The images are sized in the HTML because an unsized image in a two-column
+ * hero is a layout shift on every load, and this one is above the fold.
  */
-export function AppPreview() {
+export function AppPreview({ dark = false }: { dark?: boolean }) {
   return (
-    <div className="preview" aria-hidden="true">
-      <div className="preview-bar">
-        <span />
-        <span />
-        <span />
-        <span className="preview-title">Co-op — Dashboard</span>
-      </div>
-      <div className="kpis">
-        <div className="kpi">
-          <div className="caps">Revenue today</div>
-          <div className="k-value">₦1,240,500</div>
-          <div className="caps k-delta up">▲ 12.4%</div>
-        </div>
-        <div className="kpi">
-          <div className="caps">Orders</div>
-          <div className="k-value">37</div>
-          <div className="caps k-delta up">▲ 5</div>
-        </div>
-        <div className="kpi">
-          <div className="caps">Low stock</div>
-          <div className="k-value">6</div>
-          <div className="caps k-delta warn">reorder</div>
-        </div>
-      </div>
-      <div className="chart" />
-      <div className="preview-rows">
-        <div>
-          <span>Rice 50kg</span>
-          <span className="muted">12 left</span>
-        </div>
-        <div>
-          <span>Cooking oil 5L</span>
-          <span className="muted">4 left</span>
-        </div>
-        <div>
-          <span>Peak milk (carton)</span>
-          <span className="muted">38 left</span>
-        </div>
-      </div>
-    </div>
+    <figure className="shot">
+      <img
+        className="shot-img"
+        src={dark ? '/screenshots/dashboard-dark.png' : '/screenshots/dashboard.png'}
+        width={1120}
+        height={700}
+        alt="Co-op's Overview screen: four KPI tiles for revenue, orders, inventory health and products, a monthly revenue bar chart, and a recent-orders table with Naira amounts and status pills."
+        loading="eager"
+        decoding="async"
+      />
+      <figcaption className="shot-note">
+        A mock of the Overview screen, drawn from the app's own design tokens. Not a
+        photograph of a live shop.
+      </figcaption>
+    </figure>
+  );
+}
+
+/**
+ * The receivables screen, used where the page is about money owed rather than
+ * the overview. Same honesty rule as above.
+ */
+export function ReceivablesShot() {
+  return (
+    <figure className="shot">
+      <img
+        className="shot-img"
+        src="/screenshots/receivables.png"
+        width={1120}
+        height={600}
+        alt="The Receivables screen: outstanding balance split into 0–30, 31–60 and 60+ day buckets, and a table of orders showing age, total, paid, balance due and whether each is paid, part paid or unpaid."
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption className="shot-note">
+        A mock of the Receivables screen, drawn from the app's own design tokens.
+      </figcaption>
+    </figure>
   );
 }

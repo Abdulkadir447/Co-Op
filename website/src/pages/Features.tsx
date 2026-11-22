@@ -7,7 +7,7 @@
  */
 import { Link } from '../router';
 import { Section, SectionHead, CtaBand } from '../components/Layout';
-import { Faq, AppPreview } from '../components/blocks';
+import { Faq, AppPreview, ReceivablesShot } from '../components/blocks';
 import { FAQ } from '../site';
 import { track } from '../analytics';
 
@@ -114,16 +114,22 @@ export default function Features() {
                 </Link>
               )}
             </div>
-            <ul className="job-list">
-              {job.bullets.map((b) => (
-                <li key={b}>
-                  <span className="tick" aria-hidden="true">
-                    ✓
-                  </span>
-                  {b}
-                </li>
-              ))}
-            </ul>
+            {job.id === 'customers' ? (
+              // This section is about aging debt, so it shows the screen that
+              // answers it instead of a list restating the paragraph.
+              <ReceivablesShot />
+            ) : (
+              <ul className="job-list">
+                {job.bullets.map((b) => (
+                  <li key={b}>
+                    <span className="tick" aria-hidden="true">
+                      ✓
+                    </span>
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </Section>
       ))}

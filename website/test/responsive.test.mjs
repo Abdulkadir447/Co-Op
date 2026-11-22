@@ -58,10 +58,15 @@ const gridTemplates = [...css.matchAll(/grid-template-columns:\s*([^;]+);/g)].ma
 
 test('the page cannot be pushed sideways by an unbreakable string', () => {
   assert.match(css, /img,\s*svg,\s*video,\s*iframe\s*\{\s*max-width:\s*100%;/);
-  for (const selector of ['.contact-link', '.k-value', '.card p', '.lead-done']) {
+  // `.k-value` used to be here: it held the ₦ amounts in the CSS mock of the
+  // dashboard. The mock is now a PNG, so the class is gone and so is the risk.
+  for (const selector of ['.contact-link', '.card p', '.lead-done']) {
     const block = new RegExp(`\\${selector}\\s*\\{[^}]*overflow-wrap:\\s*anywhere`, 's');
     assert.match(css, block, `${selector} needs overflow-wrap: anywhere`);
   }
+  // What replaced it: a 1120px-wide image has to scale down, not push.
+  assert.match(css, /\.shot-img\s*\{[^}]*width:\s*100%/s, '.shot-img must be fluid');
+  assert.match(css, /\.shot\s*\{[^}]*min-width:\s*0/s, '.shot must not have an automatic minimum');
 });
 
 test('no grid track can be sized by a long word', () => {
@@ -138,18 +143,22 @@ test('the header fits a 320px screen once the trial button moves into the menu',
   assert.match(app, /whatsappHref\(\)/, 'the WhatsApp entry must be gated on a real number');
 });
 
-test('the KPI tiles drop to two columns before the Naira amount overflows', () => {
-  assert.match(mediaBlock(560), /\.kpis\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+test('the product screenshots shrink instead of overflowing', () => {
+  // The mock this used to test was three KPI tiles in a grid: on a 320px phone
+  // the ₦ amount had to drop to two columns or overflow. The tiles are now a
+  // 1120px PNG, so the rules that matter are different — and simpler to get
+  // wrong, because an image with a fixed width attribute will happily push a
+  // page sideways.
+  assert.match(css, /\.shot-img\s*\{[^}]*display:\s*block/s);
+  assert.match(css, /\.shot-img\s*\{[^}]*width:\s*100%/s);
+  assert.match(css, /\.shot-img\s*\{[^}]*height:\s*auto/s, 'height must not be forced to the attribute');
 
-  // ₦1,240,500 at the clamped size inside a two-column tile on a 320px screen:
-  // container 288 - card padding (14*2) = 260; two tracks minus one 12px gap
-  // = 248; two halves = 124 per tile; minus its 14*2 padding = 96 of text.
-  const tileText = 320 - 32 - 14 * 2; // 260
-  const perTile = (tileText - 12) / 2; // 124
-  const usable = perTile - 14 * 2; // 96
-  // clamp(15px, 4.4vw, 22px) at 320px = max(15, 14.08) = 15px.
-  const amountWidth = '₦1,240,500'.length * 15 * 0.62;
-  assert.ok(amountWidth <= usable, `amount needs ${amountWidth}px, tile gives ${usable}px`);
+  // Nothing on the page may hard-code a pixel width for the shot.
+  assert.doesNotMatch(css, /\.shot[^{]*\{[^}]*width:\s*\d{3,}px/s);
+  assert.doesNotMatch(app, /<img[^>]*style=/);
+
+  // And the figure has to be allowed to be narrower than its content.
+  assert.match(css, /\.shot\s*\{[^}]*min-width:\s*0/s);
 });
 
 test('display headings scale instead of being fixed for desktop', () => {

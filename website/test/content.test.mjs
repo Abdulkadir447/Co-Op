@@ -17,13 +17,20 @@
  */
 import test from 'node:test';
 import assert from 'node:assert';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SITE = join(HERE, '..');
 const read = (p) => readFileSync(join(SITE, p), 'utf8');
+
+/** Read width/height out of a PNG's IHDR chunk — no image library needed. */
+function pngSize(file) {
+  const buf = readFileSync(file);
+  assert.equal(buf.subarray(1, 4).toString(), 'PNG', `${file} is not a PNG`);
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
 
 const router = read('src/router.tsx');
 const siteTs = read('src/site.ts');
@@ -297,4 +304,59 @@ test('no page is gated behind a form', () => {
     const src = read(`src/pages/${page}.tsx`);
     assert.doesNotMatch(src, /<form[^>]*>[^<]*<input[^>]*type="email"[^>]*required/, `${page} is gated`);
   }
+});
+
+/* ── Product screenshots ──────────────────────────────────────────────────── */
+
+test('every screenshot on the site exists, is the size the markup claims, and is labelled a mock', () => {
+  const shot = read('src/components/blocks.tsx');
+  const dir = join(SITE, 'public', 'screenshots');
+  const files = readdirSync(dir).filter((f) => f.endsWith('.png'));
+  assert.ok(files.length >= 2, 'expected the dashboard and receivables shots');
+
+  for (const name of files) {
+    // Referenced at all? `AppPreview` picks its file with a ternary, so the
+    // name appears as a literal inside src={…} rather than after `src="`.
+    const at = shot.indexOf(`/screenshots/${name}`);
+    assert.ok(at > 0, `${name} is in public/ but nothing references it`);
+
+    const { width, height } = pngSize(join(dir, name));
+    // Width/height attributes are what reserve the box before the PNG decodes.
+    // If they drift from the file, the hero shifts as it loads.
+    const near = shot.slice(at, at + 700);
+    const w = near.match(/width=\{(\d+)\}/);
+    const h = near.match(/height=\{(\d+)\}/);
+    assert.ok(w && h, `${name} needs explicit width and height attributes`);
+    assert.equal(Number(w[1]), width, `${name}: attribute says ${w[1]}px, file is ${width}px`);
+    assert.equal(Number(h[1]), height, `${name}: attribute says ${h[1]}px, file is ${height}px`);
+  }
+
+  // The honest bit. A screenshot that does not admit to being a mock is a fake
+  // screenshot, which is the one thing this site must not ship.
+  const captions = [...shot.matchAll(/shot-note[\s\S]{0,220}?<\/figcaption>/g)].map((m) => m[0]);
+  assert.ok(captions.length >= 2, 'every figure needs a caption');
+  for (const caption of captions) {
+    assert.match(caption, /[Mm]ock/, `caption must say it is a mock: ${caption.slice(0, 80)}`);
+  }
+
+  // Alt text describes the screen, not the file. Scoped to the figures: the
+  // testimonial and About avatars in this same file correctly use alt="" —
+  // they are decorative, because the name is right beside them.
+  const figures = [...shot.matchAll(/<figure className="shot"[\s\S]*?<\/figure>/g)].map((m) => m[0]);
+  assert.equal(figures.length, 2, 'expected exactly the two product figures');
+  for (const figure of figures) {
+    const alt = (figure.match(/alt="([^"]*)"/) || [])[1];
+    assert.ok(alt && alt.length > 30, `product image needs descriptive alt text: ${JSON.stringify(alt)}`);
+    assert.doesNotMatch(alt, /\.png|screenshot of/i, 'alt must describe the screen, not the file');
+  }
+});
+
+test('the site ships no CSS mock of the dashboard any more', () => {
+  const app = read('src/components/blocks.tsx');
+  // The old mock was divs with hard-coded Naira amounts. If it comes back, the
+  // numbers on the marketing site are invented again — which is exactly the
+  // thing `AppPreview` replaced it to avoid.
+  assert.doesNotMatch(app, /className="kpis"/);
+  assert.doesNotMatch(app, /₦1,240,500/);
+  assert.doesNotMatch(read('src/styles.css'), /\.k-value\s*\{/);
 });
