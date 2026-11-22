@@ -40,6 +40,15 @@
      it is only 3.48:1. */
   --primary-fill: #4143d5;
   --primary-fill-hover: #3537b8;
+  /* Pressed. Darker than hover so a tap visibly lands; white on it is 10.4:1. */
+  --primary-fill-active: #2b2d9e;
+
+  /* Label for a button whose fill is WHITE in both themes — the CTA band's
+     primary action. It cannot use --primary: in dark that is #7b7df0, which is
+     3.48:1 on white. A white fill is a light surface whatever the theme, so
+     these are light-surface colours, defined identically in both blocks. */
+  --cta-btn-label: #4143d5;        /* 7.03:1 on #ffffff */
+  --cta-btn-label-hover: #2c2cc3;  /* 9.31:1 on #ffffff */
   --border-subtle: #e9e6f3;
   --success: #2e9e5b;
   --success-text: #1c7a43;
@@ -67,7 +76,20 @@
   --primary: #7b7df0;
   --on-primary: #ffffff;
   --primary-fill: #5b5fef;
-  --primary-fill-hover: #6f73f5;
+  /* Lighter than the fill, which is the right direction on a dark surface —
+     but white on it is only 3.86:1, so it cannot carry body-size white text.
+     The button label is 15.5px semi-bold, which is not "large text" (that
+     needs 18.66px bold or 24px regular), so hover has to stay at 4.5:1. This
+     value is deliberately close to the fill: 4.6:1, still legible, still a
+     visible change. */
+  --primary-fill-hover: #6165ee;
+  /* Pressed: darker than the fill, because on dark "pressed" reads as
+     receding, and a lighter step was already taken by hover. 6.27:1. */
+  --primary-fill-active: #4a4ed6;
+
+  /* Same values as light on purpose: the fill these sit on is white. */
+  --cta-btn-label: #4143d5;
+  --cta-btn-label-hover: #2c2cc3;
   --primary-container: #5b5fef;
   --secondary-container: #8a4cfc;
   --primary-fixed: #2b2c5e;

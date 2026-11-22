@@ -17,7 +17,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -175,4 +175,33 @@ test('email validation catches a typo without rejecting valid addresses', () => 
   assert.equal(trial.looksLikeEmail('amaka.example.com'), false);
   assert.equal(trial.looksLikeEmail('am aka@example.com'), false);
   assert.equal(trial.looksLikeEmail(''), false);
+});
+
+// ── The submit path must report what actually failed ────────────────────────
+
+test('the invalid-field list is read from validate, not from stale state', () => {
+  // `validate()` used to return a boolean while the caller read `errors` —
+  // which `setErrors` had not applied yet, because state updates are async. The
+  // analytics event therefore always carried an empty field list, so the one
+  // number that says why people abandon the form was blank.
+  const page = readFileSync(join(SITE, 'src/pages/Trial.tsx'), 'utf8');
+  assert.match(page, /const validate = \(\): string\[\]/, 'validate must return the failing fields');
+  assert.match(page, /const invalid = validate\(\)/);
+  // Strip comments first: the doc comment above validate() explains the old
+  // bug by name, and matching prose is not evidence of the bug.
+  const code = page.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(
+    code,
+    /Object\.keys\(errors\)/,
+    'reading `errors` straight after setErrors gives the previous render',
+  );
+  assert.match(page, /invalid\.join\(','\)/, 'the event must carry the field names');
+});
+
+test('a rejected form moves focus to the first bad field', () => {
+  const page = readFileSync(join(SITE, 'src/pages/Trial.tsx'), 'utf8');
+  // An error message below the fold is not feedback. This also matters for
+  // screen readers, which announce the field that receives focus.
+  assert.match(page, /\.focus\(\)/);
+  assert.match(page, /input\[name="\$\{invalid\[0\]\}"\]/);
 });

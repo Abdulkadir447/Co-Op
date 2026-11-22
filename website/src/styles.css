@@ -58,7 +58,13 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
-a:hover { color: var(--primary); }
+/* Links get the brand colour on hover — EXCEPT anything that sets its own
+   label colour. `.btn-primary` is an <a>, so the old bare `a:hover` (specificity
+   0,1,1) beat `.btn-primary:hover` (0,1,0) and repainted the label purple while
+   the background was also purple: 1.25:1, an invisible button. */
+:where(a, button):not(.btn, .cta-btn-secondary, .nav-cta, .theme-toggle, .nav a):hover {
+  color: var(--primary);
+}
 img, svg, video, iframe { max-width: 100%; }
 h1, h2, h3, h4 { line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.015em; }
 p { margin: 0 0 14px; }
@@ -158,10 +164,54 @@ code { background: var(--surface-container); padding: 1px 5px; border-radius: va
   border: 1px solid transparent;
   transition: background .18s, box-shadow .18s, color .18s, border-color .18s, transform .18s;
 }
-.btn-primary { background: var(--primary-fill); color: var(--on-primary); box-shadow: var(--shadow-brand-tile); }
-.btn-primary:hover { background: var(--primary-fill-hover); }
-.btn-ghost { background: var(--surface-lowest); color: var(--on-surface); border-color: var(--outline-variant); }
-.btn-ghost:hover { color: var(--primary); border-color: var(--primary); }
+.btn-primary {
+  background: var(--primary-fill);
+  color: var(--on-primary);
+  box-shadow: var(--shadow-brand-tile);
+}
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  background: var(--primary-fill-hover);
+  color: var(--on-primary);
+}
+/* Pressed: darker than hover, and the shadow goes away so it reads as "in".
+   Dark mode had no darker step (its hover is already lighter than its fill and
+   white on it is 3.86:1), so `--primary-fill-active` is a new token defined
+   per theme rather than a second hard-coded colour here. */
+.btn-primary:active {
+  background: var(--primary-fill-active);
+  color: var(--on-primary);
+  box-shadow: none;
+  transform: translateY(1px);
+}
+.btn-primary:disabled,
+.btn-primary[aria-disabled='true'] {
+  background: var(--primary-fill);
+  color: var(--on-primary);
+  opacity: .55;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-ghost {
+  background: var(--surface-lowest);
+  color: var(--on-surface);
+  border-color: var(--outline-variant);
+}
+.btn-ghost:hover,
+.btn-ghost:focus-visible {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--surface-low);
+}
+.btn-ghost:disabled,
+.btn-ghost[aria-disabled='true'] { opacity: .55; cursor: not-allowed; transform: none; }
+.btn-ghost:active {
+  background: var(--surface-container);
+  color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(1px);
+}
 .btn-sm { min-height: 36px; padding: 6px 14px; font-size: 14px; }
 .btn-lg { min-height: 50px; padding: 13px 26px; font-size: 16.5px; }
 
@@ -211,6 +261,7 @@ code { background: var(--surface-container); padding: 1px 5px; border-radius: va
   color: var(--on-surface-variant); font-size: 15px; cursor: pointer;
 }
 .theme-toggle:hover { color: var(--primary); border-color: var(--primary); }
+.theme-toggle:active { background: var(--surface-container); color: var(--primary); transform: scale(.94); }
 .header-cta { margin-left: 8px; }
 /* Shown only where the labelled CTA is hidden — see the 560px block. */
 .header-cta-compact { display: none; margin-left: 8px; padding: 6px 12px; }
@@ -388,6 +439,8 @@ section.band { background: var(--surface-low); border-top: 1px solid var(--borde
   font: inherit; font-size: 14.5px; font-weight: 600; color: var(--on-surface-variant);
 }
 .billing-toggle button[aria-pressed="true"] { background: var(--surface-lowest); color: var(--on-surface); box-shadow: var(--shadow-soft); }
+.billing-toggle button:hover:not([aria-pressed="true"]) { color: var(--on-surface); }
+.billing-toggle button:active { transform: scale(.97); }
 .billing-toggle .save { color: var(--success-text); font-size: 12.5px; }
 
 .plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
@@ -466,10 +519,16 @@ section.band { background: var(--surface-low); border-top: 1px solid var(--borde
 .cta-actions { display: flex; flex-wrap: wrap; justify-content: center; }
 .cta-actions.left { justify-content: flex-start; }
 .cta-actions .btn { margin: 5px; min-width: 0; max-width: 100%; }
-.cta .btn-primary { background: #fff; color: var(--primary); border-color: #fff; }
-.cta .btn-primary:hover { background: var(--primary-fill-hover); }
+.cta .btn-primary { background: #fff; color: var(--cta-btn-label); border-color: #fff; }
+/* Was `background: var(--primary-fill-hover)` with the label still --primary:
+   purple on purple, 1.25:1 in light and 1.11:1 in dark. Hover now keeps the
+   white fill and darkens the label instead. */
+.cta .btn-primary:hover,
+.cta .btn-primary:focus-visible { background: #fff; color: var(--cta-btn-label-hover); }
+.cta .btn-primary:active { background: #fff; color: var(--cta-btn-label-hover); box-shadow: none; }
 .cta .btn.cta-btn-secondary { background: transparent; color: #fff; border-color: rgb(255 255 255 / .7); }
 .cta .btn.cta-btn-secondary:hover { background: rgb(255 255 255 / .15); color: #fff; border-color: #fff; }
+.cta .btn.cta-btn-secondary:active { background: rgb(255 255 255 / .25); color: #fff; border-color: #fff; }
 
 /* Signup */
 .signup { display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: start; }
@@ -494,7 +553,12 @@ section.band { background: var(--surface-low); border-top: 1px solid var(--borde
   border: 1px solid var(--outline-variant); border-radius: var(--radius-md);
 }
 .field input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
-.field input[aria-invalid='true'] { border-color: var(--warning-text); }
+.field input[aria-invalid='true'] {
+  /* Not colour alone: the border thickens too, so the error is visible to
+     someone who cannot distinguish the hue (WCAG 1.4.1). */
+  border-color: var(--warning-text);
+  border-width: 2px;
+}
 .field-hint { margin: 0; font-size: 12.5px; color: var(--on-surface-variant); }
 .field-error { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--warning-text); }
 .trial-form .btn-primary { width: 100%; margin-top: 4px; }
@@ -633,11 +697,17 @@ section.band { background: var(--surface-low); border-top: 1px solid var(--borde
   .logo svg { width: 24px; height: 24px; }
   .nav-cta {
     display: flex; margin: 8px 20px 4px; padding: 14px 20px;
-    background: var(--primary); color: var(--on-primary) !important;
+    /* --primary-fill, not --primary: on dark, --primary is tuned for link text
+       and white on it is 3.48:1. The fill token is the one measured for a
+       white label. */
+    background: var(--primary-fill); color: var(--on-primary);
     border-radius: var(--radius-lg); justify-content: center;
     font-size: 16px; font-weight: 600; text-align: center;
   }
-  .nav-cta:hover { background: var(--primary-container); color: var(--on-primary) !important; }
+  /* No !important: the base .btn-primary:hover now sets its own colour at a
+     specificity that wins honestly. --primary-fill-hover is the fill used. */
+  .nav-cta:hover,
+  .nav-cta:active { background: var(--primary-fill-hover); color: var(--on-primary); }
   .nav-wa { margin: 8px 20px 0; }
   .billing-toggle { width: 100%; justify-content: stretch; }
   .billing-toggle button { flex: 1; padding: 10px 8px; font-size: 13.5px; }

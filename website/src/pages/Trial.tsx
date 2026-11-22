@@ -60,20 +60,34 @@ export default function Trial() {
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const validate = () => {
+  /**
+   * Returns the fields that failed, so the caller can act on them.
+   *
+   * It used to return a boolean and the caller then read `errors` — but
+   * `setErrors` is async, so `Object.keys(errors)` was the PREVIOUS render's
+   * value. Every rejection was therefore tracked with an empty field list, and
+   * the one number that says why people do not finish the form was always
+   * blank. Returning the object is the fix; the state is only for rendering.
+   */
+  const validate = (): string[] => {
     const next: Record<string, string> = {};
     if (form.name.trim().length < 2) next.name = 'Please type your name.';
     if (form.shopName.trim().length < 2) next.shopName = 'What is the shop called?';
     if (!looksLikeEmail(form.email)) next.email = 'That email is missing something.';
     if (!looksLikeNigerianMobile(form.whatsapp)) next.whatsapp = 'A Nigerian mobile number, e.g. 0801 234 5678.';
     setErrors(next);
-    return Object.keys(next).length === 0;
+    return Object.keys(next);
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) {
-      track('trial_form_invalid', 'trial', Object.keys(errors).join(','));
+    const invalid = validate();
+    if (invalid.length > 0) {
+      track('trial_form_invalid', 'trial', invalid.join(','));
+      // Move focus to the first bad field: on a phone the form is longer than
+      // the screen, and a red message the user cannot see is not feedback.
+      const first = document.querySelector<HTMLInputElement>(`input[name="${invalid[0]}"]`);
+      first?.focus();
       return;
     }
     setSubmitting(true);

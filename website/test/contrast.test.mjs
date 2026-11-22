@@ -54,14 +54,24 @@ const TEXT_PAIRS = [
   ['primary', 'surface', 'links', 4.5],
   ['primary', 'surface-lowest', 'links on a card', 4.5],
   ['on-primary', 'primary-fill', 'primary button label', 4.5],
+  // The states, which were never checked and that is how hover shipped at
+  // 3.86:1 in dark and the CTA band shipped at 1.25:1 on hover.
+  ['on-primary', 'primary-fill-hover', 'primary button label on hover', 4.5],
+  ['on-primary', 'primary-fill-active', 'primary button label while pressed', 4.5],
+  ['cta-btn-label', 'cta-white', 'CTA-band button label', 4.5],
+  ['cta-btn-label-hover', 'cta-white', 'CTA-band button label on hover', 4.5],
   ['success-text', 'surface', 'success message', 4.5],
   ['warning-text', 'surface', 'warning message', 4.5],
 ];
 
+/** A literal colour, for the one fill that is white in both themes. */
+const ctaWhite = () => '#ffffff';
+
 for (const theme of ['light', 'dark']) {
   test(`${theme} theme: every text pair clears WCAG AA`, () => {
     for (const [fg, bg, label, min] of TEXT_PAIRS) {
-      const ratio = contrast(token(theme, fg), token(theme, bg));
+      const colour = (name) => (name === 'cta-white' ? ctaWhite() : token(theme, name));
+      const ratio = contrast(colour(fg), colour(bg));
       assert.ok(
         ratio >= min,
         `${label} is ${ratio.toFixed(2)}:1 in ${theme} (needs ${min}:1) — ${fg} on ${bg}`,
@@ -86,4 +96,73 @@ test('no stylesheet rule uses the icon colour for body-sized text', () => {
     .split('\n')
     .filter((line) => /color:\s*var\(--outline\)/.test(line));
   assert.deepEqual(offenders, [], `use --on-surface-variant for text:\n${offenders.join('\n')}`);
+});
+
+/* ── Button states ─────────────────────────────────────────────────────────── */
+
+/**
+ * The bug these tests exist for: `.btn-primary` is an `<a>`, and a bare
+ * `a:hover { color: var(--primary) }` has specificity (0,1,1) — higher than
+ * `.btn-primary:hover` (0,1,0). So hovering a primary button repainted its
+ * white label purple on a purple fill: 1.25:1, an invisible button. Every
+ * other state was unaudited, and `:active` did not exist at all, which meant a
+ * press had no visual feedback beyond the browser's default.
+ */
+test('the generic link hover cannot override a button label', () => {
+  const styles = readFileSync(join(HERE, '..', 'src', 'styles.css'), 'utf8');
+
+  // The rule must be scoped away from anything that colours its own label.
+  const generic = styles.match(/[^{}\n]*:hover\s*\{[^}]*color:\s*var\(--primary\)[^}]*\}/g) ?? [];
+  const unscoped = generic.filter((rule) => /^a:hover|^\s*a:hover/.test(rule));
+  assert.deepEqual(
+    unscoped,
+    [],
+    `a bare a:hover re-colours every link-shaped button; scope it with :where(...):not(.btn):\n${unscoped.join('\n')}`,
+  );
+});
+
+test('every button state is defined, not just the resting one', () => {
+  const styles = readFileSync(join(HERE, '..', 'src', 'styles.css'), 'utf8');
+  const states = ['hover', 'focus-visible', 'active', 'disabled'];
+  for (const state of states) {
+    assert.match(
+      styles,
+      new RegExp(`\\.btn-primary:${state}`),
+      `.btn-primary has no :${state} state — a press with no feedback reads as a dead button`,
+    );
+  }
+  // A pressed button must also move or lose its shadow, or the press is
+  // invisible on a touch screen where there is no hover to compare against.
+  const active = styles.match(/\.btn-primary:active\s*\{[^}]*\}/s)[0];
+  assert.match(active, /transform:\s*translateY|box-shadow:\s*none/, 'pressed state needs feedback');
+  // And it must re-declare its colour: a state that changes the background
+  // without restating the label is how purple-on-purple happens.
+  assert.match(active, /color:\s*var\(--on-primary\)/);
+  // Anchored to the rule header; an unanchored search ran past the closing
+  // brace and matched the *next* rule's colour, which is a false pass waiting
+  // to happen.
+  const hover = styles.match(/^\s*\.btn-primary:hover,[\s\S]*?\{[^}]*\}/m)[0];
+  assert.match(hover, /color:\s*var\(--on-primary\)/);
+});
+
+test('the CTA band button is legible in every state it can be in', () => {
+  const styles = readFileSync(join(HERE, '..', 'src', 'styles.css'), 'utf8');
+  // It sits on a white fill in BOTH themes, so using --primary as its label is
+  // 3.48:1 on dark before any hover is involved.
+  for (const rule of styles.match(/\.cta \.btn-primary[^{]*\{[^}]*\}/gs) ?? []) {
+    assert.doesNotMatch(rule, /color:\s*var\(--primary\)\s*;/, `CTA button uses --primary on white: ${rule}`);
+    assert.match(rule, /color:\s*var\(--cta-btn-label(-hover)?\)/);
+  }
+  // Hover must not leave the label colour behind while the fill moves.
+  const hover = styles.match(/\.cta \.btn-primary:hover[^{]*\{[^}]*\}/s)[0];
+  assert.match(hover, /background:\s*#fff/, 'the fill must stay white in both themes');
+  assert.match(hover, /color:\s*var\(--cta-btn-label-hover\)/);
+});
+
+test('no button declares !important to win a colour fight', () => {
+  const styles = readFileSync(join(HERE, '..', 'src', 'styles.css'), 'utf8');
+  const decls = styles
+    .split('\n')
+    .filter((line) => line.includes('!important') && !line.trimStart().startsWith('/*'));
+  assert.deepEqual(decls, [], `!important on a colour is a specificity bug in disguise:\n${decls.join('\n')}`);
 });
